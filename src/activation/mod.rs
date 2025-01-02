@@ -6,8 +6,7 @@ use typetag;
 pub trait ActivationFunction: ActivationFunctionClone + Send {
     fn forward(&mut self, input: &mut DenseMatrix);
     fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix);
-    // Static method for initialization formula
-    fn weight_initialization_function() -> fn(usize, usize) -> f32;
+    fn weight_initialization_function(&self) -> fn(usize, usize) -> f32;
 }
 
 pub trait ActivationFunctionClone {

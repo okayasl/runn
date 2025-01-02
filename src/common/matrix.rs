@@ -1,4 +1,3 @@
-
 use nalgebra::DMatrix;
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +8,7 @@ pub struct DenseMatrix {
 }
 
 impl DenseMatrix {
-    /// Creates a new dense matrix with given rows, columns, and data.
+    /// Creates a new dense matrix with given rows, columns, and data. Always create in row major order.
     pub fn new(rows: usize, cols: usize, data: &[f32]) -> Self {
         Self {
             data: DMatrix::from_row_slice(rows, cols, data),
@@ -93,9 +92,7 @@ impl DenseMatrix {
         let rows = k - i;
         let cols = l - j;
         let view = self.data.view((i, j), (rows, cols));
-        Self {
-            data: view.into_owned(),
-        }
+        Self { data: view.into() }
     }
 
     /// Sets the values of a specific row.
@@ -107,18 +104,21 @@ impl DenseMatrix {
 
     /// Clips all values to be within [-threshold, threshold]
     pub fn clip(&mut self, threshold: f32) {
-        for val in self.data.iter_mut() {
-            if *val > threshold {
-                *val = threshold;
-            } else if *val < -threshold {
-                *val = -threshold;
+        if threshold > 0.0 {
+            let norm = self.norm(2.0);
+            if norm > threshold {
+                let scale = threshold / norm;
+                self.scale(scale);
             }
         }
     }
 
     /// Flattens the matrix into a single vector of elements in row major layout.
     pub fn flatten(&self) -> Vec<f32> {
-        self.data.as_slice().to_vec()
+        self.data
+            .row_iter() // Iterate over rows
+            .flat_map(|row| row.into_iter().cloned()) // Flatten each row into the resulting vector
+            .collect()
     }
 
     /// Calculates the norm of the matrix (L1 or L2 supported).
@@ -141,29 +141,10 @@ impl DenseMatrix {
     }
 }
 
-// Type aliases for common float types
-pub type DenseMatrix32 = DenseMatrix;
-pub type DenseMatrix64 = DenseMatrix;
-
 // Example usage in tests
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_different_float_types() {
-        // f32 matrix
-        let matrix32 = DenseMatrix32::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        assert_eq!(matrix32.at(0, 0), 1.0f32);
-
-        // f64 matrix
-        let matrix64 = DenseMatrix64::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        assert_eq!(matrix64.at(0, 0), 1.0f32);
-
-        // Convert from f32 to f64
-        // let converted = matrix32.convert::<f64>();
-        // assert_eq!(converted.at(0, 0), 1.0f64);
-    }
 
     #[test]
     fn test_at() {
@@ -368,6 +349,6 @@ mod tests {
 
         let mut matrix = DenseMatrix::new(2, 2, &vec![6.0, 8.0, 0.0, 0.0]);
         matrix.clip(5.0);
-        assert_eq!(matrix.data.as_slice(), &[5.0, 5.0, 0.0, 0.0]);
+        assert_eq!(matrix.data.as_slice(), &[3.0, 4.0, 0.0, 0.0]);
     }
 }
