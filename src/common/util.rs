@@ -1,50 +1,34 @@
 use matrix::DenseMatrix;
-use rand_distr::num_traits::{Float, One, Zero};
 
-use std::{
-    fmt::Debug,
-    iter::Sum,
-    ops::{AddAssign, MulAssign, SubAssign},
-};
 
 use super::matrix;
 
 /// Find minimum and maximum values for each column
-pub fn find_min_max<T>(matrix: &DenseMatrix<T>) -> (Vec<T>, Vec<T>)
-where
-    T: Float + AddAssign + SubAssign + MulAssign + Zero + One + Send + Sync + Debug + Sum + 'static,
-{
+pub fn find_min_max(matrix: &DenseMatrix) -> (Vec<f32>, Vec<f32>) {
     let (rows, cols) = (matrix.rows(), matrix.cols());
-    let mut mins = vec![T::infinity(); cols];
-    let mut maxs = vec![T::neg_infinity(); cols];
+    let mut mins = vec![f32::INFINITY; cols];
+    let mut maxs = vec![f32::NEG_INFINITY; cols];
 
     for j in 0..cols {
         for i in 0..rows {
-            let value = matrix.at(i, j);
-            mins[j] = mins[j].min(value);
-            maxs[j] = maxs[j].max(value);
+            let val = matrix.at(i, j);
+            if val < mins[j] {
+                mins[j] = val;
+            }
+            if val > maxs[j] {
+                maxs[j] = val;
+            }
         }
     }
+
     (mins, maxs)
 }
 
 /// Normalize matrix values to range [0, 1] using min-max normalization
-pub fn normalize<T>(matrix: &DenseMatrix<T>, mins: &[T], maxs: &[T]) -> Option<DenseMatrix<T>>
-where
-    T: Float
-        + AddAssign
-        + SubAssign
-        + MulAssign
-        + Zero
-        + One
-        + Send
-        + Sync
-        + Clone
-        + Debug
-        + Sum
-        + 'static,
-{
+pub fn normalize(matrix: &DenseMatrix, mins: &[f32], maxs: &[f32]) -> Option<DenseMatrix> {
     let (rows, cols) = (matrix.rows(), matrix.cols());
+
+    // Check if dimensions match
     if mins.len() != cols || maxs.len() != cols {
         return None;
     }
@@ -52,57 +36,47 @@ where
     let mut normalized = DenseMatrix::zeros(rows, cols);
     for i in 0..rows {
         for j in 0..cols {
-            let normalized_value = (matrix.at(i, j) - mins[j]) / (maxs[j] - mins[j]);
-            normalized.set(i, j, normalized_value);
+            let val = matrix.at(i, j);
+            let min = mins[j];
+            let max = maxs[j];
+
+            if (max - min).abs() < f32::EPSILON {
+                normalized.set(i, j, 0.0);
+            } else {
+                normalized.set(i, j, (val - min) / (max - min));
+            }
         }
     }
+
     Some(normalized)
 }
 
 /// Calculate accuracy by comparing max values in each row
-pub fn calculate_accuracy<T>(predictions: &DenseMatrix<T>, targets: &DenseMatrix<T>) -> T
-where
-    T: Float
-        + AddAssign
-        + SubAssign
-        + MulAssign
-        + Zero
-        + One
-        + Send
-        + Sync
-        + Clone
-        + Debug
-        + Sum
-        + 'static,
-{
+pub fn calculate_accuracy(predictions: &DenseMatrix, targets: &DenseMatrix) -> f32 {
     let rows = predictions.rows();
-    let mut correct = T::zero();
+    if rows == 0 || predictions.rows() != targets.rows() || predictions.cols() != targets.cols() {
+        return 0.0;
+    }
 
+    let mut correct = 0;
     for i in 0..rows {
-        if find_max_index_in_row(predictions, i) == find_max_index_in_row(targets, i) {
-            correct = correct + T::one();
+        let pred_max_idx = find_max_index_in_row(predictions, i);
+        let target_max_idx = find_max_index_in_row(targets, i);
+        if pred_max_idx == target_max_idx {
+            correct += 1;
         }
     }
-    correct / T::from(rows).unwrap()
+
+    correct as f32 / rows as f32
 }
 
 /// Helper function to find index of maximum value in a row
-fn find_max_index_in_row<T>(matrix: &DenseMatrix<T>, row: usize) -> usize
-where
-    T: Float
-        + AddAssign
-        + SubAssign
-        + MulAssign
-        + Zero
-        + One
-        + Send
-        + Sync
-        + Clone
-        + Debug
-        + Sum
-        + 'static,
-{
+pub fn find_max_index_in_row(matrix: &DenseMatrix, row: usize) -> usize {
     let cols = matrix.cols();
+    if cols == 0 {
+        return 0;
+    }
+
     let mut max_idx = 0;
     let mut max_val = matrix.at(row, 0);
 
@@ -113,114 +87,69 @@ where
             max_idx = j;
         }
     }
+
     max_idx
 }
 
 /// Check if two matrices are approximately equal within a tolerance
-pub fn equal_approx<T>(a: &DenseMatrix<T>, b: &DenseMatrix<T>, tolerance: T) -> bool
-where
-    T: Float
-        + AddAssign
-        + SubAssign
-        + MulAssign
-        + Zero
-        + One
-        + Send
-        + Sync
-        + Clone
-        + Debug
-        + Sum
-        + 'static,
-{
-    if (a.rows(), a.cols()) != (b.rows(), b.cols()) {
+pub fn equal_approx(a: &DenseMatrix, b: &DenseMatrix, tolerance: f32) -> bool {
+    if a.rows() != b.rows() || a.cols() != b.cols() {
         return false;
     }
-    let (rows, cols) = (a.rows(), a.cols());
+
+    let rows = a.rows();
+    let cols = a.cols();
+
     for i in 0..rows {
         for j in 0..cols {
-            if (a.at(i, j) - b.at(i, j)).abs() > tolerance {
+            let diff = (a.at(i, j) - b.at(i, j)).abs();
+            if diff > tolerance {
                 return false;
             }
         }
     }
+
     true
 }
 
 /// Flatten matrix into a vector in row-major order
-pub fn flatten<T>(matrix: &DenseMatrix<T>) -> Vec<T>
-where
-    T: Float
-        + AddAssign
-        + SubAssign
-        + MulAssign
-        + Zero
-        + One
-        + Send
-        + Sync
-        + Clone
-        + Debug
-        + Sum
-        + 'static,
-{
+pub fn flatten(matrix: &DenseMatrix) -> Vec<f32> {
     let (rows, cols) = (matrix.rows(), matrix.cols());
     let mut result = Vec::with_capacity(rows * cols);
+
     for i in 0..rows {
         for j in 0..cols {
             result.push(matrix.at(i, j));
         }
     }
+
     result
 }
 
 /// Apply a function to each element of the matrix
-pub fn apply<T, F>(matrix: &mut DenseMatrix<T>, f: F)
+pub fn apply<F>(matrix: &mut DenseMatrix, mut f: F)
 where
-    T: Float
-        + AddAssign
-        + SubAssign
-        + MulAssign
-        + Zero
-        + One
-        + Send
-        + Sync
-        + Clone
-        + Debug
-        + Sum
-        + 'static,
-    F: Fn(T) -> T,
+    F: FnMut(f32) -> f32,
 {
     let (rows, cols) = (matrix.rows(), matrix.cols());
     for i in 0..rows {
         for j in 0..cols {
             let val = matrix.at(i, j);
-            let new_val = f(val);
-            matrix.set(i, j, new_val);
+            matrix.set(i, j, f(val));
         }
     }
 }
 
 /// Apply a function with indices to each element of the matrix
-pub fn apply_with_indices<T, F>(matrix: &mut DenseMatrix<T>, mut f: F)
+pub fn apply_with_indices<F>(matrix: &mut DenseMatrix, mut f: F)
 where
-    T: Float
-        + AddAssign
-        + SubAssign
-        + MulAssign
-        + Zero
-        + One
-        + Send
-        + Sync
-        + Clone
-        + Debug
-        + Sum
-        + 'static,
-    F: FnMut(usize, usize, T) -> T,
+    F: FnMut(usize, usize, f32) -> f32,
 {
     let (rows, cols) = (matrix.rows(), matrix.cols());
     for i in 0..rows {
         for j in 0..cols {
-            let new_val = f(i, j, matrix.at(i, j));
-            matrix.set(i, j, new_val);
+            let val = matrix.at(i, j);
+            matrix.set(i, j, f(i, j, val));
         }
     }
 }

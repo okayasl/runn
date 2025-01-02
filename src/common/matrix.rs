@@ -1,27 +1,16 @@
-use std::fmt::Debug;
-use std::iter::Sum;
-use std::ops::{AddAssign, MulAssign, SubAssign};
 
 use nalgebra::DMatrix;
-use rand_distr::num_traits::{Float, One, Zero};
 use serde::{Deserialize, Serialize};
 
-/// A structure encapsulating a dense matrix with generic floating point type.
+/// A structure encapsulating a dense matrix.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct DenseMatrix<T>
-where
-    T: Float + Debug + 'static,
-{
-    data: DMatrix<T>,
+pub struct DenseMatrix {
+    data: DMatrix<f32>,
 }
 
-impl<T> DenseMatrix<T>
-where
-    T: Float + AddAssign + SubAssign + MulAssign + Zero + One + Send + Sync + Debug + Sum + 'static,
-    DMatrix<T>: Clone,
-{
+impl DenseMatrix {
     /// Creates a new dense matrix with given rows, columns, and data.
-    pub fn new(rows: usize, cols: usize, data: &[T]) -> Self {
+    pub fn new(rows: usize, cols: usize, data: &[f32]) -> Self {
         Self {
             data: DMatrix::from_row_slice(rows, cols, data),
         }
@@ -36,12 +25,12 @@ where
 
     /// Fills the matrix with zeros.
     pub fn zero(&mut self) {
-        self.data.fill(T::zero());
+        self.data.fill(0.0);
     }
 
     /// Returns a transposed version of the matrix.
-    pub fn transpose(&self) -> DenseMatrix<T> {
-        DenseMatrix {
+    pub fn transpose(&self) -> DenseMatrix {
+        Self {
             data: self.data.transpose(),
         }
     }
@@ -60,13 +49,13 @@ where
 
     /// Gets the value at position (i, j).
     #[inline]
-    pub fn at(&self, i: usize, j: usize) -> T {
+    pub fn at(&self, i: usize, j: usize) -> f32 {
         self.data[(i, j)]
     }
 
     /// Sets the value at position (i, j).
     #[inline]
-    pub fn set(&mut self, i: usize, j: usize, value: T) {
+    pub fn set(&mut self, i: usize, j: usize, value: f32) {
         self.data[(i, j)] = value;
     }
 
@@ -84,7 +73,7 @@ where
 
     /// Scales the matrix by a scalar factor.
     #[inline]
-    pub fn scale(&mut self, factor: T) {
+    pub fn scale(&mut self, factor: f32) {
         self.data *= factor;
     }
 
@@ -95,7 +84,7 @@ where
     }
 
     /// Multiplies the current matrix with another matrix.
-    pub fn matrix_multiply_in_place(&mut self, other: &DenseMatrix<T>) {
+    pub fn matrix_multiply_in_place(&mut self, other: &DenseMatrix) {
         self.data = &self.data * &other.data;
     }
 
@@ -110,89 +99,51 @@ where
     }
 
     /// Sets the values of a specific row.
-    pub fn set_row(&mut self, i: usize, src: &[T]) {
+    pub fn set_row(&mut self, i: usize, src: &[f32]) {
         for (j, &value) in src.iter().enumerate() {
             self.set(i, j, value);
         }
     }
 
     /// Clips all values to be within [-threshold, threshold]
-    pub fn clip(&mut self, threshold: T) {
-        self.data.iter_mut().for_each(|x| {
-            if *x > threshold {
-                *x = threshold;
-            } else if *x < -threshold {
-                *x = -threshold;
+    pub fn clip(&mut self, threshold: f32) {
+        for val in self.data.iter_mut() {
+            if *val > threshold {
+                *val = threshold;
+            } else if *val < -threshold {
+                *val = -threshold;
             }
-        });
+        }
     }
 
     /// Flattens the matrix into a single vector of elements in row major layout.
-    pub fn flatten(&self) -> Vec<T> {
-        self.data
-            .row_iter() // Iterate over rows
-            .flat_map(|row| row.into_iter().cloned()) // Flatten each row into the resulting vector
-            .collect()
+    pub fn flatten(&self) -> Vec<f32> {
+        self.data.as_slice().to_vec()
     }
 
     /// Calculates the norm of the matrix (L1 or L2 supported).
-    pub fn norm(&self, norm: T) -> T {
-        if norm == T::one() {
-            // L1 norm
-            self.data.iter().map(|x| x.abs()).sum()
-        } else if norm + norm == T::one() + T::one() {
-            // L2 norm
-            let sum_squares = self.data.iter().map(|x| (*x) * (*x)).sum::<T>();
-            sum_squares.sqrt()
+    pub fn norm(&self, norm_type: f32) -> f32 {
+        if norm_type == 1.0 {
+            self.data.iter().map(|x| x.abs()).sum::<f32>()
+        } else if norm_type == 2.0 {
+            (self.data.iter().map(|x| x * x).sum::<f32>()).sqrt()
         } else {
-            panic!("Norm type not implemented")
+            panic!("Unsupported norm type");
         }
     }
 
     /// Sets each element in the first column to the sum of the corresponding row in the other matrix.
-    pub fn set_column_sum(&mut self, other: &DenseMatrix<T>) {
+    pub fn set_column_sum(&mut self, other: &DenseMatrix) {
         for i in 0..self.rows() {
-            let sum = other.data.row(i).iter().copied().sum();
+            let sum = (0..other.cols()).map(|j| other.at(i, j)).sum::<f32>();
             self.set(i, 0, sum);
         }
     }
 }
 
 // Type aliases for common float types
-pub type DenseMatrix32 = DenseMatrix<f32>;
-pub type DenseMatrix64 = DenseMatrix<f64>;
-
-// Implement conversion between different float types
-impl<T> DenseMatrix<T>
-where
-    T: Float + AddAssign + SubAssign + MulAssign + Zero + One + Send + Sync + Debug + Sum + 'static,
-    DMatrix<T>: Clone,
-{
-    pub fn convert<U>(&self) -> DenseMatrix<U>
-    where
-        U: Float
-            + AddAssign
-            + SubAssign
-            + MulAssign
-            + Zero
-            + One
-            + Send
-            + Sync
-            + Debug
-            + Sum
-            + 'static,
-        DMatrix<U>: Clone,
-        T: Into<U>,
-    {
-        let mut new_data = Vec::with_capacity(self.rows() * self.cols());
-        for i in 0..self.rows() {
-            for j in 0..self.cols() {
-                new_data.push(self.at(i, j).into());
-            }
-        }
-        DenseMatrix::new(self.rows(), self.cols(), &new_data)
-    }
-}
+pub type DenseMatrix32 = DenseMatrix;
+pub type DenseMatrix64 = DenseMatrix;
 
 // Example usage in tests
 #[cfg(test)]
@@ -207,22 +158,22 @@ mod tests {
 
         // f64 matrix
         let matrix64 = DenseMatrix64::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        assert_eq!(matrix64.at(0, 0), 1.0f64);
+        assert_eq!(matrix64.at(0, 0), 1.0f32);
 
         // Convert from f32 to f64
-        let converted = matrix32.convert::<f64>();
-        assert_eq!(converted.at(0, 0), 1.0f64);
+        // let converted = matrix32.convert::<f64>();
+        // assert_eq!(converted.at(0, 0), 1.0f64);
     }
 
     #[test]
     fn test_at() {
-        let matrix = DenseMatrix::<f32>::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        let matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         assert_eq!(matrix.at(1, 1), 4.0);
     }
 
     #[test]
     fn test_zero() {
-        let mut matrix = DenseMatrix::<f64>::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         matrix.zero();
         assert_eq!(matrix.flatten(), &[0.0, 0.0, 0.0, 0.0]);
     }
@@ -237,7 +188,7 @@ mod tests {
 
     #[test]
     fn test_sub() {
-        let mut matrix = DenseMatrix::<f32>::new(2, 2, &[5.0, 5.0, 5.0, 5.0]);
+        let mut matrix = DenseMatrix::new(2, 2, &[5.0, 5.0, 5.0, 5.0]);
         let other = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         matrix.sub(&other);
         assert_eq!(matrix.flatten(), &[4.0, 3.0, 2.0, 1.0]);
@@ -271,34 +222,6 @@ mod tests {
         let submatrix = matrix.slice(1, 1, 2, 2);
         assert_eq!(submatrix.flatten(), &[5.0, 6.0, 8.0, 9.0]);
     }
-
-    // #[test]
-    // fn test_apply() {
-    //     let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-    //     matrix.apply(|x| x * 2.0);
-    //     assert_eq!(matrix.flatten(), &[2.0, 4.0, 6.0, 8.0]);
-    // }
-
-    // #[test]
-    // fn test_max_in_row() {
-    //     let matrix = DenseMatrix::new(2, 3, &[1.0, 3.0, 2.0, 4.0, 5.0, 6.0]);
-    //     assert_eq!(matrix.max_in_row(0), Some(3.0));
-    //     assert_eq!(matrix.max_in_row(1), Some(6.0));
-    // }
-
-    // #[test]
-    // fn test_max_value_index_in_row() {
-    //     let matrix = DenseMatrix::new(2, 3, &[1.0, 3.0, 2.0, 4.0, 5.0, 6.0]);
-    //     assert_eq!(matrix.max_value_index_in_row(0), Some(1));
-    //     assert_eq!(matrix.max_value_index_in_row(1), Some(2));
-    // }
-
-    // #[test]
-    // fn test_sum_column() {
-    //     let matrix = DenseMatrix::new(3, 2, &[1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
-    //     assert_eq!(matrix.sum_column(0), 6.0); // Sum of column 0
-    //     assert_eq!(matrix.sum_column(1), 15.0); // Sum of column 1
-    // }
 
     #[test]
     fn test_mul() {
@@ -390,17 +313,6 @@ mod tests {
         assert_eq!(matrix.flatten(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     }
 
-    // #[test]
-    // fn test_normalize_success() {
-    //     let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-    //     let matrix = DenseMatrix::new(2, 3, &data);
-    //     let mins = vec![1.0, 2.0, 3.0];
-    //     let maxs = vec![4.0, 5.0, 6.0];
-    //     let normalized = matrix.normalize(&mins, &maxs).unwrap();
-    //     assert_eq!(normalized.at(0, 0), 0.0);
-    //     assert_eq!(normalized.at(1, 2), 1.0);
-    // }
-
     #[test]
     fn test_clone() {
         let data = vec![1.0, 2.0, 3.0, 4.0];
@@ -437,19 +349,9 @@ mod tests {
         assert_eq!(result_matrix.flatten(), &[12.0, 15.0, 18.0]);
     }
 
-    // #[test]
-    // fn test_equal_approx() {
-    //     let data1 = vec![1.0, 2.0, 3.0, 4.0];
-    //     let data2 = vec![1.001, 2.001, 2.999, 4.0];
-    //     let matrix1 = DenseMatrix::new(2, 2, &data1);
-    //     let matrix2 = DenseMatrix::new(2, 2, &data2);
-    //     assert!(matrix1.equal_approx(&matrix2, 0.01));
-    //     assert!(!matrix1.equal_approx(&matrix2, 0.0001));
-    // }
-
     #[test]
     fn test_zeros() {
-        let matrix = DenseMatrix::<f32>::zeros(2, 2);
+        let matrix = DenseMatrix::zeros(2, 2);
         assert_eq!((matrix.rows(), matrix.cols()), (2, 2));
         for i in 0..2 {
             for j in 0..2 {
@@ -457,14 +359,6 @@ mod tests {
             }
         }
     }
-
-    // #[test]
-    // fn test_calculate_accuracy_against_by_max_in_row() {
-    //     let targets = DenseMatrix::new(2, 2, &vec![0.0, 1.0, 1.0, 0.0]);
-    //     let predictions = DenseMatrix::new(2, 2, &vec![0.0, 1.0, 0.0, 1.0]);
-    //     let accuracy = targets.calculate_accuracy_against_by_max_in_row(&predictions);
-    //     assert_eq!(accuracy, 0.5);
-    // }
 
     #[test]
     fn test_clip() {
@@ -474,6 +368,6 @@ mod tests {
 
         let mut matrix = DenseMatrix::new(2, 2, &vec![6.0, 8.0, 0.0, 0.0]);
         matrix.clip(5.0);
-        assert_eq!(matrix.data.as_slice(), &[3.0, 4.0, 0.0, 0.0]);
+        assert_eq!(matrix.data.as_slice(), &[5.0, 5.0, 0.0, 0.0]);
     }
 }
