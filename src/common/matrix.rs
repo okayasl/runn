@@ -87,12 +87,15 @@ impl DenseMatrix {
         self.data = &self.data * &other.data;
     }
 
-    /// Returns a slice of the matrix.
-    pub fn slice(&self, i: usize, k: usize, j: usize, l: usize) -> Self {
-        let rows = k - i;
-        let cols = l - j;
+    /// Returns a slice of the matrix.    /// Extracts a submatrix as a new DenseMatrix.
+    pub fn slice(&self, i: usize, k: usize, j: usize, l: usize) -> DenseMatrix {
+        let rows = k - i + 1;
+        let cols = l - j + 1;
         let view = self.data.view((i, j), (rows, cols));
-        Self { data: view.into() }
+        let iter = view.iter().cloned();
+        DenseMatrix {
+            data: DMatrix::from_iterator(rows, cols, iter),
+        }
     }
 
     /// Sets the values of a specific row.
@@ -102,7 +105,7 @@ impl DenseMatrix {
         }
     }
 
-    /// Clips all values to be within [-threshold, threshold]
+    /// Clips the norm of the matrix to a given threshold, by scaling the matrix down if needed.
     pub fn clip(&mut self, threshold: f32) {
         if threshold > 0.0 {
             let norm = self.norm(2.0);
@@ -111,14 +114,6 @@ impl DenseMatrix {
                 self.scale(scale);
             }
         }
-    }
-
-    /// Flattens the matrix into a single vector of elements in row major layout.
-    pub fn flatten(&self) -> Vec<f32> {
-        self.data
-            .row_iter() // Iterate over rows
-            .flat_map(|row| row.into_iter().cloned()) // Flatten each row into the resulting vector
-            .collect()
     }
 
     /// Calculates the norm of the matrix (L1 or L2 supported).
@@ -132,11 +127,17 @@ impl DenseMatrix {
         }
     }
 
-    /// Sets each element in the first column to the sum of the corresponding row in the other matrix.
+    /// Flattens the matrix into a single vector of elements in row major layout.
+    pub fn flatten(&self) -> Vec<f32> {
+        self.data
+            .row_iter() // Iterate over rows
+            .flat_map(|row| row.into_iter().cloned()) // Flatten each row into the resulting vector
+            .collect()
+    }
+
     pub fn set_column_sum(&mut self, other: &DenseMatrix) {
         for i in 0..self.rows() {
-            let sum = (0..other.cols()).map(|j| other.at(i, j)).sum::<f32>();
-            self.set(i, 0, sum);
+            self.data[(i, 0)] = other.data.column(i).iter().sum();
         }
     }
 }
@@ -200,7 +201,7 @@ mod tests {
     #[test]
     fn test_slice() {
         let matrix = DenseMatrix::new(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
-        let submatrix = matrix.slice(1, 1, 2, 2);
+        let submatrix = matrix.slice(1, 2, 1, 2);
         assert_eq!(submatrix.flatten(), &[5.0, 6.0, 8.0, 9.0]);
     }
 
@@ -317,16 +318,9 @@ mod tests {
 
     #[test]
     fn test_set_column_sum() {
-        // Create a test matrix for setting column sums
         let mut result_matrix = DenseMatrix::new(3, 1, &[0.0, 0.0, 0.0]);
-
-        // Source matrix to sum columns from
         let source_matrix = DenseMatrix::new(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
-
-        // Apply the method
         result_matrix.set_column_sum(&source_matrix);
-
-        // Expected results after summing columns
         assert_eq!(result_matrix.flatten(), &[12.0, 15.0, 18.0]);
     }
 
@@ -345,10 +339,12 @@ mod tests {
     fn test_clip() {
         let mut matrix = DenseMatrix::new(2, 2, &vec![3.0, 4.0, 0.0, 0.0]);
         matrix.clip(5.0);
-        assert_eq!(matrix.data.as_slice(), &[3.0, 4.0, 0.0, 0.0]);
+        let clipped = DenseMatrix::new(2, 2, &vec![3.0, 4.0, 0.0, 0.0]);
+        assert_eq!(matrix.flatten(), clipped.flatten()); // or a slightly scaled version of this
 
         let mut matrix = DenseMatrix::new(2, 2, &vec![6.0, 8.0, 0.0, 0.0]);
         matrix.clip(5.0);
-        assert_eq!(matrix.data.as_slice(), &[3.0, 4.0, 0.0, 0.0]);
+        let clipped = DenseMatrix::new(2, 2, &vec![3.0, 4.0, 0.0, 0.0]);
+        assert_eq!(matrix.flatten(), clipped.flatten()); // or a slightly scaled version of this
     }
 }
