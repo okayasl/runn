@@ -1,6 +1,5 @@
 use matrix::DenseMatrix;
 
-
 use super::matrix;
 
 /// Find minimum and maximum values for each column
