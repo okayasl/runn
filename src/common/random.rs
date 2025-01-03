@@ -6,13 +6,13 @@ use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 
 /// A thread-safe randomizer that supports seeding and various random generation functions.
-pub struct Randomizer {
+pub(crate) struct Randomizer {
     rng: Arc<Mutex<StdRng>>, // Thread-safe random number generator
 }
 
 impl Randomizer {
     /// Creates a new randomizer with a given seed.
-    pub fn new(seed: Option<u64>) -> Self {
+    pub(crate) fn new(seed: Option<u64>) -> Self {
         let seed = seed.unwrap_or_else(|| {
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -26,7 +26,7 @@ impl Randomizer {
     }
 
     /// Generates a random permutation of integers from 0 to n-1.
-    pub fn perm(&self, n: usize) -> Vec<usize> {
+    pub(crate) fn perm(&self, n: usize) -> Vec<usize> {
         let mut rng = self.rng.lock().unwrap();
         let mut indices: Vec<usize> = (0..n).collect();
         indices.shuffle(&mut *rng);
@@ -34,7 +34,7 @@ impl Randomizer {
     }
 
     /// Generates a random floating-point number in the range [0, 1).
-    pub fn float<T>(&self) -> T
+    pub(crate) fn float<T>(&self) -> T
     where
         rand::distributions::Standard: rand::distributions::Distribution<T>,
     {

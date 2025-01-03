@@ -1,3 +1,14 @@
+pub mod elu;
+pub mod relu;
+pub mod sigmoid;
+pub mod tanh;
+pub mod softmax;
+pub mod leaky_relu;
+pub mod gelu;
+pub mod swish;
+pub mod linear;
+pub mod softplus;
+
 use crate::common::matrix::DenseMatrix;
 
 use typetag;
@@ -6,7 +17,9 @@ use typetag;
 pub trait ActivationFunction: ActivationFunctionClone + Send {
     fn forward(&mut self, input: &mut DenseMatrix);
     fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix);
-    fn weight_initialization_function(&self) -> fn(usize, usize) -> f32;
+    fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {
+        he_initialization
+    }
 }
 
 pub trait ActivationFunctionClone {

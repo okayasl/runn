@@ -140,6 +140,26 @@ impl DenseMatrix {
             self.data[(i, 0)] = other.data.column(i).iter().sum();
         }
     }
+
+    /// Applies a function to each element of the matrix in place.
+    pub fn apply<F>(&mut self, func: F)
+    where
+        F: Fn(f32) -> f32,
+    {
+        self.data.apply(|x| *x = func(*x));
+    }
+
+    /// Applies a function to each element of the matrix, with access to the element's indices.
+    pub fn apply_with_indices<F>(&mut self, mut f: F)
+    where
+        F: FnMut(usize, usize, &mut f32),
+    {
+        for i in 0..self.rows() {
+            for j in 0..self.cols() {
+                f(i, j, &mut self.data[(i, j)]);
+            }
+        }
+    }
 }
 
 // Example usage in tests
@@ -346,5 +366,12 @@ mod tests {
         matrix.clip(5.0);
         let clipped = DenseMatrix::new(2, 2, &vec![3.0, 4.0, 0.0, 0.0]);
         assert_eq!(matrix.flatten(), clipped.flatten()); // or a slightly scaled version of this
+    }
+
+    #[test]
+    fn test_apply() {
+        let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        matrix.apply(|x| x * 2.0);
+        assert_eq!(matrix.flatten(), &[2.0, 4.0, 6.0, 8.0]);
     }
 }

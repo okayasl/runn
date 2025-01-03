@@ -4,7 +4,7 @@ use matrix::DenseMatrix;
 use super::matrix;
 
 /// Find minimum and maximum values for each column
-pub fn find_min_max(matrix: &DenseMatrix) -> (Vec<f32>, Vec<f32>) {
+pub(crate) fn find_min_max(matrix: &DenseMatrix) -> (Vec<f32>, Vec<f32>) {
     let (rows, cols) = (matrix.rows(), matrix.cols());
     let mut mins = vec![f32::INFINITY; cols];
     let mut maxs = vec![f32::NEG_INFINITY; cols];
@@ -25,7 +25,7 @@ pub fn find_min_max(matrix: &DenseMatrix) -> (Vec<f32>, Vec<f32>) {
 }
 
 /// Normalize matrix values to range [0, 1] using min-max normalization
-pub fn normalize(matrix: &DenseMatrix, mins: &[f32], maxs: &[f32]) -> Option<DenseMatrix> {
+pub(crate) fn normalize(matrix: &DenseMatrix, mins: &[f32], maxs: &[f32]) -> Option<DenseMatrix> {
     let (rows, cols) = (matrix.rows(), matrix.cols());
 
     // Check if dimensions match
@@ -52,7 +52,7 @@ pub fn normalize(matrix: &DenseMatrix, mins: &[f32], maxs: &[f32]) -> Option<Den
 }
 
 /// Calculate accuracy by comparing max values in each row
-pub fn calculate_accuracy(predictions: &DenseMatrix, targets: &DenseMatrix) -> f32 {
+pub(crate) fn calculate_accuracy(predictions: &DenseMatrix, targets: &DenseMatrix) -> f32 {
     let rows = predictions.rows();
     if rows == 0 || predictions.rows() != targets.rows() || predictions.cols() != targets.cols() {
         return 0.0;
@@ -71,7 +71,7 @@ pub fn calculate_accuracy(predictions: &DenseMatrix, targets: &DenseMatrix) -> f
 }
 
 /// Helper function to find index of maximum value in a row
-pub fn find_max_index_in_row(matrix: &DenseMatrix, row: usize) -> usize {
+pub(crate) fn find_max_index_in_row(matrix: &DenseMatrix, row: usize) -> usize {
     let cols = matrix.cols();
     if cols == 0 {
         return 0;
@@ -92,7 +92,7 @@ pub fn find_max_index_in_row(matrix: &DenseMatrix, row: usize) -> usize {
 }
 
 /// Check if two matrices are approximately equal within a tolerance
-pub fn equal_approx(a: &DenseMatrix, b: &DenseMatrix, tolerance: f32) -> bool {
+pub(crate) fn equal_approx(a: &DenseMatrix, b: &DenseMatrix, tolerance: f32) -> bool {
     if a.rows() != b.rows() || a.cols() != b.cols() {
         return false;
     }
@@ -113,7 +113,7 @@ pub fn equal_approx(a: &DenseMatrix, b: &DenseMatrix, tolerance: f32) -> bool {
 }
 
 /// Flatten matrix into a vector in row-major order
-pub fn flatten(matrix: &DenseMatrix) -> Vec<f32> {
+pub(crate) fn flatten(matrix: &DenseMatrix) -> Vec<f32> {
     let (rows, cols) = (matrix.rows(), matrix.cols());
     let mut result = Vec::with_capacity(rows * cols);
 
@@ -127,32 +127,32 @@ pub fn flatten(matrix: &DenseMatrix) -> Vec<f32> {
 }
 
 /// Apply a function to each element of the matrix
-pub fn apply<F>(matrix: &mut DenseMatrix, mut f: F)
-where
-    F: FnMut(f32) -> f32,
-{
-    let (rows, cols) = (matrix.rows(), matrix.cols());
-    for i in 0..rows {
-        for j in 0..cols {
-            let val = matrix.at(i, j);
-            matrix.set(i, j, f(val));
-        }
-    }
-}
+// pub(crate) fn apply<F>(matrix: &mut DenseMatrix, mut f: F)
+// where
+//     F: FnMut(f32) -> f32,
+// {
+//     let (rows, cols) = (matrix.rows(), matrix.cols());
+//     for i in 0..rows {
+//         for j in 0..cols {
+//             let val = matrix.at(i, j);
+//             matrix.set(i, j, f(val));
+//         }
+//     }
+// }
 
-/// Apply a function with indices to each element of the matrix
-pub fn apply_with_indices<F>(matrix: &mut DenseMatrix, mut f: F)
-where
-    F: FnMut(usize, usize, f32) -> f32,
-{
-    let (rows, cols) = (matrix.rows(), matrix.cols());
-    for i in 0..rows {
-        for j in 0..cols {
-            let val = matrix.at(i, j);
-            matrix.set(i, j, f(i, j, val));
-        }
-    }
-}
+// /// Apply a function with indices to each element of the matrix
+// pub(crate) fn apply_with_indices<F>(matrix: &mut DenseMatrix, mut f: F)
+// where
+//     F: FnMut(usize, usize, f32) -> f32,
+// {
+//     let (rows, cols) = (matrix.rows(), matrix.cols());
+//     for i in 0..rows {
+//         for j in 0..cols {
+//             let val = matrix.at(i, j);
+//             matrix.set(i, j, f(i, j, val));
+//         }
+//     }
+// }
 
 // Tests for utility functions
 #[cfg(test)]
@@ -200,25 +200,25 @@ mod tests {
         assert!((accuracy - 1.0).abs() < 1e-6);
     }
 
-    #[test]
-    fn test_apply() {
-        let mut matrix = DenseMatrix::new(2, 2, &[1.0f32, 2.0, 3.0, 4.0]);
-        apply(&mut matrix, |x| x * 2.0);
-        assert!(equal_approx(
-            &matrix,
-            &DenseMatrix::new(2, 2, &[2.0, 4.0, 6.0, 8.0]),
-            1e-6
-        ));
-    }
+    // #[test]
+    // fn test_apply() {
+    //     let mut matrix = DenseMatrix::new(2, 2, &[1.0f32, 2.0, 3.0, 4.0]);
+    //     apply(&mut matrix, |x| x * 2.0);
+    //     assert!(equal_approx(
+    //         &matrix,
+    //         &DenseMatrix::new(2, 2, &[2.0, 4.0, 6.0, 8.0]),
+    //         1e-6
+    //     ));
+    // }
 
-    #[test]
-    fn test_apply_with_indices() {
-        let mut matrix = DenseMatrix::new(2, 2, &[1.0f32, 2.0, 3.0, 4.0]);
-        apply_with_indices(&mut matrix, |i, j, x| x + (i + j) as f32);
-        assert!(equal_approx(
-            &matrix,
-            &DenseMatrix::new(2, 2, &[1.0, 3.0, 4.0, 6.0]),
-            1e-6
-        ));
-    }
+    // #[test]
+    // fn test_apply_with_indices() {
+    //     let mut matrix = DenseMatrix::new(2, 2, &[1.0f32, 2.0, 3.0, 4.0]);
+    //     apply_with_indices(&mut matrix, |i, j, x| x + (i + j) as f32);
+    //     assert!(equal_approx(
+    //         &matrix,
+    //         &DenseMatrix::new(2, 2, &[1.0, 3.0, 4.0, 6.0]),
+    //         1e-6
+    //     ));
+    // }
 }
