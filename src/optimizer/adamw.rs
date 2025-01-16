@@ -5,42 +5,43 @@ use typetag;
 use super::{Optimizer, OptimizerConfig};
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct AMSGradConfig {
+pub struct AdamWConfig {
     learning_rate: f32,
     beta1: f32,
     beta2: f32,
     epsilon: f32,
+    weight_decay: f32,
 }
 
-impl OptimizerConfig for AMSGradConfig {
+impl OptimizerConfig for AdamWConfig {
     fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(AMSGradOptimizer::new(*self))
+        Box::new(AdamWOptimizer::new(*self))
     }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct AMSGradOptimizer {
-    config: AMSGradConfig,
+pub struct AdamWOptimizer {
+    config: AdamWConfig,
     moment1_weights: DenseMatrix,
     moment2_weights: DenseMatrix,
-    max_moment2_weights: DenseMatrix,
     moment1_biases: DenseMatrix,
     moment2_biases: DenseMatrix,
-    max_moment2_biases: DenseMatrix,
     t: usize,
+    m_hat_factor: f32,
+    v_hat_factor: f32,
 }
 
-impl AMSGradOptimizer {
-    pub fn new(config: AMSGradConfig) -> Self {
+impl AdamWOptimizer {
+    pub fn new(config: AdamWConfig) -> Self {
         Self {
             config,
             moment1_weights: DenseMatrix::zeros(0, 0),
-            moment2_weights: DenseMatrix::zeros(0, 0),
-            max_moment2_weights: DenseMatrix::zeros(0, 0),
             moment1_biases: DenseMatrix::zeros(0, 0),
+            moment2_weights: DenseMatrix::zeros(0, 0),
             moment2_biases: DenseMatrix::zeros(0, 0),
-            max_moment2_biases: DenseMatrix::zeros(0, 0),
             t: 0,
+            m_hat_factor: 1.0,
+            v_hat_factor: 1.0,
         }
     }
 
@@ -54,10 +55,6 @@ impl AMSGradOptimizer {
             *v = self.config.beta2 * *v + (1.0 - self.config.beta2) * g * g;
         });
 
-        self.max_moment2_weights.apply_with_indices(|i, j, v| {
-            *v = v.max(self.moment2_weights.at(i, j));
-        });
-
         self.moment1_biases.apply_with_indices(|i, j, v| {
             *v = self.config.beta1 * *v + (1.0 - self.config.beta1) * d_biases.at(i, j);
         });
@@ -65,10 +62,6 @@ impl AMSGradOptimizer {
         self.moment2_biases.apply_with_indices(|i, j, v| {
             let g = d_biases.at(i, j);
             *v = self.config.beta2 * *v + (1.0 - self.config.beta2) * g * g;
-        });
-
-        self.max_moment2_biases.apply_with_indices(|i, j, v| {
-            *v = v.max(self.moment2_biases.at(i, j));
         });
     }
 
@@ -79,32 +72,27 @@ impl AMSGradOptimizer {
         step_size: f32,
     ) {
         weights.apply_with_indices(|i, j, v| {
-            let m_hat =
-                self.moment1_weights.at(i, j) / (1.0 - self.config.beta1.powi(self.t as i32));
-            let v_hat =
-                self.max_moment2_weights.at(i, j) / (1.0 - self.config.beta2.powi(self.t as i32));
+            let m_hat = self.moment1_weights.at(i, j) / self.m_hat_factor;
+            let v_hat = self.moment2_weights.at(i, j) / self.v_hat_factor;
             *v -= step_size * m_hat / (v_hat.sqrt() + self.config.epsilon);
+            *v -= self.config.weight_decay * *v; // Weight decay
         });
 
         biases.apply_with_indices(|i, j, v| {
-            let m_hat =
-                self.moment1_biases.at(i, j) / (1.0 - self.config.beta1.powi(self.t as i32));
-            let v_hat =
-                self.max_moment2_biases.at(i, j) / (1.0 - self.config.beta2.powi(self.t as i32));
+            let m_hat = self.moment1_biases.at(i, j) / self.m_hat_factor;
+            let v_hat = self.moment2_biases.at(i, j) / self.v_hat_factor;
             *v -= step_size * m_hat / (v_hat.sqrt() + self.config.epsilon);
         });
     }
 }
 
 #[typetag::serde]
-impl Optimizer for AMSGradOptimizer {
+impl Optimizer for AdamWOptimizer {
     fn initialize(&mut self, weights: &DenseMatrix, biases: &DenseMatrix) {
         self.moment1_weights = DenseMatrix::zeros(weights.rows(), weights.cols());
-        self.moment2_weights = DenseMatrix::zeros(weights.rows(), weights.cols());
-        self.max_moment2_weights = DenseMatrix::zeros(weights.rows(), weights.cols());
         self.moment1_biases = DenseMatrix::zeros(biases.rows(), biases.cols());
+        self.moment2_weights = DenseMatrix::zeros(weights.rows(), weights.cols());
         self.moment2_biases = DenseMatrix::zeros(biases.rows(), biases.cols());
-        self.max_moment2_biases = DenseMatrix::zeros(biases.rows(), biases.cols());
     }
 
     fn update(
@@ -116,10 +104,11 @@ impl Optimizer for AMSGradOptimizer {
         _epoch: usize,
     ) {
         self.t += 1;
-        let step_size = self.config.learning_rate * (1.0 - self.config.beta1.powi(self.t as i32))
-            / (1.0 - self.config.beta2.powi(self.t as i32)).sqrt();
+        self.m_hat_factor = 1.0 - self.config.beta1.powi(self.t as i32);
+        self.v_hat_factor = 1.0 - self.config.beta2.powi(self.t as i32);
+        let step_size = self.config.learning_rate * self.m_hat_factor / self.v_hat_factor.sqrt();
 
-        self.update_moments(d_weights, d_biases);
+        self.update_moments(&d_weights, &d_biases);
         self.update_parameters(weights, biases, step_size);
     }
 
@@ -128,25 +117,29 @@ impl Optimizer for AMSGradOptimizer {
     }
 }
 
-pub struct AMSGrad {
+pub struct AdamW {
     learning_rate: f32,
     beta1: f32,
     beta2: f32,
     epsilon: f32,
+    weight_decay: f32,
 }
 
-impl AMSGrad {
-    pub fn new() -> Self {
-        Self {
+impl AdamW {
+    pub fn new() -> AdamW {
+        AdamW {
             learning_rate: 0.01,
             beta1: 0.9,
             beta2: 0.999,
             epsilon: 1e-8,
+            weight_decay: 0.01,
         }
     }
+}
 
-    pub fn learning_rate(mut self, lr: f32) -> Self {
-        self.learning_rate = lr;
+impl AdamW {
+    pub fn learning_rate(mut self, learning_rate: f32) -> Self {
+        self.learning_rate = learning_rate;
         self
     }
 
@@ -165,12 +158,18 @@ impl AMSGrad {
         self
     }
 
-    pub fn build(self) -> Box<AMSGradConfig> {
-        Box::new(AMSGradConfig {
+    pub fn weight_decay(mut self, weight_decay: f32) -> Self {
+        self.weight_decay = weight_decay;
+        self
+    }
+
+    pub fn build(self) -> Box<AdamWConfig> {
+        Box::new(AdamWConfig {
             learning_rate: self.learning_rate,
             beta1: self.beta1,
             beta2: self.beta2,
             epsilon: self.epsilon,
+            weight_decay: self.weight_decay,
         })
     }
 }
@@ -182,13 +181,14 @@ mod tests {
 
     #[test]
     fn test_initialize() {
-        let config = AMSGradConfig {
-            learning_rate: 0.001,
-            beta1: 0.9,
-            beta2: 0.999,
-            epsilon: 1e-8,
-        };
-        let mut optimizer = AMSGradOptimizer::new(config);
+        let adamw_config = AdamW::new()
+            .learning_rate(0.001)
+            .beta1(0.9)
+            .beta2(0.999)
+            .epsilon(1e-8)
+            .weight_decay(0.01)
+            .build();
+        let mut optimizer = AdamWOptimizer::new(adamw_config.as_ref().clone());
         let weights = DenseMatrix::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
         let biases = DenseMatrix::new(2, 1, &[0.1, 0.2]);
         optimizer.initialize(&weights, &biases);
@@ -200,13 +200,14 @@ mod tests {
 
     #[test]
     fn test_update() {
-        let config = AMSGradConfig {
+        let config = AdamWConfig {
             learning_rate: 0.001,
             beta1: 0.9,
             beta2: 0.999,
             epsilon: 1e-8,
+            weight_decay: 0.01,
         };
-        let mut optimizer = AMSGradOptimizer::new(config);
+        let mut optimizer = AdamWOptimizer::new(config);
         let mut weights = DenseMatrix::new(2, 2, &[1.0, 1.0, 1.0, 1.0]);
         let mut biases = DenseMatrix::new(2, 1, &[1.0, 1.0]);
         let d_weights = DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
@@ -220,19 +221,27 @@ mod tests {
 
     #[test]
     fn test_update_learning_rate() {
-        let config = AMSGradConfig {
-            learning_rate: 0.001,
-            beta1: 0.9,
-            beta2: 0.999,
-            epsilon: 1e-8,
-        };
-        let mut optimizer = AMSGradOptimizer::new(config);
+        let adamw_config = AdamW::new()
+            .learning_rate(0.001)
+            .beta1(0.9)
+            .beta2(0.999)
+            .epsilon(1e-8)
+            .weight_decay(0.01)
+            .build();
+        let mut optimizer = AdamWOptimizer::new(adamw_config.as_ref().clone());
         optimizer.update_learning_rate(0.01);
         assert_eq!(optimizer.config.learning_rate, 0.01);
     }
 
+    /// Test the AdamW optimizer.
+    ///
+    /// This test creates mock parameter and gradient matrices, creates an instance of the AdamW
+    /// optimizer, and updates the parameters using the mock gradients. It then computes the
+    /// expected values using the AdamW update rule and checks that the updated parameters match
+    /// the expected values.
+
     #[test]
-    fn test_amsgrad_optimizer() {
+    fn test_adamw_optimizer() {
         // Create mock parameter matrices
         let mut weights = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         let mut biases = DenseMatrix::new(2, 1, &[1.0, 2.0]);
@@ -241,63 +250,31 @@ mod tests {
         let d_weights = DenseMatrix::new(2, 2, &[10.0, 11.0, 12.0, 13.0]);
         let d_biases = DenseMatrix::new(2, 1, &[10.0, 11.0]);
 
-        // Create an instance of the AMSGrad optimizer
-        let config = AMSGradConfig {
-            learning_rate: 0.001,
-            beta1: 0.9,
-            beta2: 0.999,
-            epsilon: 1e-8,
-        };
-        let mut optimizer = AMSGradOptimizer::new(config);
+        // Create an instance of the AdamW optimizer
+        let adamw_config = AdamW::new()
+            .learning_rate(0.001)
+            .beta1(0.9)
+            .beta2(0.999)
+            .epsilon(1e-8)
+            .weight_decay(0.01)
+            .build();
+        let mut optimizer = AdamWOptimizer::new(adamw_config.as_ref().clone());
         optimizer.initialize(&weights, &biases);
 
         // Update the parameters using the mock gradients
         optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
 
-        // Manually compute the expected values with the AMSGrad update rule
-        let mut expected_params = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        // Manually compute the expected values with the AdamW update rule
+        let expected_weights =
+            DenseMatrix::new(2, 2, &[0.9868693, 1.9768693, 2.9668694, 3.9568691]);
+        let expected_biases = DenseMatrix::new(2, 1, &[0.9968377, 1.9968377]);
 
-        let (rows, cols) = (weights.rows(), weights.cols());
-        let mut m_t;
-        let mut v_t;
+        println!("Updated weights: {:?}", weights.flatten());
+        println!("Expected weights: {:?}", expected_weights.flatten());
+        println!("Updated biases: {:?}", biases.flatten());
+        println!("Expected biases: {:?}", expected_biases.flatten());
 
-        // Compute m_t and v_t
-        m_t = optimizer.moment1_weights.clone();
-        m_t.scale(optimizer.config.beta1);
-        let mut m_tmp;
-        m_tmp = d_weights.clone();
-        m_tmp.scale(1.0 - optimizer.config.beta1);
-        m_t.add(&m_tmp);
-
-        v_t = optimizer.moment2_weights.clone();
-        v_t.scale(optimizer.config.beta2);
-        let mut v_tmp = DenseMatrix::zeros(rows, cols);
-        v_tmp.apply_with_indices(|r, c, v| {
-            let g = d_weights.at(r, c);
-            *v = g * g;
-        });
-        v_tmp.scale(1.0 - optimizer.config.beta2);
-        v_t.add(&v_tmp);
-
-        // Bias-corrected first and second moment estimates
-        let mut m_hat;
-        let mut v_hat;
-
-        m_hat = m_t.clone();
-        m_hat.scale(1.0 / (1.0 - optimizer.config.beta1.powi(optimizer.t as i32)));
-
-        v_hat = v_t.clone();
-        v_hat.scale(1.0 / (1.0 - optimizer.config.beta2.powi(optimizer.t as i32)));
-
-        // AMSGrad parameter update
-        expected_params.apply_with_indices(|r, c, v| {
-            let m_h = m_hat.at(r, c);
-            let v_h = v_hat.at(r, c);
-            let update =
-                optimizer.config.learning_rate * m_h / (v_h.sqrt() + optimizer.config.epsilon);
-            *v = weights.at(r, c) - update;
-        });
-
-        assert!(equal_approx(&weights, &expected_params, 1e-2));
+        assert!(equal_approx(&weights, &expected_weights, 1e-2));
+        assert!(equal_approx(&biases, &expected_biases, 1e-2));
     }
 }

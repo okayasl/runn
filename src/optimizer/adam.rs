@@ -112,7 +112,7 @@ impl Optimizer for AdamOptimizer {
         biases: &mut DenseMatrix,
         d_weights: &DenseMatrix,
         d_biases: &DenseMatrix,
-        epoch: usize,
+        _epoch: usize,
     ) {
         self.t += 1;
         self.m_hat_factor = 1.0 - self.config.beta1.powi(self.t as i32);
