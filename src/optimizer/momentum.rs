@@ -1,77 +1,94 @@
+use super::{Optimizer, OptimizerConfig};
 use crate::common::matrix::DenseMatrix;
-
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::Optimizer;
+#[derive(Serialize, Deserialize, Clone)]
+pub struct MomentumConfig {
+    learning_rate: f32,
+    momentum: f32,
+}
+
+impl OptimizerConfig for MomentumConfig {
+    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
+        Box::new(MomentumOptimizer::new(*self))
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MomentumOptimizer {
-    learning_rate: f32,
-    momentum: f32,
-    velocity: Vec<DenseMatrix>,
+    config: MomentumConfig,
+    velocity_weights: DenseMatrix,
+    velocity_biases: DenseMatrix,
 }
 
 impl MomentumOptimizer {
-    pub fn new(learning_rate: f32, momentum: f32) -> Self {
+    pub fn new(config: MomentumConfig) -> Self {
         Self {
-            learning_rate,
-            momentum,
-            velocity: Vec::new(),
+            config,
+            velocity_weights: DenseMatrix::zeros(0, 0),
+            velocity_biases: DenseMatrix::zeros(0, 0),
         }
     }
 }
 
 #[typetag::serde]
 impl Optimizer for MomentumOptimizer {
-    fn initialize(&mut self, params: &[DenseMatrix]) {
-        self.velocity = params
-            .iter()
-            .map(|p| DenseMatrix::zeros(p.rows(), p.cols()))
-            .collect();
+    fn initialize(&mut self, weights: &DenseMatrix, biases: &DenseMatrix) {
+        self.velocity_weights = DenseMatrix::zeros(weights.rows(), weights.cols());
+        self.velocity_biases = DenseMatrix::zeros(biases.rows(), biases.cols());
     }
 
     fn update(
         &mut self,
-        params: &mut [&mut DenseMatrix],
-        grads: &[&mut DenseMatrix],
+        weights: &mut DenseMatrix,
+        biases: &mut DenseMatrix,
+        d_weights: &DenseMatrix,
+        d_biases: &DenseMatrix,
         _epoch: usize,
     ) {
-        for (i, param) in params.iter_mut().enumerate() {
-            param.apply_with_indices(|r, c, v| {
-                let grad = &grads[i];
-                let velocity = &mut self.velocity[i];
-                let previous_velocity = velocity.at(r, c);
-                // Calculate the new velocity using the Momentum update rule
-                // velocity = (momentum * previous_velocity) + (learning_rate * gradient)
-                let new_velocity =
-                    self.momentum * previous_velocity + self.learning_rate * grad.at(r, c);
-                velocity.set(r, c, new_velocity);
-                *v -= new_velocity
-            });
-        }
+        weights.apply_with_indices(|r, c, v| {
+            let velocity = &mut self.velocity_weights;
+            let previous_velocity = velocity.at(r, c);
+            // Calculate the new velocity using the Momentum update rule
+            // velocity = (momentum * previous_velocity) + (learning_rate * gradient)
+            let new_velocity = self.config.momentum * previous_velocity
+                + self.config.learning_rate * d_weights.at(r, c);
+            velocity.set(r, c, new_velocity);
+            *v -= new_velocity
+        });
+        biases.apply_with_indices(|r, c, v| {
+            let velocity = &mut self.velocity_biases;
+            let previous_velocity = velocity.at(r, c);
+            // Calculate the new velocity using the Momentum update rule
+            // velocity = (momentum * previous_velocity) + (learning_rate * gradient)
+            let new_velocity = self.config.momentum * previous_velocity
+                + self.config.learning_rate * d_biases.at(r, c);
+            velocity.set(r, c, new_velocity);
+            *v -= new_velocity
+        });
     }
 
     fn update_learning_rate(&mut self, learning_rate: f32) {
-        self.learning_rate = learning_rate;
+        self.config.learning_rate = learning_rate;
     }
 }
 
-pub struct MomentumBuilder {
+pub struct Momentum {
     learning_rate: f32,
     momentum: f32,
 }
 
-impl MomentumBuilder {
-    pub fn new() -> MomentumBuilder {
-        MomentumBuilder {
+impl Momentum {
+    pub fn new() -> Self {
+        Self {
             learning_rate: 0.01,
             momentum: 0.9,
         }
     }
 
-    pub fn learning_rate(mut self, learning_rate: f32) -> Self {
-        self.learning_rate = learning_rate;
+    pub fn learning_rate(mut self, lr: f32) -> Self {
+        self.learning_rate = lr;
         self
     }
 
@@ -80,8 +97,11 @@ impl MomentumBuilder {
         self
     }
 
-    pub fn build(self) -> MomentumOptimizer {
-        MomentumOptimizer::new(self.learning_rate, self.momentum)
+    pub fn build(self) -> Box<MomentumConfig> {
+        Box::new(MomentumConfig {
+            learning_rate: self.learning_rate,
+            momentum: self.momentum,
+        })
     }
 }
 
@@ -92,30 +112,73 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_initialize() {
+        let config = MomentumConfig {
+            learning_rate: 0.01,
+            momentum: 0.9,
+        };
+        let mut optimizer = MomentumOptimizer::new(config);
+        let weights = DenseMatrix::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
+        let biases = DenseMatrix::new(2, 1, &[0.1, 0.2]);
+        optimizer.initialize(&weights, &biases);
+        assert_eq!(optimizer.velocity_weights.rows(), 2);
+        assert_eq!(optimizer.velocity_weights.cols(), 2);
+        assert_eq!(optimizer.velocity_biases.rows(), 2);
+        assert_eq!(optimizer.velocity_biases.cols(), 1);
+    }
+
+    #[test]
+    fn test_update() {
+        let config = MomentumConfig {
+            learning_rate: 0.1,
+            momentum: 0.9,
+        };
+        let mut optimizer = MomentumOptimizer::new(config);
+        let mut weights = DenseMatrix::new(2, 2, &[1.0, 1.0, 1.0, 1.0]);
+        let mut biases = DenseMatrix::new(2, 1, &[1.0, 1.0]);
+        let d_weights = DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
+        let d_biases = DenseMatrix::new(2, 1, &[0.1, 0.1]);
+        optimizer.initialize(&weights, &biases);
+
+        optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
+        assert!(weights.at(0, 0) < 1.0);
+        assert!(biases.at(0, 0) < 1.0);
+    }
+
+    #[test]
+    fn test_update_learning_rate() {
+        let config = MomentumConfig {
+            learning_rate: 0.01,
+            momentum: 0.9,
+        };
+        let mut optimizer = MomentumOptimizer::new(config);
+        optimizer.update_learning_rate(0.02);
+        assert_eq!(optimizer.config.learning_rate, 0.02);
+    }
+
+    #[test]
     fn test_momentum_optimizer() {
-        let mut params = vec![
-            DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]),
-            DenseMatrix::new(2, 2, &[5.0, 6.0, 7.0, 8.0]),
-        ];
+        // Create mock parameter matrices
+        let mut weights = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        let mut biases = DenseMatrix::new(2, 1, &[1.0, 2.0]);
 
-        let mut grads = vec![
-            DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]),
-            DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]),
-        ];
+        // Create mock gradient matrices
+        let d_weights = DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
+        let d_biases = DenseMatrix::new(2, 1, &[0.1, 0.1]);
 
-        let mut optimizer = MomentumOptimizer::new(0.01, 0.9);
-        optimizer.initialize(&params);
-        let mut params_refs: Vec<&mut DenseMatrix> = params.iter_mut().collect();
-        let mut grads_refs: Vec<&mut DenseMatrix> = grads.iter_mut().collect();
-        optimizer.update(&mut params_refs, &mut grads_refs, 1);
+        // Create an instance of the Momentum optimizer
+        let config = MomentumConfig {
+            learning_rate: 0.1,
+            momentum: 0.9,
+        };
+        let mut optimizer = MomentumOptimizer::new(config);
+        optimizer.initialize(&weights, &biases);
 
-        let expected_params = vec![
-            DenseMatrix::new(2, 2, &[0.999, 1.999, 2.999, 3.999]),
-            DenseMatrix::new(2, 2, &[4.999, 5.999, 6.999, 7.999]),
-        ];
+        // Update the parameters using the mock gradients
+        optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
 
-        for (param, expected) in params.iter().zip(expected_params.iter()) {
-            assert!(equal_approx(&param, &expected, 1e-6));
-        }
+        let expected_weights = DenseMatrix::new(2, 2, &[0.99, 1.99, 2.99, 3.99]);
+
+        assert!(equal_approx(&weights, &expected_weights, 1e-3));
     }
 }

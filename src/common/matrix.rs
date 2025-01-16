@@ -15,6 +15,12 @@ impl DenseMatrix {
         }
     }
 
+    pub fn mul_new(other: &DenseMatrix, another: &DenseMatrix) -> DenseMatrix {
+        DenseMatrix {
+            data: &other.data * &another.data,
+        }
+    }
+
     /// Creates a new dense matrix with given rows and columns, initialized with zeros.
     pub fn zeros(rows: usize, cols: usize) -> Self {
         Self {

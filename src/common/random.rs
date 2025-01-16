@@ -41,6 +41,11 @@ impl Randomizer {
         let mut rng = self.rng.lock().unwrap();
         rng.gen::<T>()
     }
+
+    pub fn float32(&self) -> f32 {
+        let mut rng = self.rng.lock().unwrap();
+        rng.gen::<f32>()
+    }
 }
 
 #[cfg(test)]

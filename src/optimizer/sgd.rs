@@ -18,21 +18,24 @@ impl SGDOptimizer {
 
 #[typetag::serde]
 impl Optimizer for SGDOptimizer {
-    fn initialize(&mut self, _params: &[DenseMatrix]) {
-        // No initialization needed for basic SGD.
+    fn initialize(&mut self, _weights: &DenseMatrix, _biases: &DenseMatrix) {
+        // No initialization needed for basic SGD
     }
 
     fn update(
         &mut self,
-        params: &mut [&mut DenseMatrix],
-        grads: &[&mut DenseMatrix],
+        weights: &mut DenseMatrix,
+        biases: &mut DenseMatrix,
+        d_weights: &DenseMatrix,
+        d_biases: &DenseMatrix,
         _epoch: usize,
     ) {
-        for (param, grad) in params.iter_mut().zip(grads.iter()) {
-            param.apply_with_indices(|i, j, v| {
-                *v -= self.learning_rate * grad.at(i, j);
-            });
-        }
+        weights.apply_with_indices(|i, j, v| {
+            *v -= self.learning_rate * d_weights.at(i, j);
+        });
+        biases.apply_with_indices(|i, j, v| {
+            *v -= self.learning_rate * d_biases.at(i, j);
+        });
     }
 
     fn update_learning_rate(&mut self, learning_rate: f32) {
@@ -70,30 +73,54 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_sgd_optimizer() {
-        let mut params = vec![
-            DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]),
-            DenseMatrix::new(2, 2, &[5.0, 6.0, 7.0, 8.0]),
-        ];
-
-        let mut grads = vec![
-            DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]),
-            DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]),
-        ];
-
+    fn test_initialize() {
         let mut optimizer = SGDOptimizer::new(0.01);
-        optimizer.initialize(&params);
-        let mut params_refs: Vec<&mut DenseMatrix> = params.iter_mut().collect();
-        let mut grads_refs: Vec<&mut DenseMatrix> = grads.iter_mut().collect();
-        optimizer.update(&mut params_refs, &mut grads_refs, 1);
+        let weights = DenseMatrix::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
+        let biases = DenseMatrix::new(2, 1, &[0.1, 0.2]);
+        optimizer.initialize(&weights, &biases);
+        // No specific assertions needed for initialization
+    }
 
-        let expected_params = vec![
-            DenseMatrix::new(2, 2, &[0.999, 1.999, 2.999, 3.999]),
-            DenseMatrix::new(2, 2, &[4.999, 5.999, 6.999, 7.999]),
-        ];
+    #[test]
+    fn test_update() {
+        let mut optimizer = SGDOptimizer::new(0.01);
+        let mut weights = DenseMatrix::new(2, 2, &[1.0, 1.0, 1.0, 1.0]);
+        let mut biases = DenseMatrix::new(2, 1, &[1.0, 1.0]);
+        let d_weights = DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
+        let d_biases = DenseMatrix::new(2, 1, &[0.1, 0.1]);
+        optimizer.initialize(&weights, &biases);
 
-        for (param, expected) in params.iter().zip(expected_params.iter()) {
-            assert!(equal_approx(&param, &expected, 1e-6));
-        }
+        optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
+        assert!(weights.at(0, 0) < 1.0);
+        assert!(biases.at(0, 0) < 1.0);
+    }
+
+    #[test]
+    fn test_update_learning_rate() {
+        let mut optimizer = SGDOptimizer::new(0.01);
+        optimizer.update_learning_rate(0.02);
+        assert_eq!(optimizer.learning_rate, 0.02);
+    }
+
+    #[test]
+    fn test_sgd_optimizer() {
+        // Create mock parameter matrices
+        let mut weights = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        let mut biases = DenseMatrix::new(2, 1, &[1.0, 2.0]);
+
+        // Create mock gradient matrices
+        let d_weights = DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
+        let d_biases = DenseMatrix::new(2, 1, &[0.1, 0.1]);
+
+        // Create an instance of the SGD optimizer
+        let mut optimizer = SGDOptimizer::new(0.01);
+        optimizer.initialize(&weights, &biases);
+
+        // Update the parameters using the mock gradients
+        optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
+
+        let expected_weights = DenseMatrix::new(2, 2, &[0.999, 1.999, 2.999, 3.999]);
+
+        assert!(equal_approx(&weights, &expected_weights, 1e-6));
     }
 }

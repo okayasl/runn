@@ -125,6 +125,40 @@ pub(crate) fn flatten(matrix: &DenseMatrix) -> Vec<f32> {
     result
 }
 
+pub fn format_matrix(matrix: &DenseMatrix) -> String {
+    let mut result = String::new();
+
+    for i in 0..matrix.rows() {
+        let left_border = if i == 0 {
+            "⎡"
+        } else if i == matrix.rows() - 1 {
+            "⎣"
+        } else {
+            "⎢"
+        };
+
+        let right_border = if i == 0 {
+            "⎤"
+        } else if i == matrix.rows() - 1 {
+            "⎦"
+        } else {
+            "⎥"
+        };
+
+        let row: Vec<String> = (0..matrix.cols())
+            .map(|j| format!("{:7.6}", matrix.at(i, j)))
+            .collect();
+
+        result.push_str(&format!(
+            "{} {} {}\n",
+            left_border,
+            row.join(" "),
+            right_border
+        ));
+    }
+    result
+}
+
 /// Apply a function to each element of the matrix
 // pub(crate) fn apply<F>(matrix: &mut DenseMatrix, mut f: F)
 // where
