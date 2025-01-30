@@ -133,24 +133,94 @@ impl Layer for DenseLayer {
     }
 }
 
-// fn init_weights(
-//     weights: &mut DenseMatrix,
-//     randomizer: &Randomizer,
-//     activation: &Box<dyn ActivationFunction>,
-// ) {
-//     let std_dev = match activation.activation_type() {
-//         ActivationType::RELU
-//         | ActivationType::GELU
-//         | ActivationType::ELU
-//         | ActivationType::LEAKYRELU
-//         | ActivationType::SWISH => (2.0 / weights.cols() as f32).sqrt(),
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::adam::Adam;
+    use crate::common::matrix::DenseMatrix;
+    use crate::random::Randomizer;
+    use crate::relu::ReLU;
+    use crate::sigmoid::Sigmoid;
+    use crate::OptimizerConfig;
 
-//         ActivationType::TANH
-//         | ActivationType::SIGMOID
-//         | ActivationType::SOFTMAX => (2.0 / (weights.rows() as f32 + weights.cols() as f32)).sqrt(),
+    #[test]
+    fn test_dense_layer_forward() {
+        let randomizer = Randomizer::new(Some(42));
+        let activation = Box::new(ReLU::new());
+        let optimizer = Adam::new()
+            .learning_rate(0.001)
+            .beta1(0.9)
+            .beta2(0.999)
+            .epsilon(1e-8)
+            .build()
+            .create_optimizer();
 
-//         ActivationType::LINEAR => 1.0,
-//         _ => 1.0,
-//     };
-//     weights.apply(|_| randomizer.float32() * activation.weight_initialization_factor());
-// }
+        let mut layer = DenseLayer::new(3, 2, activation, optimizer, &randomizer);
+
+        let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
+        let (output, pre_activated_output) = layer.forward(&input);
+
+        assert_eq!(output.rows(), 1);
+        assert_eq!(output.cols(), 2);
+        assert_eq!(pre_activated_output.rows(), 1);
+        assert_eq!(pre_activated_output.cols(), 2);
+    }
+
+    #[test]
+    fn test_dense_layer_backward() {
+        let randomizer = Randomizer::new(Some(42));
+        let activation = Box::new(Sigmoid::new());
+        let optimizer = Adam::new()
+            .learning_rate(0.001)
+            .beta1(0.9)
+            .beta2(0.999)
+            .epsilon(1e-8)
+            .build()
+            .create_optimizer();
+
+        let mut layer = DenseLayer::new(3, 2, activation, optimizer, &randomizer);
+
+        let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
+        let (_output, mut pre_activated_output) = layer.forward(&input);
+
+        let d_output = DenseMatrix::new(1, 2, &[0.1, 0.2]);
+        let (d_input, d_weights, d_biases) =
+            layer.backward(&d_output, &input, &mut pre_activated_output);
+
+        assert_eq!(d_input.rows(), 1);
+        assert_eq!(d_input.cols(), 3);
+        assert_eq!(d_weights.rows(), 2);
+        assert_eq!(d_weights.cols(), 3);
+        assert_eq!(d_biases.rows(), 2);
+        assert_eq!(d_biases.cols(), 1);
+    }
+
+    #[test]
+    fn test_dense_layer_update() {
+        let randomizer = Randomizer::new(Some(42));
+        let activation = Box::new(ReLU::new());
+        let optimizer = Adam::new()
+            .learning_rate(0.001)
+            .beta1(0.9)
+            .beta2(0.999)
+            .epsilon(1e-8)
+            .build()
+            .create_optimizer();
+
+        let mut layer = DenseLayer::new(3, 2, activation, optimizer, &randomizer);
+
+        let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
+        let (_output, mut pre_activated_output) = layer.forward(&input);
+
+        let d_output = DenseMatrix::new(1, 2, &[0.1, 0.2]);
+        let (_d_input, d_weights, d_biases) =
+            layer.backward(&d_output, &input, &mut pre_activated_output);
+
+        layer.update(&d_weights, &d_biases, 1);
+
+        // Add assertions to verify the updated weights and biases
+        // For example:
+        // assert_eq!(layer.weights, expected_weights);
+        // assert_eq!(layer.biases, expected_biases);
+    }
+}

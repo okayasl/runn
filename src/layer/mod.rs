@@ -4,12 +4,16 @@ use crate::{matrix::DenseMatrix, random::Randomizer, ActivationFunction, Optimiz
 
 pub mod dense_layer;
 
-
 #[typetag::serde]
 pub trait Layer: LayerClone + Send {
     fn forward(&mut self, input: &DenseMatrix) -> (DenseMatrix, DenseMatrix);
-    fn backward(&mut self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &mut DenseMatrix) -> (DenseMatrix, DenseMatrix, DenseMatrix);
-   // fn get_params_and_grads(&mut self) -> ([&mut DenseMatrix; 2], [&mut DenseMatrix; 2]);
+    fn backward(
+        &mut self,
+        d_output: &DenseMatrix,
+        input: &DenseMatrix,
+        pre_activated_output: &mut DenseMatrix,
+    ) -> (DenseMatrix, DenseMatrix, DenseMatrix);
+    // fn get_params_and_grads(&mut self) -> ([&mut DenseMatrix; 2], [&mut DenseMatrix; 2]);
     // fn get_size(&self) -> usize;
     // fn get_activation_function(&self) -> &dyn ActivationFunction;
     //fn reset(&mut self);
@@ -39,7 +43,12 @@ impl Clone for Box<dyn Layer> {
 
 pub(crate) trait LayerConfig {
     fn get_size(self) -> usize;
-    fn create_layer(self: Box<Self>, input_size: usize, optimizer: Box<dyn Optimizer>, randomizer: &Randomizer) -> Box<dyn Layer>;
+    fn create_layer(
+        self: Box<Self>,
+        input_size: usize,
+        optimizer: Box<dyn Optimizer>,
+        randomizer: &Randomizer,
+    ) -> Box<dyn Layer>;
 }
 
 pub struct DenseConfig {
@@ -51,7 +60,12 @@ impl LayerConfig for DenseConfig {
     fn get_size(self) -> usize {
         self.size
     }
-    fn create_layer(self: Box<Self>, input_size: usize, optimizer: Box<dyn Optimizer>, randomizer: &Randomizer) -> Box<dyn Layer> {
+    fn create_layer(
+        self: Box<Self>,
+        input_size: usize,
+        optimizer: Box<dyn Optimizer>,
+        randomizer: &Randomizer,
+    ) -> Box<dyn Layer> {
         Box::new(DenseLayer::new(
             input_size,
             self.size,
