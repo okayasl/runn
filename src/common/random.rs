@@ -4,9 +4,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
+use serde::{Deserialize, Serialize};
 
 /// A thread-safe randomizer that supports seeding and various random generation functions.
+#[derive(Serialize, Clone)]
 pub(crate) struct Randomizer {
+    seed: u64, // Store the seed for serialization
+    #[serde(skip)] // Skip serialization of the RNG itself
     rng: Arc<Mutex<StdRng>>, // Thread-safe random number generator
 }
 
@@ -21,6 +25,7 @@ impl Randomizer {
         });
         let rng = StdRng::seed_from_u64(seed);
         Self {
+            seed,
             rng: Arc::new(Mutex::new(rng)),
         }
     }
@@ -45,6 +50,21 @@ impl Randomizer {
     pub fn float32(&self) -> f32 {
         let mut rng = self.rng.lock().unwrap();
         rng.gen::<f32>()
+    }
+}
+
+// Implement custom deserialization to recreate the RNG from the seed
+impl<'de> Deserialize<'de> for Randomizer {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let seed = u64::deserialize(deserializer)?;
+        let rng = StdRng::seed_from_u64(seed);
+        Ok(Self {
+            seed,
+            rng: Arc::new(Mutex::new(rng)),
+        })
     }
 }
 
