@@ -90,41 +90,6 @@ pub(crate) fn find_max_index_in_row(matrix: &DenseMatrix, row: usize) -> usize {
     max_idx
 }
 
-/// Check if two matrices are approximately equal within a tolerance
-pub(crate) fn equal_approx(a: &DenseMatrix, b: &DenseMatrix, tolerance: f32) -> bool {
-    if a.rows() != b.rows() || a.cols() != b.cols() {
-        return false;
-    }
-
-    let rows = a.rows();
-    let cols = a.cols();
-
-    for i in 0..rows {
-        for j in 0..cols {
-            let diff = (a.at(i, j) - b.at(i, j)).abs();
-            if diff > tolerance {
-                return false;
-            }
-        }
-    }
-
-    true
-}
-
-/// Flatten matrix into a vector in row-major order
-pub(crate) fn flatten(matrix: &DenseMatrix) -> Vec<f32> {
-    let (rows, cols) = (matrix.rows(), matrix.cols());
-    let mut result = Vec::with_capacity(rows * cols);
-
-    for i in 0..rows {
-        for j in 0..cols {
-            result.push(matrix.at(i, j));
-        }
-    }
-
-    result
-}
-
 pub fn format_matrix(matrix: &DenseMatrix) -> String {
     let mut result = String::new();
 
@@ -187,6 +152,43 @@ pub fn format_matrix(matrix: &DenseMatrix) -> String {
 //     }
 // }
 
+/// Check if two matrices are approximately equal within a tolerance
+#[cfg(test)]
+pub(crate) fn equal_approx(a: &DenseMatrix, b: &DenseMatrix, tolerance: f32) -> bool {
+    if a.rows() != b.rows() || a.cols() != b.cols() {
+        return false;
+    }
+
+    let rows = a.rows();
+    let cols = a.cols();
+
+    for i in 0..rows {
+        for j in 0..cols {
+            let diff = (a.at(i, j) - b.at(i, j)).abs();
+            if diff > tolerance {
+                return false;
+            }
+        }
+    }
+
+    true
+}
+
+/// Flatten matrix into a vector in row-major order
+#[cfg(test)]
+pub(crate) fn flatten(matrix: &DenseMatrix) -> Vec<f32> {
+    let (rows, cols) = (matrix.rows(), matrix.cols());
+    let mut result = Vec::with_capacity(rows * cols);
+
+    for i in 0..rows {
+        for j in 0..cols {
+            result.push(matrix.at(i, j));
+        }
+    }
+
+    result
+}
+
 // Tests for utility functions
 #[cfg(test)]
 mod tests {
@@ -231,6 +233,12 @@ mod tests {
         let targets = DenseMatrix::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
         let accuracy = calculate_accuracy(&predictions, &targets);
         assert!((accuracy - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_flatten() {
+        let matrix = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        assert_eq!(flatten(&matrix), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     }
 
     // #[test]

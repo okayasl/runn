@@ -2,12 +2,15 @@ use log::info;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use crate::{matrix::DenseMatrix, random::Randomizer, util, ActivationFunction, Optimizer};
+use crate::{matrix::DenseMatrix, random::Randomizer, util, ActivationFunction, Optimizer, Regularization};
 
 use super::Layer;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DenseLayer {
+    name: String,
+    input_size: usize,
+    output_size: usize,
     weights: DenseMatrix,
     biases: DenseMatrix,
     //d_weights: DenseMatrix,
@@ -19,6 +22,7 @@ pub struct DenseLayer {
 
 impl DenseLayer {
     pub(crate) fn new(
+        name: String,
         input_size: usize,
         output_size: usize,
         activation: Box<dyn ActivationFunction>,
@@ -34,6 +38,9 @@ impl DenseLayer {
         }); // Initialize weights with random values
         optimizer.initialize(&weights, &biases);
         Self {
+            name: name,
+            input_size,
+            output_size,
             weights,
             biases,
             optimizer: optimizer,
@@ -91,6 +98,19 @@ impl Layer for DenseLayer {
         (d_input, d_weights, d_biases)
     }
 
+    fn regulate(
+        &mut self,
+        d_weights: &mut DenseMatrix,
+        d_biases: &mut DenseMatrix,
+        regularization: &Box<dyn Regularization>,
+    ) {
+        // Apply the single regularization technique
+        regularization.apply(
+            &mut [&mut self.weights, &mut self.biases],
+            &mut [&mut *d_weights, &mut *d_biases],
+        );
+    }
+
     fn update(&mut self, d_weights: &DenseMatrix, d_biases: &DenseMatrix, epoch: usize) {
         self.optimizer.update(
             &mut self.weights,
@@ -126,8 +146,12 @@ impl Layer for DenseLayer {
     //     self.d_weights.zero();
     //     self.d_biases.zero();
     // }
-    fn visualize(&self, layer_name: &str) {
-        info!("----- {} Layer (Dense) -----", layer_name);
+
+    fn get_input_output_size(&self) -> (usize, usize) {
+        (self.input_size, self.output_size)
+    }
+    fn visualize(&self) {
+        info!("----- {} Layer (Dense) -----", self.name);
         info!("Weights: {}", util::format_matrix(&self.weights));
         info!("Biases: {}", util::format_matrix(&self.biases));
     }
@@ -155,7 +179,7 @@ mod tests {
             .build()
             .create_optimizer();
 
-        let mut layer = DenseLayer::new(3, 2, activation, optimizer, &randomizer);
+        let mut layer = DenseLayer::new("layer".to_owned(),3, 2, activation, optimizer, &randomizer);
 
         let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
         let (output, pre_activated_output) = layer.forward(&input);
@@ -178,7 +202,7 @@ mod tests {
             .build()
             .create_optimizer();
 
-        let mut layer = DenseLayer::new(3, 2, activation, optimizer, &randomizer);
+        let mut layer = DenseLayer::new("layer".to_owned(),3, 2, activation, optimizer, &randomizer);
 
         let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
         let (_output, mut pre_activated_output) = layer.forward(&input);
@@ -207,7 +231,7 @@ mod tests {
             .build()
             .create_optimizer();
 
-        let mut layer = DenseLayer::new(3, 2, activation, optimizer, &randomizer);
+        let mut layer = DenseLayer::new("layer".to_owned(),3, 2, activation, optimizer, &randomizer);
 
         let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
         let (_output, mut pre_activated_output) = layer.forward(&input);

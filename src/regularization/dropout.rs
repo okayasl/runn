@@ -43,6 +43,7 @@ mod tests {
     use super::*;
     use crate::common::matrix::DenseMatrix;
     use crate::common::random::Randomizer;
+    use crate::util;
 
     #[test]
     fn test_dropout_regularization() {
@@ -56,7 +57,7 @@ mod tests {
         dropout.apply(&mut params_refs, &mut grads_refs);
 
         // Since dropout is random, we can't assert exact values, but we can check if some values are zero
-        let flattened = params[0].flatten();
+        let flattened = util::flatten(&params[0]);
         assert!(flattened.iter().any(|&v| v == 0.0));
     }
 }

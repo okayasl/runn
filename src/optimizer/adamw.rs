@@ -177,7 +177,7 @@ impl AdamW {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{common::matrix::DenseMatrix, util::equal_approx};
+    use crate::{common::matrix::DenseMatrix, util::{self, equal_approx}};
 
     #[test]
     fn test_initialize() {
@@ -269,10 +269,10 @@ mod tests {
             DenseMatrix::new(2, 2, &[0.9868693, 1.9768693, 2.9668694, 3.9568691]);
         let expected_biases = DenseMatrix::new(2, 1, &[0.9968377, 1.9968377]);
 
-        println!("Updated weights: {:?}", weights.flatten());
-        println!("Expected weights: {:?}", expected_weights.flatten());
-        println!("Updated biases: {:?}", biases.flatten());
-        println!("Expected biases: {:?}", expected_biases.flatten());
+        println!("Updated weights: {:?}", util::flatten(&weights));
+        println!("Expected weights: {:?}", util::flatten(&expected_weights));
+        println!("Updated biases: {:?}", util::flatten(&biases));
+        println!("Expected biases: {:?}", util::flatten(&expected_biases));
 
         assert!(equal_approx(&weights, &expected_weights, 1e-2));
         assert!(equal_approx(&biases, &expected_biases, 1e-2));

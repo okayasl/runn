@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// A thread-safe randomizer that supports seeding and various random generation functions.
 #[derive(Serialize, Clone)]
-pub(crate) struct Randomizer {
+pub struct Randomizer {
     seed: u64, // Store the seed for serialization
     #[serde(skip)] // Skip serialization of the RNG itself
     rng: Arc<Mutex<StdRng>>, // Thread-safe random number generator
@@ -36,15 +36,6 @@ impl Randomizer {
         let mut indices: Vec<usize> = (0..n).collect();
         indices.shuffle(&mut *rng);
         indices
-    }
-
-    /// Generates a random floating-point number in the range [0, 1).
-    pub(crate) fn float<T>(&self) -> T
-    where
-        rand::distributions::Standard: rand::distributions::Distribution<T>,
-    {
-        let mut rng = self.rng.lock().unwrap();
-        rng.gen::<T>()
     }
 
     pub fn float32(&self) -> f32 {
@@ -86,8 +77,8 @@ mod tests {
         assert_eq!(perm1, perm2, "Permutations should match for the same seed");
 
         // Check if the same float64 is generated
-        let float1 = randomizer1.float::<f64>();
-        let float2 = randomizer2.float::<f64>();
+        let float1 = randomizer1.float32();
+        let float2 = randomizer2.float32();
         assert_eq!(
             float1, float2,
             "Random floats should match for the same seed"
@@ -106,8 +97,8 @@ mod tests {
         assert_ne!(perm1, perm2, "Permutations should differ without a seed");
 
         // It's unlikely that the same float64 will be generated
-        let float1 = randomizer1.float::<f64>();
-        let float2 = randomizer2.float::<f64>();
+        let float1 = randomizer1.float32();
+        let float2 = randomizer2.float32();
         assert_ne!(float1, float2, "Random floats should differ without a seed");
     }
 
@@ -138,7 +129,7 @@ mod tests {
     #[test]
     fn test_random_float64() {
         let randomizer = Randomizer::new(Some(42));
-        let random_value = randomizer.float::<f64>();
+        let random_value = randomizer.float32();
 
         // Check if the value is in the range [0, 1)
         assert!(

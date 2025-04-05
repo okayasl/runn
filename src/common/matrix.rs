@@ -104,6 +104,10 @@ impl DenseMatrix {
         }
     }
 
+    pub fn get_row(&self, i: usize) -> Vec<f32> {
+        self.data.row(i).iter().cloned().collect()
+    }
+
     /// Sets the values of a specific row.
     pub fn set_row(&mut self, i: usize, src: &[f32]) {
         for (j, &value) in src.iter().enumerate() {
@@ -131,14 +135,6 @@ impl DenseMatrix {
         } else {
             panic!("Unsupported norm type");
         }
-    }
-
-    /// Flattens the matrix into a single vector of elements in row major layout.
-    pub fn flatten(&self) -> Vec<f32> {
-        self.data
-            .row_iter() // Iterate over rows
-            .flat_map(|row| row.into_iter().cloned()) // Flatten each row into the resulting vector
-            .collect()
     }
 
     pub fn set_column_sum(&mut self, other: &DenseMatrix) {
@@ -171,6 +167,8 @@ impl DenseMatrix {
 // Example usage in tests
 #[cfg(test)]
 mod tests {
+    use crate::util;
+
     use super::*;
 
     #[test]
@@ -183,7 +181,7 @@ mod tests {
     fn test_zero() {
         let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         matrix.zero();
-        assert_eq!(matrix.flatten(), &[0.0, 0.0, 0.0, 0.0]);
+        assert_eq!(util::flatten(&matrix), &[0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
@@ -191,7 +189,7 @@ mod tests {
         let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         let other = DenseMatrix::new(2, 2, &[4.0, 3.0, 2.0, 1.0]);
         matrix.add(&other);
-        assert_eq!(matrix.flatten(), &[5.0, 5.0, 5.0, 5.0]);
+        assert_eq!(util::flatten(&matrix), &[5.0, 5.0, 5.0, 5.0]);
     }
 
     #[test]
@@ -199,14 +197,14 @@ mod tests {
         let mut matrix = DenseMatrix::new(2, 2, &[5.0, 5.0, 5.0, 5.0]);
         let other = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         matrix.sub(&other);
-        assert_eq!(matrix.flatten(), &[4.0, 3.0, 2.0, 1.0]);
+        assert_eq!(util::flatten(&matrix), &[4.0, 3.0, 2.0, 1.0]);
     }
 
     #[test]
     fn test_scale() {
         let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         matrix.scale(2.0);
-        assert_eq!(matrix.flatten(), &[2.0, 4.0, 6.0, 8.0]);
+        assert_eq!(util::flatten(&matrix), &[2.0, 4.0, 6.0, 8.0]);
     }
 
     #[test]
@@ -228,7 +226,7 @@ mod tests {
     fn test_slice() {
         let matrix = DenseMatrix::new(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         let submatrix = matrix.slice(1, 2, 1, 2);
-        assert_eq!(submatrix.flatten(), &[5.0, 6.0, 8.0, 9.0]);
+        assert_eq!(util::flatten(&submatrix), &[5.0, 6.0, 8.0, 9.0]);
     }
 
     #[test]
@@ -237,14 +235,14 @@ mod tests {
         let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         let identity = DenseMatrix::new(2, 2, &[1.0, 0.0, 0.0, 1.0]); // Identity matrix
         matrix.matrix_multiply_in_place(&identity);
-        assert_eq!(matrix.flatten(), &[1.0, 2.0, 3.0, 4.0]);
+        assert_eq!(util::flatten(&matrix), &[1.0, 2.0, 3.0, 4.0]);
 
         // Case 2: Rectangular Matrix Multiplication (2x3 * 3x2)
         let mut matrix_a = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let matrix_b = DenseMatrix::new(3, 2, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         matrix_a.matrix_multiply_in_place(&matrix_b);
         assert_eq!(
-            matrix_a.flatten(),
+            util::flatten(&matrix_a),
             &[22.0, 28.0, 49.0, 64.0] // Result of 2x3 * 3x2 multiplication
         );
 
@@ -253,7 +251,7 @@ mod tests {
         let zero_matrix = DenseMatrix::zeros(2, 3);
         matrix_c.matrix_multiply_in_place(&zero_matrix);
         assert_eq!(
-            matrix_c.flatten(),
+            util::flatten(&matrix_c),
             &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] // Result is a 3x3 zero matrix
         );
 
@@ -262,7 +260,7 @@ mod tests {
         let identity_3x3 = DenseMatrix::new(3, 3, &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
         matrix_d.matrix_multiply_in_place(&identity_3x3);
         assert_eq!(
-            matrix_d.flatten(),
+            util::flatten(&matrix_d),
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0] // Result is the same matrix
         );
 
@@ -270,7 +268,7 @@ mod tests {
         let mut row_matrix = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
         let col_matrix = DenseMatrix::new(3, 1, &[4.0, 5.0, 6.0]);
         row_matrix.matrix_multiply_in_place(&col_matrix);
-        assert_eq!(row_matrix.flatten(), &[32.0]); // Dot product result: 1*4 + 2*5 + 3*6 = 32
+        assert_eq!(util::flatten(&row_matrix), &[32.0]); // Dot product result: 1*4 + 2*5 + 3*6 = 32
     }
 
     #[test]
@@ -279,20 +277,23 @@ mod tests {
         let mut matrix_a = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         let matrix_b = DenseMatrix::new(2, 2, &[5.0, 6.0, 7.0, 8.0]);
         matrix_a.mul_elem(&matrix_b);
-        assert_eq!(matrix_a.flatten(), &[5.0, 12.0, 21.0, 32.0]);
+        assert_eq!(util::flatten(&matrix_a), &[5.0, 12.0, 21.0, 32.0]);
 
         // Case 2: Element-wise multiplication for rectangular matrices (2x3)
         let mut matrix_c = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let matrix_d = DenseMatrix::new(2, 3, &[6.0, 5.0, 4.0, 3.0, 2.0, 1.0]);
         matrix_c.mul_elem(&matrix_d);
-        assert_eq!(matrix_c.flatten(), &[6.0, 10.0, 12.0, 12.0, 10.0, 6.0]);
+        assert_eq!(
+            util::flatten(&matrix_c),
+            &[6.0, 10.0, 12.0, 12.0, 10.0, 6.0]
+        );
 
         // Case 3: Element-wise multiplication with all ones (identity for element-wise mul)
         let mut matrix_e = DenseMatrix::new(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         let matrix_ones = DenseMatrix::new(3, 3, &[1.0; 9]); // 3x3 matrix of all ones
         matrix_e.mul_elem(&matrix_ones);
         assert_eq!(
-            matrix_e.flatten(),
+            util::flatten(&matrix_e),
             &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
         );
 
@@ -300,25 +301,19 @@ mod tests {
         let mut matrix_f = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         let zero_matrix = DenseMatrix::zeros(2, 2);
         matrix_f.mul_elem(&zero_matrix);
-        assert_eq!(matrix_f.flatten(), &[0.0, 0.0, 0.0, 0.0]);
+        assert_eq!(util::flatten(&matrix_f), &[0.0, 0.0, 0.0, 0.0]);
 
         // Case 5: Element-wise multiplication for single-row matrices (1x4)
         let mut matrix_g = DenseMatrix::new(1, 4, &[1.0, 2.0, 3.0, 4.0]);
         let matrix_h = DenseMatrix::new(1, 4, &[4.0, 3.0, 2.0, 1.0]);
         matrix_g.mul_elem(&matrix_h);
-        assert_eq!(matrix_g.flatten(), &[4.0, 6.0, 6.0, 4.0]);
+        assert_eq!(util::flatten(&matrix_g), &[4.0, 6.0, 6.0, 4.0]);
 
         // Case 6: Element-wise multiplication for single-column matrices (4x1)
         let mut matrix_i = DenseMatrix::new(4, 1, &[1.0, 2.0, 3.0, 4.0]);
         let matrix_j = DenseMatrix::new(4, 1, &[4.0, 3.0, 2.0, 1.0]);
         matrix_i.mul_elem(&matrix_j);
-        assert_eq!(matrix_i.flatten(), &[4.0, 6.0, 6.0, 4.0]);
-    }
-
-    #[test]
-    fn test_flatten() {
-        let matrix = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        assert_eq!(matrix.flatten(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        assert_eq!(util::flatten(&matrix_i), &[4.0, 6.0, 6.0, 4.0]);
     }
 
     #[test]
@@ -347,7 +342,7 @@ mod tests {
         let mut result_matrix = DenseMatrix::new(3, 1, &[0.0, 0.0, 0.0]);
         let source_matrix = DenseMatrix::new(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         result_matrix.set_column_sum(&source_matrix);
-        assert_eq!(result_matrix.flatten(), &[12.0, 15.0, 18.0]);
+        assert_eq!(util::flatten(&result_matrix), &[12.0, 15.0, 18.0]);
     }
 
     #[test]
@@ -366,18 +361,18 @@ mod tests {
         let mut matrix = DenseMatrix::new(2, 2, &vec![3.0, 4.0, 0.0, 0.0]);
         matrix.clip(5.0);
         let clipped = DenseMatrix::new(2, 2, &vec![3.0, 4.0, 0.0, 0.0]);
-        assert_eq!(matrix.flatten(), clipped.flatten()); // or a slightly scaled version of this
+        assert_eq!(util::flatten(&matrix), util::flatten(&clipped)); // or a slightly scaled version of this
 
         let mut matrix = DenseMatrix::new(2, 2, &vec![6.0, 8.0, 0.0, 0.0]);
         matrix.clip(5.0);
         let clipped = DenseMatrix::new(2, 2, &vec![3.0, 4.0, 0.0, 0.0]);
-        assert_eq!(matrix.flatten(), clipped.flatten()); // or a slightly scaled version of this
+        assert_eq!(util::flatten(&matrix), util::flatten(&clipped)); // or a slightly scaled version of this
     }
 
     #[test]
     fn test_apply() {
         let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         matrix.apply(|x| x * 2.0);
-        assert_eq!(matrix.flatten(), &[2.0, 4.0, 6.0, 8.0]);
+        assert_eq!(util::flatten(&matrix), &[2.0, 4.0, 6.0, 8.0]);
     }
 }
