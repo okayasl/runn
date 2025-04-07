@@ -12,6 +12,7 @@ pub struct AMSGradConfig {
     epsilon: f32,
 }
 
+#[typetag::serde]
 impl OptimizerConfig for AMSGradConfig {
     fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
         Box::new(AMSGradOptimizer::new(*self))
@@ -165,13 +166,13 @@ impl AMSGrad {
         self
     }
 
-    pub fn build(self) -> Box<AMSGradConfig> {
-        Box::new(AMSGradConfig {
+    pub fn build(self) -> AMSGradConfig {
+        AMSGradConfig {
             learning_rate: self.learning_rate,
             beta1: self.beta1,
             beta2: self.beta2,
             epsilon: self.epsilon,
-        })
+        }
     }
 }
 

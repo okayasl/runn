@@ -4,8 +4,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 
 use crate::layer::Layer;
-use crate::{optimizer::Optimizer, regularization::Regularization};
-use crate::{EarlyStopper, LossFunction};
+use crate::{EarlyStopper, LossFunction, OptimizerConfig, Regularization};
 
 pub enum SerializationFormat {
     Json,
@@ -18,7 +17,7 @@ pub struct NetworkIO {
     pub(crate) output_size: usize,
     pub(crate) layers: Vec<Box<dyn Layer>>,
     pub(crate) loss_function: Box<dyn LossFunction>,
-    pub(crate) optimizer: Box<dyn Optimizer>,
+    pub(crate) optimizer_config: Box<dyn OptimizerConfig>,
     pub(crate) regularization: Vec<Box<dyn Regularization>>,
     pub(crate) batch_size: usize,
     pub(crate) epochs: usize,

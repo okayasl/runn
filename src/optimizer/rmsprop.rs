@@ -10,6 +10,7 @@ pub struct RMSPropConfig {
     epsilon: f32,
 }
 
+#[typetag::serde]
 impl OptimizerConfig for RMSPropConfig {
     fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
         Box::new(RMSPropOptimizer::new(*self))
@@ -104,12 +105,12 @@ impl RMSProp {
         self
     }
 
-    pub fn build(self) -> Box<RMSPropConfig> {
-        Box::new(RMSPropConfig {
+    pub fn build(self) -> RMSPropConfig {
+        RMSPropConfig {
             learning_rate: self.learning_rate,
             decay_rate: self.decay_rate,
             epsilon: self.epsilon,
-        })
+        }
     }
 }
 

@@ -12,6 +12,7 @@ pub struct AdamConfig {
     epsilon: f32,
 }
 
+#[typetag::serde]
 impl OptimizerConfig for AdamConfig {
     fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
         Box::new(AdamOptimizer::new(*self))
@@ -167,13 +168,13 @@ impl Adam {
         self
     }
 
-    pub fn build(self) -> Box<AdamConfig> {
-        Box::new(AdamConfig {
+    pub fn build(self) -> AdamConfig {
+        AdamConfig {
             learning_rate: self.learning_rate,
             beta1: self.beta1,
             beta2: self.beta2,
             epsilon: self.epsilon,
-        })
+        }
     }
 }
 
@@ -190,7 +191,7 @@ mod tests {
             .beta2(0.999)
             .epsilon(1e-8)
             .build();
-        let mut optimizer = AdamOptimizer::new(adam_config.as_ref().clone());
+        let mut optimizer = AdamOptimizer::new(adam_config);
         let weights = DenseMatrix::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
         let biases = DenseMatrix::new(2, 1, &[0.1, 0.2]);
         optimizer.initialize(&weights, &biases);
@@ -228,7 +229,7 @@ mod tests {
             .beta2(0.999)
             .epsilon(1e-8)
             .build();
-        let mut optimizer = AdamOptimizer::new(adam_config.as_ref().clone());
+        let mut optimizer = AdamOptimizer::new(adam_config);
         optimizer.update_learning_rate(0.01);
         assert_eq!(optimizer.config.learning_rate, 0.01);
     }
@@ -250,7 +251,7 @@ mod tests {
             .beta2(0.999)
             .epsilon(1e-8)
             .build();
-        let mut optimizer = AdamOptimizer::new(adam_config.as_ref().clone());
+        let mut optimizer = AdamOptimizer::new(adam_config);
         optimizer.initialize(&weights, &biases);
 
         // Update the parameters using the mock gradients

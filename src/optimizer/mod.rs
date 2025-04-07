@@ -42,6 +42,27 @@ impl Clone for Box<dyn Optimizer> {
     }
 }
 
-pub trait OptimizerConfig {
+#[typetag::serde]
+pub trait OptimizerConfig: OptimizerConfigClone + Send  {
     fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer>;
+}
+
+// Implement OptimizerConfigClone and make OptimizerConfig Clone and Send
+pub trait OptimizerConfigClone {
+    fn clone_box(&self) -> Box<dyn OptimizerConfig>;
+}
+
+impl<T> OptimizerConfigClone for T
+where
+    T: 'static + OptimizerConfig + Clone,
+{
+    fn clone_box(&self) -> Box<dyn OptimizerConfig> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<dyn OptimizerConfig> {
+    fn clone(&self) -> Box<dyn OptimizerConfig> {
+        self.clone_box()
+    }
 }

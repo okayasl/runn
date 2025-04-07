@@ -13,6 +13,7 @@ pub struct AdamWConfig {
     weight_decay: f32,
 }
 
+#[typetag::serde]
 impl OptimizerConfig for AdamWConfig {
     fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
         Box::new(AdamWOptimizer::new(*self))
@@ -163,14 +164,14 @@ impl AdamW {
         self
     }
 
-    pub fn build(self) -> Box<AdamWConfig> {
-        Box::new(AdamWConfig {
+    pub fn build(self) -> AdamWConfig {
+        AdamWConfig {
             learning_rate: self.learning_rate,
             beta1: self.beta1,
             beta2: self.beta2,
             epsilon: self.epsilon,
             weight_decay: self.weight_decay,
-        })
+        }
     }
 }
 
@@ -188,7 +189,7 @@ mod tests {
             .epsilon(1e-8)
             .weight_decay(0.01)
             .build();
-        let mut optimizer = AdamWOptimizer::new(adamw_config.as_ref().clone());
+        let mut optimizer = AdamWOptimizer::new(adamw_config);
         let weights = DenseMatrix::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
         let biases = DenseMatrix::new(2, 1, &[0.1, 0.2]);
         optimizer.initialize(&weights, &biases);
@@ -228,7 +229,7 @@ mod tests {
             .epsilon(1e-8)
             .weight_decay(0.01)
             .build();
-        let mut optimizer = AdamWOptimizer::new(adamw_config.as_ref().clone());
+        let mut optimizer = AdamWOptimizer::new(adamw_config);
         optimizer.update_learning_rate(0.01);
         assert_eq!(optimizer.config.learning_rate, 0.01);
     }
@@ -258,7 +259,7 @@ mod tests {
             .epsilon(1e-8)
             .weight_decay(0.01)
             .build();
-        let mut optimizer = AdamWOptimizer::new(adamw_config.as_ref().clone());
+        let mut optimizer = AdamWOptimizer::new(adamw_config);
         optimizer.initialize(&weights, &biases);
 
         // Update the parameters using the mock gradients

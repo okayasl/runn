@@ -9,6 +9,7 @@ pub struct MomentumConfig {
     momentum: f32,
 }
 
+#[typetag::serde]
 impl OptimizerConfig for MomentumConfig {
     fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
         Box::new(MomentumOptimizer::new(*self))
@@ -97,11 +98,11 @@ impl Momentum {
         self
     }
 
-    pub fn build(self) -> Box<MomentumConfig> {
-        Box::new(MomentumConfig {
+    pub fn build(self) -> MomentumConfig {
+        MomentumConfig {
             learning_rate: self.learning_rate,
             momentum: self.momentum,
-        })
+        }
     }
 }
 

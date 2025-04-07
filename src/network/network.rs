@@ -9,11 +9,10 @@ use crate::{
     metric::{
         calculate_confusion_matrix, calculate_f1_score, calculate_precision, calculate_recall,
     },
-    optimizer::Optimizer,
     random::Randomizer,
     regularization::Regularization,
     util::{self},
-    EarlyStopper, LossFunction,
+    EarlyStopper, LossFunction, OptimizerConfig,
 };
 
 use super::network_io::{load_network, save_network, NetworkIO, SerializationFormat};
@@ -23,7 +22,7 @@ pub struct NetworkBuilder {
     output_size: usize,
     layer_configs: Vec<Box<dyn LayerConfig>>,
     loss_function: Option<Box<dyn LossFunction>>,
-    optimizer: Option<Box<dyn Optimizer>>,
+    optimizer_config: Option<Box<dyn OptimizerConfig>>,
     regularization: Vec<Box<dyn Regularization>>,
     batch_size: usize,
     epochs: usize,
@@ -41,7 +40,7 @@ impl NetworkBuilder {
             output_size,
             layer_configs: Vec::new(),
             loss_function: None,
-            optimizer: None,
+            optimizer_config: None,
             regularization: Vec::new(),
             batch_size: usize::MAX,
             epochs: 0,
@@ -68,8 +67,8 @@ impl NetworkBuilder {
         self
     }
 
-    pub fn optimizer(mut self, optimizer: impl Optimizer + 'static) -> Self {
-        self.optimizer = Some(Box::new(optimizer));
+    pub fn optimizer(mut self, optimizer_config: impl OptimizerConfig + 'static) -> Self {
+        self.optimizer_config = Some(Box::new(optimizer_config));
         self
     }
 
@@ -110,7 +109,7 @@ impl NetworkBuilder {
 
     pub(crate) fn from_network(mut self, nw: &Network) -> Self {
         self.loss_function = Some(nw.loss_function.clone());
-        self.optimizer = Some(nw.optimizer.clone());
+        self.optimizer_config = Some(nw.optimizer_config.clone());
         self.batch_size = nw.batch_size;
         self.epochs = nw.epochs;
         self.seed = nw.seed;
@@ -137,7 +136,7 @@ impl NetworkBuilder {
         if self.loss_function.is_none() {
             return Err("Loss function is not set".into());
         }
-        if self.optimizer.is_none() {
+        if self.optimizer_config.is_none() {
             return Err("Optimizer is not set".into());
         }
         if self.epochs == 0 {
@@ -162,7 +161,7 @@ impl NetworkBuilder {
             let layer = layer_config.create_layer(
                 name,
                 input_size,
-                self.optimizer.clone().unwrap(),
+                self.optimizer_config.as_ref().unwrap().clone().create_optimizer(),
                 &randomizer,
             );
             input_size = size; // Update input_size for the next layer
@@ -174,7 +173,7 @@ impl NetworkBuilder {
             output_size: self.output_size,
             layers,
             loss_function: self.loss_function.unwrap(),
-            optimizer: self.optimizer.unwrap(),
+            optimizer_config: self.optimizer_config.unwrap(),
             regularization: self.regularization,
             batch_size: self.batch_size,
             epochs: self.epochs,
@@ -216,7 +215,7 @@ pub struct Network {
     pub(crate) output_size: usize,
     pub(crate) layers: Vec<Box<dyn Layer>>,
     pub(crate) loss_function: Box<dyn LossFunction>,
-    pub(crate) optimizer: Box<dyn Optimizer>,
+    pub(crate) optimizer_config: Box<dyn OptimizerConfig>,
     pub(crate) regularization: Vec<Box<dyn Regularization>>,
     pub(crate) batch_size: usize,
     pub(crate) epochs: usize,
@@ -667,7 +666,7 @@ impl Network {
             output_size: network_io.output_size,
             layers: network_io.layers,
             loss_function: network_io.loss_function as Box<dyn LossFunction>,
-            optimizer: network_io.optimizer as Box<dyn Optimizer>,
+            optimizer_config: network_io.optimizer_config as Box<dyn OptimizerConfig>,
             regularization: network_io.regularization,
             batch_size: network_io.batch_size,
             epochs: network_io.epochs,
@@ -688,7 +687,7 @@ impl Network {
             output_size: self.output_size,
             layers: self.layers.clone(),
             loss_function: self.loss_function.clone(),
-            optimizer: self.optimizer.clone(),
+            optimizer_config: self.optimizer_config.clone(),
             regularization: self.regularization.clone(),
             batch_size: self.batch_size,
             epochs: self.epochs,

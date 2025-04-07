@@ -138,9 +138,9 @@ impl Layer for DenseLayer {
     //     self.weights.rows()
     // }
 
-    // fn get_activation_function(&self) -> &dyn ActivationFunction {
-    //     &*self.activation
-    // }
+    fn activation_function(&self) -> &dyn ActivationFunction {
+        &*self.activation
+    }
 
     // fn reset(&mut self) {
     //     self.d_weights.zero();
@@ -171,15 +171,14 @@ mod tests {
     fn test_dense_layer_forward() {
         let randomizer = Randomizer::new(Some(42));
         let activation = Box::new(ReLU::new());
-        let optimizer = Adam::new()
+        let optimizer_config = Adam::new()
             .learning_rate(0.001)
             .beta1(0.9)
             .beta2(0.999)
             .epsilon(1e-8)
-            .build()
-            .create_optimizer();
+            .build();
 
-        let mut layer = DenseLayer::new("layer".to_owned(),3, 2, activation, optimizer, &randomizer);
+        let mut layer = DenseLayer::new("layer".to_owned(),3, 2, activation, Box::new(optimizer_config).create_optimizer(), &randomizer);
 
         let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
         let (output, pre_activated_output) = layer.forward(&input);
@@ -194,15 +193,14 @@ mod tests {
     fn test_dense_layer_backward() {
         let randomizer = Randomizer::new(Some(42));
         let activation = Box::new(Sigmoid::new());
-        let optimizer = Adam::new()
+        let optimizer_config = Adam::new()
             .learning_rate(0.001)
             .beta1(0.9)
             .beta2(0.999)
             .epsilon(1e-8)
-            .build()
-            .create_optimizer();
+            .build();
 
-        let mut layer = DenseLayer::new("layer".to_owned(),3, 2, activation, optimizer, &randomizer);
+        let mut layer = DenseLayer::new("layer".to_owned(),3, 2, activation, Box::new(optimizer_config).create_optimizer(), &randomizer);
 
         let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
         let (_output, mut pre_activated_output) = layer.forward(&input);
@@ -223,15 +221,14 @@ mod tests {
     fn test_dense_layer_update() {
         let randomizer = Randomizer::new(Some(42));
         let activation = Box::new(ReLU::new());
-        let optimizer = Adam::new()
+        let optimizer_config = Adam::new()
             .learning_rate(0.001)
             .beta1(0.9)
             .beta2(0.999)
             .epsilon(1e-8)
-            .build()
-            .create_optimizer();
+            .build();
 
-        let mut layer = DenseLayer::new("layer".to_owned(),3, 2, activation, optimizer, &randomizer);
+        let mut layer = DenseLayer::new("layer".to_owned(),3, 2, activation, Box::new(optimizer_config).create_optimizer(), &randomizer);
 
         let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
         let (_output, mut pre_activated_output) = layer.forward(&input);

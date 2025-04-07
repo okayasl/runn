@@ -15,7 +15,7 @@ pub trait Layer: LayerClone + Send {
     ) -> (DenseMatrix, DenseMatrix, DenseMatrix);
     // fn get_params_and_grads(&mut self) -> ([&mut DenseMatrix; 2], [&mut DenseMatrix; 2]);
     // fn get_size(&self) -> usize;
-    // fn get_activation_function(&self) -> &dyn ActivationFunction;
+    fn activation_function(&self) -> &dyn ActivationFunction;
     //fn reset(&mut self);
     fn regulate(
         &mut self,
