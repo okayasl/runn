@@ -61,6 +61,31 @@ impl LossFunction for CrossEntropyLoss {
     }
 }
 
+pub struct CrossEntropy {
+    epsilon: Option<f32>,
+}
+
+impl CrossEntropy {
+    /// Creates a new builder for CrossEntropyLoss
+    pub fn new() -> Self {
+        Self { epsilon: None }
+    }
+
+    /// Sets the epsilon value for the loss function
+    pub fn epsilon(mut self, epsilon: f32) -> Self {
+        self.epsilon = Some(epsilon);
+        self
+    }
+
+    /// Builds the CrossEntropyLoss instance
+    pub fn build(self) -> CrossEntropyLoss {
+        CrossEntropyLoss {
+            epsilon: self.epsilon.unwrap_or(1e-8), // Default epsilon value if not set
+        }
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

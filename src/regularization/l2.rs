@@ -10,12 +10,6 @@ pub struct L2Regularization {
     lambda: f32,
 }
 
-impl L2Regularization {
-    pub(crate) fn new(lambda: f32) -> Self {
-        Self { lambda }
-    }
-}
-
 #[typetag::serde]
 impl Regularization for L2Regularization {
     fn apply(&self, params: &mut [&mut DenseMatrix], grads: &mut [&mut DenseMatrix]) {
@@ -32,6 +26,30 @@ impl Regularization for L2Regularization {
     }
 }
 
+pub struct L2 {
+    lambda: Option<f32>,
+}
+
+impl L2 {
+    /// Creates a new builder for L2Regularization
+    pub fn new() -> Self {
+        Self { lambda: None }
+    }
+
+    /// Sets the lambda value for L2 regularization
+    pub fn lambda(mut self, lambda: f32) -> Self {
+        self.lambda = Some(lambda);
+        self
+    }
+
+    /// Builds the L2Regularization instance
+    pub fn build(self) -> L2Regularization {
+        L2Regularization {
+            lambda: self.lambda.expect("Lambda must be set"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -42,7 +60,7 @@ mod tests {
     fn test_l2_regularization() {
         let mut params = vec![DenseMatrix::new(2, 2, &[1.0, -2.0, 3.0, -4.0])];
         let mut grads = vec![DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1])];
-        let l2 = L2Regularization::new(0.01);
+        let l2 = L2::new().lambda(0.01).build();
 
         let mut params_refs: Vec<&mut DenseMatrix> = params.iter_mut().collect();
         let mut grads_refs: Vec<&mut DenseMatrix> = grads.iter_mut().collect();

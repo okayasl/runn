@@ -12,15 +12,6 @@ pub struct DropoutRegularization {
     randomizer: Randomizer,
 }
 
-impl DropoutRegularization {
-    pub(crate) fn new(dropout_rate: f32, randomizer: Randomizer) -> Self {
-        Self {
-            dropout_rate,
-            randomizer,
-        }
-    }
-}
-
 #[typetag::serde]
 impl Regularization for DropoutRegularization {
     fn apply(&self, params: &mut [&mut DenseMatrix], _grads: &mut [&mut DenseMatrix]) {
@@ -38,6 +29,41 @@ impl Regularization for DropoutRegularization {
     }
 }
 
+pub struct Dropout {
+    dropout_rate: Option<f32>,
+    randomizer: Option<Randomizer>,
+}
+
+impl Dropout {
+    /// Creates a new builder for DropoutRegularization
+    pub fn new() -> Self {
+        Self {
+            dropout_rate: None,
+            randomizer: None,
+        }
+    }
+
+    /// Sets the dropout rate
+    pub fn dropout_rate(mut self, dropout_rate: f32) -> Self {
+        self.dropout_rate = Some(dropout_rate);
+        self
+    }
+
+    /// Sets the randomizer
+    pub fn randomizer(mut self, randomizer: Randomizer) -> Self {
+        self.randomizer = Some(randomizer);
+        self
+    }
+
+    /// Builds the DropoutRegularization instance
+    pub fn build(self) -> DropoutRegularization {
+        DropoutRegularization {
+            dropout_rate: self.dropout_rate.expect("Dropout rate must be set"),
+            randomizer: self.randomizer.expect("Randomizer must be set"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -50,7 +76,7 @@ mod tests {
         let mut params = vec![DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0])];
         let mut grads = vec![DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1])];
         let rnd = Randomizer::new(Some(42));
-        let dropout = DropoutRegularization::new(0.5, rnd);
+        let dropout = Dropout::new().dropout_rate(0.5).randomizer(rnd).build();
 
         let mut params_refs: Vec<&mut DenseMatrix> = params.iter_mut().collect();
         let mut grads_refs: Vec<&mut DenseMatrix> = grads.iter_mut().collect();
