@@ -86,12 +86,12 @@ impl LayerConfig for DenseConfig {
     }
 }
 
-pub struct DenseConfigBuilder {
+pub struct Dense {
     size: Option<usize>,
     activation_function: Option<Box<dyn ActivationFunction>>,
 }
 
-impl DenseConfigBuilder {
+impl Dense {
     pub fn new() -> Self {
         Self {
             size: None,

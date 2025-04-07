@@ -1,7 +1,7 @@
 use env_logger::Builder;
 use log::info;
 use runn::{
-    adam::Adam, cross_entropy::CrossEntropyLoss, layer::DenseConfigBuilder, matrix::DenseMatrix, network::network::{Network, NetworkBuilder}, network_search::{search, SearchConfigsBuilder}, relu::ReLU, search_param::{Parameters, RangeParameters}, softmax::Softmax, util
+    adam::Adam, cross_entropy::CrossEntropyLoss, layer::Dense, matrix::DenseMatrix, network::network::{Network, NetworkBuilder}, network_search::{search, SearchConfigsBuilder}, relu::ReLU, search_param::{Parameters, RangeParameters}, softmax::Softmax, util
 };
 
 use std::env;
@@ -146,13 +146,13 @@ fn train_and_validate() {
 fn generate_network(inp_size: usize, targ_size: usize) -> Network {
     let network = NetworkBuilder::new(inp_size, targ_size)
         .layer(
-            DenseConfigBuilder::new()
+            Dense::new()
                 .size(16)
                 .activation(ReLU::new())
                 .build(),
         )
         .layer(
-            DenseConfigBuilder::new()
+            Dense::new()
                 .size(targ_size)
                 .activation(Softmax::new())
                 .build(),

@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use log::info;
 
-use crate::layer::DenseConfigBuilder;
+use crate::layer::Dense;
 use crate::matrix::DenseMatrix;
 use crate::network::network::{Network, NetworkBuilder};
 use crate::network_search_io::write_search_results;
@@ -288,7 +288,7 @@ fn generate_tuned_network(nw: &Network, nc: &NetworkConfig) -> Network {
 
     for (i, &size) in nc.layer_sizes.iter().enumerate() {
         new_nwb = new_nwb.layer(
-            DenseConfigBuilder::new()
+            Dense::new()
                 .from(size, nc.activation_functions[i].clone())
                 .build(),
         );
@@ -297,7 +297,7 @@ fn generate_tuned_network(nw: &Network, nc: &NetworkConfig) -> Network {
     let output_layer = nw.layers.last().unwrap();
     let (_,output_layer_size) = output_layer.get_input_output_size();
     new_nwb = new_nwb.layer(
-        DenseConfigBuilder::new()
+        Dense::new()
             .from(
                 output_layer_size,
                 output_layer.activation_function().clone_box(),
