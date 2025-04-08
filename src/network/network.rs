@@ -25,7 +25,7 @@ pub struct NetworkBuilder {
     optimizer_config: Option<Box<dyn OptimizerConfig>>,
     regularization: Vec<Box<dyn Regularization>>,
     batch_size: usize,
-    batch_group: usize,
+    batch_group_size: usize,
     epochs: usize,
     clip_threshold: f32,
     seed: u64,
@@ -44,7 +44,7 @@ impl NetworkBuilder {
             optimizer_config: None,
             regularization: Vec::new(),
             batch_size: usize::MAX,
-            batch_group: 1,
+            batch_group_size: 1,
             epochs: 0,
             clip_threshold: 0.0,
             seed: 0,
@@ -79,8 +79,8 @@ impl NetworkBuilder {
         self
     }
 
-    pub fn batch_group(mut self, batch_group: usize) -> Self {
-        self.batch_group = batch_group;
+    pub fn batch_group_size(mut self, batch_group_size: usize) -> Self {
+        self.batch_group_size = batch_group_size;
         self
     }
 
@@ -118,7 +118,7 @@ impl NetworkBuilder {
         self.loss_function = Some(nw.loss_function.clone());
         self.optimizer_config = Some(nw.optimizer_config.clone());
         self.batch_size = nw.batch_size;
-        self.batch_group = nw.batch_group;
+        self.batch_group_size = nw.batch_group_size;
         self.epochs = nw.epochs;
         self.seed = nw.seed;
         self.clip_threshold = nw.clip_threshold;
@@ -188,7 +188,7 @@ impl NetworkBuilder {
             optimizer_config: self.optimizer_config.unwrap(),
             regularization: self.regularization,
             batch_size: self.batch_size,
-            batch_group: self.batch_group,
+            batch_group_size: self.batch_group_size,
             epochs: self.epochs,
             clip_threshold: self.clip_threshold,
             seed: self.seed,
@@ -231,7 +231,7 @@ pub struct Network {
     pub(crate) optimizer_config: Box<dyn OptimizerConfig>,
     pub(crate) regularization: Vec<Box<dyn Regularization>>,
     pub(crate) batch_size: usize,
-    pub(crate) batch_group: usize,
+    pub(crate) batch_group_size: usize,
     pub(crate) epochs: usize,
     pub(crate) clip_threshold: f32,
     pub(crate) seed: u64,
@@ -352,8 +352,8 @@ impl Network {
         let mut total_group_accuracy = 0.0;
         let mut group_count = 0;
 
-        for group_start in (0..num_batches).step_by(self.batch_group) {
-            let group_end = std::cmp::min(group_start + self.batch_group, num_batches);
+        for group_start in (0..num_batches).step_by(self.batch_group_size) {
+            let group_end = std::cmp::min(group_start + self.batch_group_size, num_batches);
             let group_batches_inputs = &all_batch_inputs[group_start..group_end];
             let group_batches_targets = &all_batch_targets[group_start..group_end];
 
@@ -731,7 +731,7 @@ impl Network {
             optimizer_config: network_io.optimizer_config as Box<dyn OptimizerConfig>,
             regularization: network_io.regularization,
             batch_size: network_io.batch_size,
-            batch_group: network_io.batch_group,
+            batch_group_size: network_io.batch_group_size,
             epochs: network_io.epochs,
             clip_threshold: network_io.clip_threshold,
             seed: network_io.seed,
@@ -753,7 +753,7 @@ impl Network {
             optimizer_config: self.optimizer_config.clone(),
             regularization: self.regularization.clone(),
             batch_size: self.batch_size,
-            batch_group: self.batch_group,
+            batch_group_size: self.batch_group_size,
             epochs: self.epochs,
             clip_threshold: self.clip_threshold,
             seed: self.seed,

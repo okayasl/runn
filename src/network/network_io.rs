@@ -20,7 +20,7 @@ pub struct NetworkIO {
     pub(crate) optimizer_config: Box<dyn OptimizerConfig>,
     pub(crate) regularization: Vec<Box<dyn Regularization>>,
     pub(crate) batch_size: usize,
-    pub(crate) batch_group: usize,
+    pub(crate) batch_group_size: usize,
     pub(crate) epochs: usize,
     pub(crate) clip_threshold: f32,
     pub(crate) seed: u64,
