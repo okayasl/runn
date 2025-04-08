@@ -66,13 +66,13 @@ impl DenseMatrix {
 
     /// Adds another matrix to the current matrix.
     #[inline]
-    pub fn add(&mut self, other: &Self) {
+    pub fn add(&mut self, other: &DenseMatrix) {
         self.data += &other.data;
     }
 
     /// Subtracts another matrix from the current matrix.
     #[inline]
-    pub fn sub(&mut self, other: &Self) {
+    pub fn sub(&mut self, other: &DenseMatrix) {
         self.data -= &other.data;
     }
 
@@ -84,7 +84,7 @@ impl DenseMatrix {
 
     /// Element-wise multiplication with another matrix.
     #[inline]
-    pub fn mul_elem(&mut self, other: &Self) {
+    pub fn mul_elem(&mut self, other: &DenseMatrix) {
         self.data.component_mul_assign(&other.data);
     }
 
@@ -93,14 +93,13 @@ impl DenseMatrix {
         self.data = &self.data * &other.data;
     }
 
-    /// Returns a slice of the matrix.    /// Extracts a submatrix as a new DenseMatrix.
+    /// Extracts a submatrix as a new DenseMatrix.
     pub fn slice(&self, i: usize, k: usize, j: usize, l: usize) -> DenseMatrix {
-        let rows = k - i + 1;
-        let cols = l - j + 1;
+        let rows = k - i;
+        let cols = l - j;
         let view = self.data.view((i, j), (rows, cols));
-        let iter = view.iter().cloned();
         DenseMatrix {
-            data: DMatrix::from_iterator(rows, cols, iter),
+            data: DMatrix::from_iterator(rows, cols, view.iter().cloned()),
         }
     }
 

@@ -25,6 +25,7 @@ pub struct NetworkBuilder {
     optimizer_config: Option<Box<dyn OptimizerConfig>>,
     regularization: Vec<Box<dyn Regularization>>,
     batch_size: usize,
+    batch_group: usize,
     epochs: usize,
     clip_threshold: f32,
     seed: u64,
@@ -43,6 +44,7 @@ impl NetworkBuilder {
             optimizer_config: None,
             regularization: Vec::new(),
             batch_size: usize::MAX,
+            batch_group: 1,
             epochs: 0,
             clip_threshold: 0.0,
             seed: 0,
@@ -74,6 +76,11 @@ impl NetworkBuilder {
 
     pub fn early_stopper(mut self, early_stopper: impl EarlyStopper + 'static) -> Self {
         self.early_stopper = Some(Box::new(early_stopper));
+        self
+    }
+
+    pub fn batch_group(mut self, batch_group: usize) -> Self {
+        self.batch_group = batch_group;
         self
     }
 
@@ -111,6 +118,7 @@ impl NetworkBuilder {
         self.loss_function = Some(nw.loss_function.clone());
         self.optimizer_config = Some(nw.optimizer_config.clone());
         self.batch_size = nw.batch_size;
+        self.batch_group = nw.batch_group;
         self.epochs = nw.epochs;
         self.seed = nw.seed;
         self.clip_threshold = nw.clip_threshold;
@@ -161,7 +169,11 @@ impl NetworkBuilder {
             let layer = layer_config.create_layer(
                 name,
                 input_size,
-                self.optimizer_config.as_ref().unwrap().clone().create_optimizer(),
+                self.optimizer_config
+                    .as_ref()
+                    .unwrap()
+                    .clone()
+                    .create_optimizer(),
                 &randomizer,
             );
             input_size = size; // Update input_size for the next layer
@@ -176,6 +188,7 @@ impl NetworkBuilder {
             optimizer_config: self.optimizer_config.unwrap(),
             regularization: self.regularization,
             batch_size: self.batch_size,
+            batch_group: self.batch_group,
             epochs: self.epochs,
             clip_threshold: self.clip_threshold,
             seed: self.seed,
@@ -218,6 +231,7 @@ pub struct Network {
     pub(crate) optimizer_config: Box<dyn OptimizerConfig>,
     pub(crate) regularization: Vec<Box<dyn Regularization>>,
     pub(crate) batch_size: usize,
+    pub(crate) batch_group: usize,
     pub(crate) epochs: usize,
     pub(crate) clip_threshold: f32,
     pub(crate) seed: u64,
@@ -289,18 +303,19 @@ impl Network {
                 shuffled_targets.set_row(i, &targets.get_row(shuffle_indices[i]));
             }
 
-            let (all_batch_inputs, all_batch_targets): (Vec<DenseMatrix>, Vec<DenseMatrix>) = (0
-                ..num_batches)
-                .map(|batch| {
-                    let start_idx = batch * batch_size;
-                    let end_idx = std::cmp::min(start_idx + batch_size, num_samples);
+            let mut all_batch_inputs = Vec::with_capacity(num_batches);
+            let mut all_batch_targets = Vec::with_capacity(num_batches);
 
-                    let inputs = shuffled_inputs.slice(start_idx, end_idx, 0, self.input_size);
-                    let targets = shuffled_targets.slice(start_idx, end_idx, 0, self.output_size);
+            for batch in 0..num_batches {
+                let start_idx = batch * batch_size;
+                let end_idx = std::cmp::min(start_idx + batch_size, num_samples);
 
-                    (inputs, targets)
-                })
-                .unzip();
+                let batch_inputs = shuffled_inputs.slice(start_idx, end_idx, 0, self.input_size);
+                let batch_targets = shuffled_targets.slice(start_idx, end_idx, 0, self.output_size);
+
+                all_batch_inputs.push(batch_inputs);
+                all_batch_targets.push(batch_targets);
+            }
 
             let (all_batch_predictions, mut all_layer_inputs) = self.forward(&all_batch_inputs);
 
@@ -444,20 +459,15 @@ impl Network {
         batch_layer_params: &mut [Vec<LayerParams>], // LayerParams for each batch
         epoch: usize,
     ) {
-        let (mut aggregated_d_weights, mut aggregated_d_biases): (
-            Vec<DenseMatrix>,
-            Vec<DenseMatrix>,
-        ) = self
-            .layers
-            .iter()
-            .map(|layer| {
-                let (input_size, output_size) = layer.get_input_output_size();
-                (
-                    DenseMatrix::zeros(output_size, input_size), // Initialize weights
-                    DenseMatrix::zeros(output_size, 1),          // Initialize biases
-                )
-            })
-            .unzip();
+        let mut aggregated_d_weights = Vec::new();
+        let mut aggregated_d_biases = Vec::new();
+
+        for layer in &self.layers {
+            let (input_size, output_size) = layer.get_input_output_size();
+            aggregated_d_weights.push(DenseMatrix::zeros(output_size, input_size)); // Initialize weights
+            aggregated_d_biases.push(DenseMatrix::zeros(output_size, 1)); // Initialize biases
+        }
+        let layer_idx_length = self.layers.len() - 1;
 
         for ((predicted, target), layer_params) in predicteds
             .iter()
@@ -481,8 +491,10 @@ impl Network {
                     &mut params.pre_activated_output,
                 );
 
-                aggregated_d_weights[i].add(&d_weights);
-                aggregated_d_biases[i].add(&d_biases);
+                let grad_i = layer_idx_length - i;
+
+                aggregated_d_weights[grad_i].add(&d_weights);
+                aggregated_d_biases[grad_i].add(&d_biases);
 
                 // Propagate the gradient to the previous layer
                 d_output = d_input;
@@ -518,7 +530,9 @@ impl Network {
 
             // Update the parameters for the current layer
             layer.update(&aggregated_d_weights[i], &aggregated_d_biases[i], epoch);
-            layer.visualize();
+            if self.debug {
+                layer.visualize();
+            }
         }
     }
 
@@ -669,6 +683,7 @@ impl Network {
             optimizer_config: network_io.optimizer_config as Box<dyn OptimizerConfig>,
             regularization: network_io.regularization,
             batch_size: network_io.batch_size,
+            batch_group: network_io.batch_group,
             epochs: network_io.epochs,
             clip_threshold: network_io.clip_threshold,
             seed: network_io.seed,
@@ -690,6 +705,7 @@ impl Network {
             optimizer_config: self.optimizer_config.clone(),
             regularization: self.regularization.clone(),
             batch_size: self.batch_size,
+            batch_group: self.batch_group,
             epochs: self.epochs,
             clip_threshold: self.clip_threshold,
             seed: self.seed,

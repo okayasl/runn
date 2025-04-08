@@ -1,4 +1,4 @@
-use env_logger::Builder;
+use env_logger::{Builder, Target};
 use log::info;
 use runn::{
     adam::Adam,
@@ -13,11 +13,11 @@ use runn::{
     util,
 };
 
-use std::env;
+use std::{env, fs::File};
 
 fn main() {
-    // // Create a log file
-    // let log_file = File::create("app.log").expect("Could not create log file");
+    // Create a log file
+    let log_file = File::create("app.log").expect("Could not create log file");
 
     // // Initialize the logger to write to the log file
     // Builder::new()
@@ -25,8 +25,9 @@ fn main() {
     //     .init();
 
     // Initialize the logger with a default level of "info"
-    if env::var("RUST_LOG").is_err() {
+    if env::var("LOG").is_err() {
         Builder::from_default_env()
+            .target(Target::Pipe(Box::new(log_file)))
             .filter_level(log::LevelFilter::Info)
             .init();
     } else {
@@ -170,7 +171,7 @@ fn generate_network(inp_size: usize, targ_size: usize) -> Network {
                 .build(),
         )
         .batch_size(10)
-        .epochs(1500)
+        .epochs(8000)
         .seed(55)
         //.debug(true)
         .build();
