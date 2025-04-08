@@ -317,35 +317,83 @@ impl Network {
                 all_batch_targets.push(batch_targets);
             }
 
-            let (all_batch_predictions, mut all_layer_inputs) = self.forward(&all_batch_inputs);
+            // let (all_batch_predictions, mut all_layer_inputs) = self.forward(&all_batch_inputs);
 
-            let ave_batch_accuracy = all_batch_targets
+            // let ave_batch_accuracy = all_batch_targets
+            //     .iter()
+            //     .zip(all_batch_predictions.iter())
+            //     .map(|(target, prediction)| util::calculate_accuracy(prediction, target))
+            //     .sum::<f32>()
+            //     / all_batch_targets.len() as f32;
+
+            // let all_losses = self.forward_loss(&all_batch_predictions, &all_batch_targets);
+            // let ave_losses: f32 = all_losses.iter().sum::<f32>() / all_losses.len() as f32;
+
+            // self.backward(
+            //     &all_batch_predictions,
+            //     &all_batch_targets,
+            //     &mut all_layer_inputs,
+            //     epoch,
+            // );
+
+            // if self.debug {
+            //     println!(
+            //         "Epoch [{}/{}], Total Batch [{}], AverageBatchLoss: {:.4}, AverageBatchAccuracy: {:.2}%",
+            //         epoch,
+            //         self.epochs,
+            //         num_batches,
+            //         ave_losses,
+            //         ave_batch_accuracy * 100.0
+            //     );
+            // }
+
+             // Process mini-batches in groups using a for loop with step_by
+        let mut total_group_loss = 0.0;
+        let mut total_group_accuracy = 0.0;
+        let mut group_count = 0;
+
+        for group_start in (0..num_batches).step_by(self.batch_group) {
+            let group_end = std::cmp::min(group_start + self.batch_group, num_batches);
+            let group_batches_inputs = &all_batch_inputs[group_start..group_end];
+            let group_batches_targets = &all_batch_targets[group_start..group_end];
+
+            // Forward pass for the current group.
+            let (group_predictions, mut group_layer_inputs) = self.forward(group_batches_inputs);
+
+            // Optionally compute the loss and accuracy for this group.
+            let group_losses = self.forward_loss(&group_predictions, group_batches_targets);
+            let group_loss: f32 = group_losses.iter().sum::<f32>() / group_losses.len() as f32;
+
+            let group_accuracy: f32 = group_batches_inputs
                 .iter()
-                .zip(all_batch_predictions.iter())
-                .map(|(target, prediction)| util::calculate_accuracy(prediction, target))
+                .zip(group_predictions.iter())
+                .zip(group_batches_targets.iter())
+                .map(|((_, prediction), target)| util::calculate_accuracy(prediction, target))
                 .sum::<f32>()
-                / all_batch_targets.len() as f32;
+                / (group_batches_targets.len() as f32);
 
-            let all_losses = self.forward_loss(&all_batch_predictions, &all_batch_targets);
-            let ave_losses: f32 = all_losses.iter().sum::<f32>() / all_losses.len() as f32;
+            total_group_loss += group_loss;
+            total_group_accuracy += group_accuracy;
+            group_count += 1;
 
-            self.backward(
-                &all_batch_predictions,
-                &all_batch_targets,
-                &mut all_layer_inputs,
+            // Backward pass: accumulate gradients from the mini-batches in the current group.
+            self.backward(&group_predictions, group_batches_targets, &mut group_layer_inputs, epoch);
+        }
+
+        // Average the group loss and accuracy over the groups processed in this epoch.
+        let ave_group_loss = total_group_loss / group_count as f32;
+        let ave_group_accuracy = total_group_accuracy / group_count as f32;
+
+        if self.debug {
+            println!(
+                "Epoch [{}/{}]: Processed {} groups. Avg Group Loss: {:.4}, Avg Group Accuracy: {:.2}%",
                 epoch,
+                self.epochs,
+                group_count,
+                ave_group_loss,
+                ave_group_accuracy * 100.0
             );
-
-            if self.debug {
-                println!(
-                    "Epoch [{}/{}], Total Batch [{}], AverageBatchLoss: {:.4}, AverageBatchAccuracy: {:.2}%",
-                    epoch,
-                    self.epochs,
-                    num_batches,
-                    ave_losses,
-                    ave_batch_accuracy * 100.0
-                );
-            }
+        }
 
             let epoch_result = self.predict(&inputs, targets);
             let epoch_accuracy = epoch_result.accuracy;
