@@ -171,8 +171,8 @@ fn generate_network(inp_size: usize, targ_size: usize) -> Network {
                 .build(),
         )
         .batch_size(10)
-        .batch_group_size(2)
-        .epochs(1500)
+        .batch_group_size(1)
+        .epochs(3000)
         .seed(55)
         //.debug(true)
         .build();

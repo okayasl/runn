@@ -122,32 +122,10 @@ impl Layer for DenseLayer {
             epoch,
         );
     }
-    // fn get_parameters_and_gradients(&mut self) -> (Vec<&mut DenseMatrix>, Vec<&mut DenseMatrix>) {
-    //     (
-    //         vec![&mut self.weights, &mut self.biases],
-    //         vec![&mut self.d_weights, &mut self.d_biases],
-    //     )
-    // }
-
-    // fn get_params_and_grads(&mut self) -> ([&mut DenseMatrix; 2], [&mut DenseMatrix; 2]) {
-    //     (
-    //         [&mut self.weights, &mut self.biases],
-    //         [&mut self.d_weights, &mut self.d_biases],
-    //     )
-    // }
-
-    // fn get_size(&self) -> usize {
-    //     self.weights.rows()
-    // }
 
     fn activation_function(&self) -> &dyn ActivationFunction {
         &*self.activation
     }
-
-    // fn reset(&mut self) {
-    //     self.d_weights.zero();
-    //     self.d_biases.zero();
-    // }
 
     fn get_input_output_size(&self) -> (usize, usize) {
         (self.input_size, self.output_size)

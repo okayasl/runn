@@ -1,7 +1,6 @@
 use crate::activation::ActivationFunction;
 use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
-use special::Primitive;
 use typetag;
 
 use super::he_initialization;
@@ -18,12 +17,12 @@ impl GELU {
 #[typetag::serde]
 impl ActivationFunction for GELU {
     fn forward(&mut self, input: &mut DenseMatrix) {
-        input.apply(|x| 0.5 * x * (1.0 + (x / (2.0_f32.sqrt())).erf()));
+        input.apply(|x| 0.5 * x * (1.0 + special::Primitive::erf(x / (2.0_f32.sqrt()))));
     }
 
     fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix) {
         input.apply(|x| {
-            let cdf = 0.5 * (1.0 + (x / (2.0_f32.sqrt())).erf());
+            let cdf = 0.5 * (1.0 + special::Primitive::erf(x / (2.0_f32.sqrt())));
             let pdf = (-(x * x) / 2.0).exp() / (2.0 * std::f32::consts::PI).sqrt();
             cdf + x * pdf
         });
