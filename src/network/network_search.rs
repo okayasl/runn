@@ -170,8 +170,8 @@ pub fn search(
 ) -> Vec<SearchResult> {
     if np.normalize {
         let (mins, maxs) = util::find_min_max(&training_inputs);
-        training_inputs = util::normalize(&training_inputs,&mins, &maxs).unwrap();
-        validation_inputs = util::normalize(&validation_inputs,&mins, &maxs).unwrap();
+        util::normalize_in_place(&mut training_inputs,&mins, &maxs);
+        util::normalize_in_place(&mut validation_inputs,&mins, &maxs);
     }
 
     let ncs = generate_network_configurations(&np);

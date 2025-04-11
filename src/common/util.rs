@@ -27,16 +27,42 @@ pub(crate) fn find_min_max(matrix: &DenseMatrix) -> (Vec<f32>, Vec<f32>) {
     (mins, maxs)
 }
 
-/// Normalize matrix values to range [0, 1] using min-max normalization
-pub(crate) fn normalize(matrix: &DenseMatrix, mins: &[f32], maxs: &[f32]) -> Option<DenseMatrix> {
+// /// Normalize matrix values to range [0, 1] using min-max normalization
+// pub(crate) fn normalize(matrix: &DenseMatrix, mins: &[f32], maxs: &[f32]) -> Option<DenseMatrix> {
+//     let (rows, cols) = (matrix.rows(), matrix.cols());
+
+//     // Check if dimensions match
+//     if mins.len() != cols || maxs.len() != cols {
+//         return None;
+//     }
+
+//     let mut normalized = DenseMatrix::zeros(rows, cols);
+//     for i in 0..rows {
+//         for j in 0..cols {
+//             let val = matrix.at(i, j);
+//             let min = mins[j];
+//             let max = maxs[j];
+
+//             if (max - min).abs() < f32::EPSILON {
+//                 normalized.set(i, j, 0.0);
+//             } else {
+//                 normalized.set(i, j, (val - min) / (max - min));
+//             }
+//         }
+//     }
+
+//     Some(normalized)
+// }
+
+/// Normalize matrix values to range [0, 1] in-place using min-max normalization
+pub(crate) fn normalize_in_place(matrix: &mut DenseMatrix, mins: &[f32], maxs: &[f32]) {
     let (rows, cols) = (matrix.rows(), matrix.cols());
 
     // Check if dimensions match
     if mins.len() != cols || maxs.len() != cols {
-        return None;
+        return;
     }
 
-    let mut normalized = DenseMatrix::zeros(rows, cols);
     for i in 0..rows {
         for j in 0..cols {
             let val = matrix.at(i, j);
@@ -44,14 +70,12 @@ pub(crate) fn normalize(matrix: &DenseMatrix, mins: &[f32], maxs: &[f32]) -> Opt
             let max = maxs[j];
 
             if (max - min).abs() < f32::EPSILON {
-                normalized.set(i, j, 0.0);
+                matrix.set(i, j, 0.0); // Set to 0 if min and max are the same
             } else {
-                normalized.set(i, j, (val - min) / (max - min));
+                matrix.set(i, j, (val - min) / (max - min)); // Normalize value
             }
         }
     }
-
-    Some(normalized)
 }
 
 /// Calculate accuracy by comparing max values in each row
@@ -212,7 +236,6 @@ pub(crate) fn flatten(matrix: &DenseMatrix) -> Vec<f32> {
     result
 }
 
-
 pub fn print_matrices_comparisons(
     input: &DenseMatrix,
     target: &DenseMatrix,
@@ -249,7 +272,7 @@ pub fn print_matrices_comparisons(
         }
         target_str.push(']');
 
-        if util::find_max_index_in_row(target,0) != util::find_max_index_in_row(prediction,0) {
+        if util::find_max_index_in_row(target, 0) != util::find_max_index_in_row(prediction, 0) {
             target_str.push_str(" <>");
         } else {
             target_str.push_str("   ");
@@ -284,7 +307,7 @@ pub fn print_matrices_comparisons(
     }
     target_str.push('⎤');
 
-    if util::find_max_index_in_row(target,0) != util::find_max_index_in_row(prediction,0) {
+    if util::find_max_index_in_row(target, 0) != util::find_max_index_in_row(prediction, 0) {
         target_str.push_str(" <>");
     } else {
         target_str.push_str("   ");
@@ -317,7 +340,7 @@ pub fn print_matrices_comparisons(
         }
         target_str.push('⎥');
 
-        if util::find_max_index_in_row(target,i) != util::find_max_index_in_row(prediction,i) {
+        if util::find_max_index_in_row(target, i) != util::find_max_index_in_row(prediction, i) {
             target_str.push_str(" <>");
         } else {
             target_str.push_str("   ");
@@ -350,7 +373,8 @@ pub fn print_matrices_comparisons(
     }
     target_str.push('⎦');
 
-    if util::find_max_index_in_row(target,r-1) != util::find_max_index_in_row(prediction,r-1) {
+    if util::find_max_index_in_row(target, r - 1) != util::find_max_index_in_row(prediction, r - 1)
+    {
         target_str.push_str(" <>");
     } else {
         target_str.push_str("   ");
@@ -369,43 +393,76 @@ pub fn print_matrices_comparisons(
     info!("{}", buf);
 }
 
-
 // Tests for utility functions
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    // #[test]
+    // fn test_normalize() {
+    //     let matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+    //     let (mins, maxs) = find_min_max(&matrix);
+    //     let normalized = normalize(&matrix, &mins, &maxs).unwrap();
+    //     let expected = DenseMatrix::new(2, 2, &[0.0, 0.0, 1.0, 1.0]);
+
+    //     assert!(equal_approx(&normalized, &expected, 1e-6));
+
+    //     let input1 = DenseMatrix::new(4, 2, &[0.0, -10.0, 5.0, -7.0, 7.0, -5.0, 10.0, 0.0]);
+    //     let mins1 = vec![0.0, -10.0];
+    //     let maxs1 = vec![10.0, 0.0];
+    //     let expected1 = DenseMatrix::new(4, 2, &[0.0, 0.0, 0.5, 0.3, 0.7, 0.5, 1.0, 1.0]);
+    //     let result1 = normalize(&input1, &mins1, &maxs1).unwrap();
+    //     assert!(equal_approx(&result1, &expected1, 1e-6));
+
+    //     // Test case with zero range in a column
+    //     let input2 = DenseMatrix::new(3, 2, &[5.0, 1.0, 5.0, 2.0, 5.0, 3.0]);
+    //     let mins2 = vec![5.0, 1.0];
+    //     let maxs2 = vec![5.0, 3.0];
+    //     let result2 = normalize(&input2, &mins2, &maxs2).unwrap();
+    //     let expected2 = DenseMatrix::new(3, 2, &[0.0, 0.0, 0.0, 0.5, 0.0, 1.0]);
+    //     assert!(equal_approx(&result2, &expected2, 1e-6));
+
+    //     // Test case with negative numbers
+    //     let input3 = DenseMatrix::new(2, 2, &[-10.0, -5.0, -2.0, -1.0]);
+    //     let mins3 = vec![-10.0, -5.0];
+    //     let maxs3 = vec![-2.0, -1.0];
+    //     let result3 = normalize(&input3, &mins3, &maxs3).unwrap();
+    //     let expected3 = DenseMatrix::new(2, 2, &[0.0, 0.0, 1.0, 1.0]);
+    //     assert!(equal_approx(&result3, &expected3, 1e-6));
+    // }
+
     #[test]
-    fn test_normalize() {
-        let matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+    fn test_normalize_in_place() {
+        // Test case 1: Normal range
+        let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         let (mins, maxs) = find_min_max(&matrix);
-        let normalized = normalize(&matrix, &mins, &maxs).unwrap();
+        normalize_in_place(&mut matrix, &mins, &maxs);
         let expected = DenseMatrix::new(2, 2, &[0.0, 0.0, 1.0, 1.0]);
+        assert!(equal_approx(&matrix, &expected, 1e-6));
 
-        assert!(equal_approx(&normalized, &expected, 1e-6));
-
-        let input1 = DenseMatrix::new(4, 2, &[0.0, -10.0, 5.0, -7.0, 7.0, -5.0, 10.0, 0.0]);
+        // Test case 2: Custom range
+        let mut input1 = DenseMatrix::new(4, 2, &[0.0, -10.0, 5.0, -7.0, 7.0, -5.0, 10.0, 0.0]);
         let mins1 = vec![0.0, -10.0];
         let maxs1 = vec![10.0, 0.0];
         let expected1 = DenseMatrix::new(4, 2, &[0.0, 0.0, 0.5, 0.3, 0.7, 0.5, 1.0, 1.0]);
-        let result1 = normalize(&input1, &mins1, &maxs1).unwrap();
-        assert!(equal_approx(&result1, &expected1, 1e-6));
+        normalize_in_place(&mut input1, &mins1, &maxs1);
+        assert!(equal_approx(&input1, &expected1, 1e-6));
 
-        // Test case with zero range in a column
-        let input2 = DenseMatrix::new(3, 2, &[5.0, 1.0, 5.0, 2.0, 5.0, 3.0]);
+        // Test case 3: Zero range in a column
+        let mut input2 = DenseMatrix::new(3, 2, &[5.0, 1.0, 5.0, 2.0, 5.0, 3.0]);
         let mins2 = vec![5.0, 1.0];
         let maxs2 = vec![5.0, 3.0];
-        let result2 = normalize(&input2, &mins2, &maxs2).unwrap();
         let expected2 = DenseMatrix::new(3, 2, &[0.0, 0.0, 0.0, 0.5, 0.0, 1.0]);
-        assert!(equal_approx(&result2, &expected2, 1e-6));
+        normalize_in_place(&mut input2, &mins2, &maxs2);
+        assert!(equal_approx(&input2, &expected2, 1e-6));
 
-        // Test case with negative numbers
-        let input3 = DenseMatrix::new(2, 2, &[-10.0, -5.0, -2.0, -1.0]);
+        // Test case 4: Negative numbers
+        let mut input3 = DenseMatrix::new(2, 2, &[-10.0, -5.0, -2.0, -1.0]);
         let mins3 = vec![-10.0, -5.0];
         let maxs3 = vec![-2.0, -1.0];
-        let result3 = normalize(&input3, &mins3, &maxs3).unwrap();
         let expected3 = DenseMatrix::new(2, 2, &[0.0, 0.0, 1.0, 1.0]);
-        assert!(equal_approx(&result3, &expected3, 1e-6));
+        normalize_in_place(&mut input3, &mins3, &maxs3);
+        assert!(equal_approx(&input3, &expected3, 1e-6));
     }
 
     #[test]

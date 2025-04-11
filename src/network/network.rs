@@ -1,5 +1,7 @@
 use std::error::Error;
 
+use log::info;
+
 use crate::{
     dropout::DropoutRegularization,
     l1::L1Regularization,
@@ -262,130 +264,108 @@ impl Network {
         });
     }
 
+    fn normalize(&mut self, inputs: &mut DenseMatrix) {
+        if self.normalized {
+            let (mins, maxs) = util::find_min_max(&inputs);
+            util::normalize_in_place(inputs, &mins, &maxs);
+            self.mins = Some(mins);
+            self.maxs = Some(maxs);
+        }
+    }
+
+    fn shuffle(
+        &self,
+        inputs: &DenseMatrix,
+        targets: &DenseMatrix,
+        shuffling_inputs: &mut DenseMatrix,
+        shuffling_targets: &mut DenseMatrix,
+    ) {
+        let sample_size = inputs.rows();
+        let shuffle_indices = self.randomizer.perm(sample_size);
+
+        shuffle_indices.iter().enumerate().for_each(|(i, &idx)| {
+            shuffling_inputs.set_row(i, &inputs.get_row(idx));
+            shuffling_targets.set_row(i, &targets.get_row(idx));
+        });
+    }
+
     pub fn train(
         &mut self,
         inputs: &DenseMatrix,
         targets: &DenseMatrix,
     ) -> Result<NetworkResult, Box<dyn Error>> {
-        let mut inputs = inputs.clone(); // Create a mutable copy of inputs
+        let mut training_inputs = inputs.clone(); // Create a mutable copy of inputs
+        self.normalize(&mut training_inputs);
 
-        if self.normalized {
-            let (mins, maxs) = util::find_min_max(&inputs);
-            inputs = util::normalize(&inputs, &mins, &maxs).unwrap();
-            self.mins = Some(mins);
-            self.maxs = Some(maxs);
-        }
-
-        let num_samples = inputs.rows();
-        let batch_size = if self.batch_size > 0 {
-            std::cmp::min(self.batch_size, num_samples)
-        } else {
-            num_samples
-        };
-
-        let num_batches = num_samples / batch_size;
+        let sample_size = training_inputs.rows();
+        let (batch_size, batch_count) = self.calculate_batches(sample_size);
         if self.debug {
-            println!("Training network. Number of Samples: {}, batch size: {}, num Batches: {}, epoch: {}", num_samples, batch_size, num_batches, self.epochs);
+            info!("Training network. Number of Samples: {}, batch size: {}, num Batches: {}, epoch: {}", sample_size, batch_size, batch_count, self.epochs);
         }
 
-        let mut shuffled_inputs = DenseMatrix::zeros(num_samples, self.input_size);
-        let mut shuffled_targets = DenseMatrix::zeros(num_samples, self.output_size);
+        let mut shuffled_inputs = DenseMatrix::zeros(sample_size, self.input_size);
+        let mut shuffled_targets = DenseMatrix::zeros(sample_size, self.output_size);
         let mut epoch_losses = Vec::new();
         let mut epoch_accuracies = Vec::new();
-        // self.initialize_optimizer();
 
         for epoch in 1..=self.epochs {
             self.visualize_layers();
-            let shuffle_indices = self.randomizer.perm(num_samples);
+            self.shuffle(inputs, targets, &mut shuffled_inputs, &mut shuffled_targets);
 
-            for i in 0..num_samples {
-                shuffled_inputs.set_row(i, &inputs.get_row(shuffle_indices[i]));
-                shuffled_targets.set_row(i, &targets.get_row(shuffle_indices[i]));
-            }
+            let (all_batch_inputs, all_batch_targets) = self.get_all_batch_inputs_targets(
+                sample_size,
+                batch_size,
+                batch_count,
+                &shuffled_inputs,
+                &shuffled_targets,
+            );
 
-            let mut all_batch_inputs = Vec::with_capacity(num_batches);
-            let mut all_batch_targets = Vec::with_capacity(num_batches);
+            // Process mini-batches in groups using a for loop with step_by
+            let mut total_group_loss = 0.0;
+            let mut total_group_accuracy = 0.0;
+            let mut group_count = 0;
 
-            for batch in 0..num_batches {
-                let start_idx = batch * batch_size;
-                let end_idx = std::cmp::min(start_idx + batch_size, num_samples);
+            let (all_group_batch_inputs, all_group_batch_targets) =
+                self.get_all_group_inputs_targets(&all_batch_inputs, &all_batch_targets);
 
-                let batch_inputs = shuffled_inputs.slice(start_idx, end_idx, 0, self.input_size);
-                let batch_targets = shuffled_targets.slice(start_idx, end_idx, 0, self.output_size);
-
-                all_batch_inputs.push(batch_inputs);
-                all_batch_targets.push(batch_targets);
-            }
-
-            // let (all_batch_predictions, mut all_layer_inputs) = self.forward(&all_batch_inputs);
-
-            // let ave_batch_accuracy = all_batch_targets
-            //     .iter()
-            //     .zip(all_batch_predictions.iter())
-            //     .map(|(target, prediction)| util::calculate_accuracy(prediction, target))
-            //     .sum::<f32>()
-            //     / all_batch_targets.len() as f32;
-
-            // let all_losses = self.forward_loss(&all_batch_predictions, &all_batch_targets);
-            // let ave_losses: f32 = all_losses.iter().sum::<f32>() / all_losses.len() as f32;
-
-            // self.backward(
-            //     &all_batch_predictions,
-            //     &all_batch_targets,
-            //     &mut all_layer_inputs,
-            //     epoch,
-            // );
-
-            // if self.debug {
-            //     println!(
-            //         "Epoch [{}/{}], Total Batch [{}], AverageBatchLoss: {:.4}, AverageBatchAccuracy: {:.2}%",
-            //         epoch,
-            //         self.epochs,
-            //         num_batches,
-            //         ave_losses,
-            //         ave_batch_accuracy * 100.0
-            //     );
-            // }
-
-             // Process mini-batches in groups using a for loop with step_by
-        let mut total_group_loss = 0.0;
-        let mut total_group_accuracy = 0.0;
-        let mut group_count = 0;
-
-        for group_start in (0..num_batches).step_by(self.batch_group_size) {
-            let group_end = std::cmp::min(group_start + self.batch_group_size, num_batches);
-            let group_batches_inputs = &all_batch_inputs[group_start..group_end];
-            let group_batches_targets = &all_batch_targets[group_start..group_end];
-
-            // Forward pass for the current group.
-            let (group_predictions, mut group_layer_inputs) = self.forward(group_batches_inputs);
-
-            // Optionally compute the loss and accuracy for this group.
-            let group_losses = self.forward_loss(&group_predictions, group_batches_targets);
-            let group_loss: f32 = group_losses.iter().sum::<f32>() / group_losses.len() as f32;
-
-            let group_accuracy: f32 = group_batches_inputs
+            for (group_batch_inputs, group_batch_targets) in all_group_batch_inputs
                 .iter()
-                .zip(group_predictions.iter())
-                .zip(group_batches_targets.iter())
-                .map(|((_, prediction), target)| util::calculate_accuracy(prediction, target))
-                .sum::<f32>()
-                / (group_batches_targets.len() as f32);
+                .zip(all_group_batch_targets.iter())
+            {
+                // Forward pass for the current group.
+                let (group_predictions, mut group_layer_inputs) = self.forward(group_batch_inputs);
 
-            total_group_loss += group_loss;
-            total_group_accuracy += group_accuracy;
-            group_count += 1;
+                // Optionally compute the loss and accuracy for this group.
+                let group_losses = self.forward_loss(&group_predictions, group_batch_targets);
+                let group_loss: f32 = group_losses.iter().sum::<f32>() / group_losses.len() as f32;
 
-            // Backward pass: accumulate gradients from the mini-batches in the current group.
-            self.backward(&group_predictions, group_batches_targets, &mut group_layer_inputs, epoch);
-        }
+                let group_accuracy: f32 = group_batch_inputs
+                    .iter()
+                    .zip(group_predictions.iter())
+                    .zip(group_batch_targets.iter())
+                    .map(|((_, prediction), target)| util::calculate_accuracy(prediction, target))
+                    .sum::<f32>()
+                    / (group_batch_targets.len() as f32);
 
-        // Average the group loss and accuracy over the groups processed in this epoch.
-        let ave_group_loss = total_group_loss / group_count as f32;
-        let ave_group_accuracy = total_group_accuracy / group_count as f32;
+                total_group_loss += group_loss;
+                total_group_accuracy += group_accuracy;
+                group_count += 1;
 
-        if self.debug {
-            println!(
+                // Backward pass: accumulate gradients from the mini-batches in the current group.
+                self.backward(
+                    &group_predictions,
+                    group_batch_targets,
+                    &mut group_layer_inputs,
+                    epoch,
+                );
+            }
+
+            // Average the group loss and accuracy over the groups processed in this epoch.
+            let ave_group_loss = total_group_loss / group_count as f32;
+            let ave_group_accuracy = total_group_accuracy / group_count as f32;
+
+            if self.debug {
+                info!(
                 "Epoch [{}/{}]: Processed {} groups. Avg Group Loss: {:.4}, Avg Group Accuracy: {:.2}%",
                 epoch,
                 self.epochs,
@@ -393,9 +373,9 @@ impl Network {
                 ave_group_loss,
                 ave_group_accuracy * 100.0
             );
-        }
+            }
 
-            let epoch_result = self.predict(&inputs, targets);
+            let epoch_result = self.predict(&training_inputs, targets);
             let epoch_accuracy = epoch_result.accuracy;
             let epoch_loss = self
                 .loss_function
@@ -404,7 +384,7 @@ impl Network {
             epoch_accuracies.push(epoch_accuracy);
 
             if self.debug {
-                println!(
+                info!(
                     "Epoch [{}/{}], Loss: {:.4}, Accuracy: {:.2}%",
                     epoch,
                     self.epochs,
@@ -417,7 +397,7 @@ impl Network {
 
             if self.early_stopped(epoch, epoch_loss, epoch_accuracy) {
                 if self.debug {
-                    println!(
+                    info!(
                         "Early stopping triggered at epoch: {}, accuracy: {:.0}%",
                         epoch,
                         epoch_accuracy * 100.0
@@ -428,10 +408,10 @@ impl Network {
         }
 
         if self.debug {
-            println!("Finished training the network at epoch: {}", self.epochs);
-            let final_result = self.predict(&inputs, targets);
+            info!("Finished training the network at epoch: {}", self.epochs);
+            let final_result = self.predict(&training_inputs, targets);
             //print_matrices_comparisons(&inputs, targets, &final_result.predictions);
-            println!(
+            info!(
                 "Epoch: {}, Loss: {:.4}, Accuracy: {:.2}%",
                 self.epochs,
                 final_result.loss,
@@ -440,17 +420,78 @@ impl Network {
             //print_epoch_data(self.epochs, &epoch_losses, &epoch_accuracies);
         }
 
-        Ok(self.predict(&inputs, targets))
+        Ok(self.predict(&training_inputs, targets))
+    }
+
+
+    fn get_all_group_inputs_targets<'a>(
+        &self,
+        all_batch_inputs: &'a [DenseMatrix],
+        all_batch_targets: &'a [DenseMatrix],
+    ) -> (Vec<&'a [DenseMatrix]>, Vec<&'a [DenseMatrix]>) {
+        let batch_group_size = self.batch_group_size;
+        let batch_count = all_batch_inputs.len();
+        let mut all_group_batch_inputs =
+            Vec::with_capacity((batch_count + batch_group_size - 1) / batch_group_size);
+        let mut all_group_batch_targets =
+            Vec::with_capacity((batch_count + batch_group_size - 1) / batch_group_size);
+
+        for group_start in (0..batch_count).step_by(batch_group_size) {
+            let group_end = std::cmp::min(group_start + batch_group_size, batch_count);
+
+            // Use slices instead of copying data
+            let group_batch_inputs = &all_batch_inputs[group_start..group_end];
+            let group_batch_targets = &all_batch_targets[group_start..group_end];
+
+            all_group_batch_inputs.push(group_batch_inputs);
+            all_group_batch_targets.push(group_batch_targets);
+        }
+
+        (all_group_batch_inputs, all_group_batch_targets)
+    }
+
+    fn calculate_batches(&mut self, sample_size: usize) -> (usize, usize) {
+        let batch_size = if self.batch_size > 0 {
+            std::cmp::min(self.batch_size, sample_size)
+        } else {
+            sample_size
+        };
+
+        let batch_count = (sample_size + batch_size - 1) / batch_size; // Round up
+        (batch_size, batch_count)
+    }
+
+    fn get_all_batch_inputs_targets(
+        &mut self,
+        sample_size: usize,
+        batch_size: usize,
+        batch_count: usize,
+        shuffled_inputs: &DenseMatrix,
+        shuffled_targets: &DenseMatrix,
+    ) -> (Vec<DenseMatrix>, Vec<DenseMatrix>) {
+        let mut all_batch_inputs = Vec::with_capacity(batch_count);
+        let mut all_batch_targets = Vec::with_capacity(batch_count);
+
+        for start_idx in (0..sample_size).step_by(batch_size) {
+            let end_idx = std::cmp::min(start_idx + batch_size, sample_size);
+
+            let batch_inputs = shuffled_inputs.slice(start_idx, end_idx, 0, self.input_size);
+            let batch_targets = shuffled_targets.slice(start_idx, end_idx, 0, self.output_size);
+
+            all_batch_inputs.push(batch_inputs);
+            all_batch_targets.push(batch_targets);
+        }
+        (all_batch_inputs, all_batch_targets)
     }
 
     fn forward_loss(
         &mut self,
-        all_batch_predictions: &[DenseMatrix],
-        all_batch_targets: &[DenseMatrix],
+        batch_predictions: &[DenseMatrix],
+        batch_targets: &[DenseMatrix],
     ) -> Vec<f32> {
-        let mut all_losses = Vec::with_capacity(all_batch_predictions.len());
+        let mut all_losses = Vec::with_capacity(batch_predictions.len());
 
-        for (predicted, target) in all_batch_predictions.iter().zip(all_batch_targets.iter()) {
+        for (predicted, target) in batch_predictions.iter().zip(batch_targets.iter()) {
             let loss = self.loss_function.forward(predicted, target);
             all_losses.push(loss);
         }
@@ -460,12 +501,12 @@ impl Network {
 
     fn forward(
         &mut self,
-        all_batch_inputs: &[DenseMatrix],
+        batch_inputs: &[DenseMatrix],
     ) -> (Vec<DenseMatrix>, Vec<Vec<LayerParams>>) {
-        let mut all_predictions = Vec::with_capacity(all_batch_inputs.len());
-        let mut all_layer_params = Vec::with_capacity(all_batch_inputs.len());
+        let mut batch_predictions = Vec::with_capacity(batch_inputs.len());
+        let mut batch_layer_params = Vec::with_capacity(batch_inputs.len());
 
-        for input in all_batch_inputs {
+        for input in batch_inputs {
             let mut layer_params = Vec::with_capacity(self.layers.len());
 
             // Start with the input as the first layer input
@@ -493,11 +534,11 @@ impl Network {
             }
 
             // Store the final activated output and the layer parameters for this input
-            all_predictions.push(current_input);
-            all_layer_params.push(layer_params);
+            batch_predictions.push(current_input);
+            batch_layer_params.push(layer_params);
         }
 
-        (all_predictions, all_layer_params)
+        (batch_predictions, batch_layer_params)
     }
 
     fn backward(
@@ -602,69 +643,6 @@ impl Network {
         }
     }
 
-    // fn regulate_backward(
-    //     &mut self,
-    //     aggregated_d_weights: &mut [DenseMatrix],
-    //     aggregated_d_biases: &mut [DenseMatrix],
-    // ) {
-    //     for reg in &self.regularization {
-    //         match reg.as_any().downcast_ref::<L1Regularization>() {
-    //             Some(_l1) => {
-    //                 for (i, layer) in self.layers.iter_mut().enumerate() {
-    //                     layer.regulate(
-    //                         &mut aggregated_d_weights[i],
-    //                         &mut aggregated_d_biases[i],
-    //                         &reg,
-    //                     );
-    //                 }
-    //             }
-    //             None => (),
-    //         }
-    //         match reg.as_any().downcast_ref::<L2Regularization>() {
-    //             Some(_l2) => {
-    //                 for (i, layer) in self.layers.iter_mut().enumerate() {
-    //                     layer.regulate(
-    //                         &mut aggregated_d_weights[i],
-    //                         &mut aggregated_d_biases[i],
-    //                         &reg,
-    //                     );
-    //                 }
-    //             }
-    //             None => (),
-    //         }
-    //     }
-    // }
-
-    // fn regulate_forward(
-    //     &mut self,
-    //     layer: &mut Box<dyn Layer>,
-    //     d_weights: &mut DenseMatrix,
-    //     d_biases: &mut DenseMatrix,
-    // ) {
-    //     for reg in &self.regularization {
-    //         if let Some(_dropout) = reg.as_any().downcast_ref::<DropoutRegularization>() {
-    //             layer.regulate(
-    //                 d_weights,
-    //                 d_biases,
-    //                 &reg,
-    //             );
-    //         }
-    //     }
-    // }
-
-    // pub fn apply_backward_regularization(&self, params: &[DenseMatrix], grads: &[DenseMatrix]) {
-    //     for reg in &self.regularization {
-    //         match reg.as_any().downcast_ref::<L1Regularization>() {
-    //             Some(l1) => l1.apply(params, grads, &self.randomizer),
-    //             None => (),
-    //         }
-    //         match reg.as_any().downcast_ref::<L2Regularization>() {
-    //             Some(l2) => l2.apply(params, grads, &self.randomizer),
-    //             None => (),
-    //         }
-    //     }
-    // }
-
     // fn summarize(&self, epoch: usize, epoch_loss: f32, epoch_accuracy: f32) {
     //     if let Some(summary_writer) = &self.summary_writer {
     //         summary_writer
@@ -702,16 +680,6 @@ impl Network {
         }
         false
     }
-
-    // fn initialize_optimizer(&mut self) {
-    //     // Collect all parameters from the network that need updates
-    //     let mut params: Vec<DenseMatrix> = Vec::new();
-    //     for layer in &mut self.layers {
-    //         let (layer_params, _) = layer.get_params_and_grads();
-    //         params.extend(layer_params.into_iter().map(|x| x.clone()));
-    //     }
-    //     self.optimizer.initialize(&params);
-    // }
 
     pub fn save(&self, filename: &str, format: SerializationFormat) {
         save_network(&self.to_io(), filename, format);
@@ -770,47 +738,6 @@ struct LayerParams {
     pub(crate) layer_input: DenseMatrix,
     pub(crate) pre_activated_output: DenseMatrix,
 }
-
-// pub fn apply_forward_regularization(
-//     regularization: &[Box<dyn Regularization>],
-//     params: &mut [&mut DenseMatrix],
-//     grads: &mut [&mut DenseMatrix],
-// ) {
-//     for reg in regularization {
-//         if let Some(dropout) = reg.as_any().downcast_ref::<DropoutRegularization>() {
-//             dropout.apply(params, grads);
-//         }
-//     }
-// }
-
-// pub fn apply_forward_regularization(
-//     regularization: &[Box<dyn Regularization>],
-//     params: &mut [&mut DenseMatrix],
-//     grads: &mut [&mut DenseMatrix],
-// ) {
-//     for reg in regularization {
-//         if let Some(dropout) = reg.as_any().downcast_ref::<DropoutRegularization>() {
-//             dropout.apply(params, grads);
-//         }
-//     }
-// }
-
-// pub fn apply_backward_regularization(
-//     regularization: &[Box<dyn Regularization>],
-//     params: &mut [&mut DenseMatrix],
-//     grads: &mut [&mut DenseMatrix],
-// ) {
-//     for reg in regularization {
-//         match reg.as_any().downcast_ref::<L1Regularization>() {
-//             Some(l1) => l1.apply(params, grads),
-//             None => (),
-//         }
-//         match reg.as_any().downcast_ref::<L2Regularization>() {
-//             Some(l2) => l2.apply(params, grads),
-//             None => (),
-//         }
-//     }
-// }
 
 pub fn clip_gradients(grads: &mut [&mut DenseMatrix], clip_threshold: f32) {
     if clip_threshold > 0.0 {

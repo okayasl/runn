@@ -133,8 +133,8 @@ impl Layer for DenseLayer {
 
     fn visualize(&self) {
         info!("----- {} Layer (Dense) -----", self.name);
-        info!("Weights: {}", util::format_matrix(&self.weights));
-        info!("Biases: {}", util::format_matrix(&self.biases));
+        info!("Weights:\n{}", util::format_matrix(&self.weights));
+        info!("Biases:\n{}", util::format_matrix(&self.biases));
     }
 }
 

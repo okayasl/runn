@@ -1,3 +1,4 @@
+
 use nalgebra::DMatrix;
 use serde::{Deserialize, Serialize};
 
@@ -162,6 +163,39 @@ impl DenseMatrix {
         }
     }
 }
+
+
+// impl fmt::Display for DenseMatrix {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         for i in 0..self.rows() {
+//             // Decide the row border type
+//             let left_border = if i == 0 {
+//                 "⎡"
+//             } else if i == self.rows() - 1 {
+//                 "⎣"
+//             } else {
+//                 "⎢"
+//             };
+
+//             let right_border = if i == 0 {
+//                 "⎤"
+//             } else if i == self.rows() - 1 {
+//                 "⎦"
+//             } else {
+//                 "⎥"
+//             };
+
+//             let row: Vec<String> = (0..self.cols())
+//                 .map(|j| format!("{:7.6}", self.at(i, j))) // Format each element to 4 decimal places
+//                 .collect();
+
+//             // Format the row with borders
+//             writeln!(f, "{} {} {}", left_border, row.join(" "), right_border)?;
+//         }
+//         Ok(())
+//     }
+// }
+
 
 // Example usage in tests
 #[cfg(test)]
