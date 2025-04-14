@@ -1,6 +1,6 @@
+use csv::Writer;
 use std::fs::File;
 use std::io::{self};
-use csv::Writer;
 
 #[derive(Debug)]
 pub struct NetworkResult {
@@ -16,7 +16,11 @@ pub struct NetworkResult {
 
 impl NetworkResult {
     fn values(&self) -> Vec<String> {
-        let size_string: Vec<String> = self.layer_sizes.iter().map(|&size| size.to_string()).collect();
+        let size_string: Vec<String> = self
+            .layer_sizes
+            .iter()
+            .map(|&size| size.to_string())
+            .collect();
         vec![
             format!("{:.5}", self.learning_rate),
             self.batch_size.to_string(),

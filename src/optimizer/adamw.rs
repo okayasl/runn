@@ -191,7 +191,10 @@ impl AdamW {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{common::matrix::DenseMatrix, util::{self, equal_approx}};
+    use crate::{
+        common::matrix::DenseMatrix,
+        util::{self, equal_approx},
+    };
 
     #[test]
     fn test_initialize() {

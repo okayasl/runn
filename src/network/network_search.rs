@@ -170,8 +170,8 @@ pub fn search(
 ) -> Vec<SearchResult> {
     if np.normalize {
         let (mins, maxs) = util::find_min_max(&training_inputs);
-        util::normalize_in_place(&mut training_inputs,&mins, &maxs);
-        util::normalize_in_place(&mut validation_inputs,&mins, &maxs);
+        util::normalize_in_place(&mut training_inputs, &mins, &maxs);
+        util::normalize_in_place(&mut validation_inputs, &mins, &maxs);
     }
 
     let ncs = generate_network_configurations(&np);
@@ -295,7 +295,7 @@ fn generate_tuned_network(nw: &Network, nc: &NetworkConfig) -> Network {
     }
 
     let output_layer = nw.layers.last().unwrap();
-    let (_,output_layer_size) = output_layer.get_input_output_size();
+    let (_, output_layer_size) = output_layer.get_input_output_size();
     new_nwb = new_nwb.layer(
         Dense::new()
             .from(

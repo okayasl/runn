@@ -43,7 +43,7 @@ impl Clone for Box<dyn Optimizer> {
 }
 
 #[typetag::serde]
-pub trait OptimizerConfig: OptimizerConfigClone + Send  {
+pub trait OptimizerConfig: OptimizerConfigClone + Send {
     fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer>;
 }
 

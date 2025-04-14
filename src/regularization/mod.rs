@@ -4,7 +4,6 @@ pub mod l2;
 
 use crate::common::matrix::DenseMatrix;
 
-
 #[typetag::serde]
 pub trait Regularization: RegularizationClone + Send {
     fn apply(&self, params: &mut [&mut DenseMatrix], grads: &mut [&mut DenseMatrix]);

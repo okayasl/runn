@@ -50,7 +50,6 @@ impl Optimizer for RMSPropOptimizer {
         d_biases: &DenseMatrix,
         epoch: usize,
     ) {
-
         if self.config.scheduler.is_some() {
             let scheduler = self.config.scheduler.as_ref().unwrap();
             self.config.learning_rate = scheduler.schedule(epoch, self.config.learning_rate);
