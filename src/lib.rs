@@ -6,6 +6,7 @@ pub mod loss;
 pub mod regularization;
 pub mod earlystop;
 pub mod network;
+pub mod scheduler;
 
 pub use common::*;
 pub use activation::*;
@@ -15,3 +16,4 @@ pub use loss::*;
 pub use regularization::*;
 pub use earlystop::*;
 pub use network::*;
+pub use scheduler::*;

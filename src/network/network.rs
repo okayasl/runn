@@ -299,15 +299,16 @@ impl Network {
 
         let sample_size = training_inputs.rows();
         let (batch_size, batch_count) = self.calculate_batches(sample_size);
-        if self.debug {
-            info!("Training network. Number of Samples: {}, batch size: {}, num Batches: {}, epoch: {}", sample_size, batch_size, batch_count, self.epochs);
-        }
+        let group_count = (batch_count + self.batch_group_size - 1) / self.batch_group_size;
+
+        info!("Network training started: sample_size:{}, group_size:{}, group_count:{}, batch_size:{}, batch_count:{}, epoch:{}", sample_size,group_count,self.batch_group_size, batch_size, batch_count, self.epochs);
 
         let mut shuffled_inputs = DenseMatrix::zeros(sample_size, self.input_size);
         let mut shuffled_targets = DenseMatrix::zeros(sample_size, self.output_size);
         let mut epoch_losses = Vec::new();
         let mut epoch_accuracies = Vec::new();
 
+        let mut last_epoch = 0;
         for epoch in 1..=self.epochs {
             self.visualize_layers();
             self.shuffle(inputs, targets, &mut shuffled_inputs, &mut shuffled_targets);
@@ -320,36 +321,39 @@ impl Network {
                 &shuffled_targets,
             );
 
-            // Process mini-batches in groups using a for loop with step_by
-            let mut total_group_loss = 0.0;
-            let mut total_group_accuracy = 0.0;
-            let mut group_count = 0;
-
             let (all_group_batch_inputs, all_group_batch_targets) =
                 self.get_all_group_inputs_targets(&all_batch_inputs, &all_batch_targets);
 
-            for (group_batch_inputs, group_batch_targets) in all_group_batch_inputs
+            let group_count = all_group_batch_inputs.len();
+
+            for (group_id, (group_batch_inputs, group_batch_targets)) in all_group_batch_inputs
                 .iter()
                 .zip(all_group_batch_targets.iter())
+                .enumerate()
             {
                 // Forward pass for the current group.
                 let (group_predictions, mut group_layer_inputs) = self.forward(group_batch_inputs);
 
-                // Optionally compute the loss and accuracy for this group.
-                let group_losses = self.forward_loss(&group_predictions, group_batch_targets);
-                let group_loss: f32 = group_losses.iter().sum::<f32>() / group_losses.len() as f32;
-
-                let group_accuracy: f32 = group_batch_inputs
-                    .iter()
-                    .zip(group_predictions.iter())
-                    .zip(group_batch_targets.iter())
-                    .map(|((_, prediction), target)| util::calculate_accuracy(prediction, target))
-                    .sum::<f32>()
-                    / (group_batch_targets.len() as f32);
-
-                total_group_loss += group_loss;
-                total_group_accuracy += group_accuracy;
-                group_count += 1;
+                if self.debug {
+                    // Optionally compute the loss and accuracy for this group.
+                    let group_losses = self.forward_loss(&group_predictions, group_batch_targets);
+                    let ave_group_loss: f32 =
+                        group_losses.iter().sum::<f32>() / group_losses.len() as f32;
+                    let ave_group_accuracy = calculate_group_accuracy(
+                        group_batch_inputs,
+                        group_batch_targets,
+                        &group_predictions,
+                    );
+                    info!(
+                        "Epoch [{}/{}], Group [{}/{}], Avg Group Loss: {:.4}, Avg Group Accuracy: {:.2}%",
+                        epoch,
+                        self.epochs,
+                        group_id,
+                        group_count,
+                        ave_group_loss,
+                        ave_group_accuracy * 100.0
+                    );
+                }
 
                 // Backward pass: accumulate gradients from the mini-batches in the current group.
                 self.backward(
@@ -358,21 +362,6 @@ impl Network {
                     &mut group_layer_inputs,
                     epoch,
                 );
-            }
-
-            // Average the group loss and accuracy over the groups processed in this epoch.
-            let ave_group_loss = total_group_loss / group_count as f32;
-            let ave_group_accuracy = total_group_accuracy / group_count as f32;
-
-            if self.debug {
-                info!(
-                "Epoch [{}/{}]: Processed {} groups. Avg Group Loss: {:.4}, Avg Group Accuracy: {:.2}%",
-                epoch,
-                self.epochs,
-                group_count,
-                ave_group_loss,
-                ave_group_accuracy * 100.0
-            );
             }
 
             let epoch_result = self.predict(&training_inputs, targets);
@@ -385,7 +374,7 @@ impl Network {
 
             if self.debug {
                 info!(
-                    "Epoch [{}/{}], Loss: {:.4}, Accuracy: {:.2}%",
+                    "Epoch [{}/{}], Loss:{:.4}, Accuracy:{:.2}%",
                     epoch,
                     self.epochs,
                     epoch_loss,
@@ -395,34 +384,23 @@ impl Network {
 
             //self.summarize(epoch, epoch_loss, epoch_accuracy);
 
+            last_epoch = epoch;
             if self.early_stopped(epoch, epoch_loss, epoch_accuracy) {
-                if self.debug {
-                    info!(
-                        "Early stopping triggered at epoch: {}, accuracy: {:.0}%",
-                        epoch,
-                        epoch_accuracy * 100.0
-                    );
-                }
+                info!("Network training early stopped: epoch:{}", epoch,);
                 break;
             }
         }
 
-        if self.debug {
-            info!("Finished training the network at epoch: {}", self.epochs);
-            let final_result = self.predict(&training_inputs, targets);
-            //print_matrices_comparisons(&inputs, targets, &final_result.predictions);
-            info!(
-                "Epoch: {}, Loss: {:.4}, Accuracy: {:.2}%",
-                self.epochs,
-                final_result.loss,
-                final_result.accuracy * 100.0
-            );
-            //print_epoch_data(self.epochs, &epoch_losses, &epoch_accuracies);
-        }
+        let final_result = self.predict(&training_inputs, targets);
+        info!(
+            "Network training finished: epoch:{}, Loss:{:.4}, Accuracy:{:.2}%",
+            last_epoch,
+            final_result.loss,
+            final_result.accuracy * 100.0
+        );
 
         Ok(self.predict(&training_inputs, targets))
     }
-
 
     fn get_all_group_inputs_targets<'a>(
         &self,
@@ -732,6 +710,21 @@ impl Network {
             maxs: self.maxs.clone(),
         }
     }
+}
+
+fn calculate_group_accuracy(
+    group_batch_inputs: &&[DenseMatrix],
+    group_batch_targets: &&[DenseMatrix],
+    group_predictions: &Vec<DenseMatrix>,
+) -> f32 {
+    let group_accuracy: f32 = group_batch_inputs
+        .iter()
+        .zip(group_predictions.iter())
+        .zip(group_batch_targets.iter())
+        .map(|((_, prediction), target)| util::calculate_accuracy(prediction, target))
+        .sum::<f32>()
+        / (group_batch_targets.len() as f32);
+    group_accuracy
 }
 
 struct LayerParams {

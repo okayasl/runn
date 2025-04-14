@@ -20,8 +20,8 @@ impl FlexibleEarlyStopper {
         Self {
             patience,
             min_delta,
-            best_loss: f32::INFINITY,
-            best_accuracy: f32::NEG_INFINITY,
+            best_loss: 9999999.0,
+            best_accuracy: 0.0,
             wait: 0,
             stopped_epoch: -1,
             stop_training: false,
@@ -63,8 +63,8 @@ impl EarlyStopper for FlexibleEarlyStopper {
     }
 
     fn reset(&mut self) {
-        self.best_loss = f32::INFINITY;
-        self.best_accuracy = f32::NEG_INFINITY;
+        self.best_loss = 9999999.0;
+        self.best_accuracy = 0.0;
         self.wait = 0;
         self.stopped_epoch = -1;
         self.stop_training = false;
@@ -189,8 +189,8 @@ mod tests {
         early_stopper.reset();
 
         assert!(!early_stopper.is_training_stopped());
-        assert_eq!(early_stopper.best_loss, f32::INFINITY);
-        assert_eq!(early_stopper.best_accuracy, f32::NEG_INFINITY);
+        assert_eq!(early_stopper.best_loss, 9999999.0);
+        assert_eq!(early_stopper.best_accuracy, 0.0);
         assert_eq!(early_stopper.wait, 0);
         assert_eq!(early_stopper.stopped_epoch, -1);
     }

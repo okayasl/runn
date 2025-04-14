@@ -1,4 +1,4 @@
-use crate::common::matrix::DenseMatrix;
+use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
@@ -10,6 +10,7 @@ pub struct AdamConfig {
     beta1: f32,
     beta2: f32,
     epsilon: f32,
+    scheduler: Option<Box<dyn LearningRateScheduler>>,
 }
 
 #[typetag::serde]
@@ -113,8 +114,12 @@ impl Optimizer for AdamOptimizer {
         biases: &mut DenseMatrix,
         d_weights: &DenseMatrix,
         d_biases: &DenseMatrix,
-        _epoch: usize,
+        epoch: usize,
     ) {
+        if self.config.scheduler.is_some() {
+            let scheduler = self.config.scheduler.as_ref().unwrap();
+            self.config.learning_rate = scheduler.schedule(epoch, self.config.learning_rate);
+        }
         self.t += 1;
         self.m_hat_factor = 1.0 - self.config.beta1.powi(self.t as i32);
         self.v_hat_factor = 1.0 - self.config.beta2.powi(self.t as i32);
@@ -134,6 +139,7 @@ pub struct Adam {
     beta1: f32,
     beta2: f32,
     epsilon: f32,
+    scheduler: Option<Box<dyn LearningRateScheduler>>,
 }
 
 impl Adam {
@@ -143,6 +149,7 @@ impl Adam {
             beta1: 0.9,
             beta2: 0.999,
             epsilon: 1e-8,
+            scheduler: None,
         }
     }
 }
@@ -168,12 +175,18 @@ impl Adam {
         self
     }
 
+    pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
+        self.scheduler = Some(scheduler);
+        self
+    }
+
     pub fn build(self) -> AdamConfig {
         AdamConfig {
             learning_rate: self.learning_rate,
             beta1: self.beta1,
             beta2: self.beta2,
             epsilon: self.epsilon,
+            scheduler: self.scheduler,
         }
     }
 }
@@ -208,6 +221,7 @@ mod tests {
             beta1: 0.9,
             beta2: 0.999,
             epsilon: 1e-8,
+            scheduler: None,
         };
         let mut optimizer = AdamOptimizer::new(config);
         let mut weights = DenseMatrix::new(2, 2, &[1.0, 1.0, 1.0, 1.0]);

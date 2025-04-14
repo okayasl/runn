@@ -1,4 +1,3 @@
-
 use nalgebra::DMatrix;
 use serde::{Deserialize, Serialize};
 
@@ -98,9 +97,8 @@ impl DenseMatrix {
     pub fn slice(&self, i: usize, k: usize, j: usize, l: usize) -> DenseMatrix {
         let rows = k - i;
         let cols = l - j;
-        let view = self.data.view((i, j), (rows, cols));
         DenseMatrix {
-            data: DMatrix::from_iterator(rows, cols, view.iter().cloned()),
+            data: DMatrix::from_fn(rows, cols, |row, col| self.data[(i + row, j + col)]),
         }
     }
 
@@ -164,7 +162,6 @@ impl DenseMatrix {
     }
 }
 
-
 // impl fmt::Display for DenseMatrix {
 //     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 //         for i in 0..self.rows() {
@@ -195,7 +192,6 @@ impl DenseMatrix {
 //         Ok(())
 //     }
 // }
-
 
 // Example usage in tests
 #[cfg(test)]
@@ -259,7 +255,7 @@ mod tests {
     fn test_slice() {
         let matrix = DenseMatrix::new(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         let submatrix = matrix.slice(1, 2, 1, 2);
-        assert_eq!(util::flatten(&submatrix), &[5.0, 6.0, 8.0, 9.0]);
+        assert_eq!(util::flatten(&submatrix), &[5.0]);
     }
 
     #[test]

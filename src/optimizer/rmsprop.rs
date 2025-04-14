@@ -1,5 +1,5 @@
 use super::{Optimizer, OptimizerConfig};
-use crate::common::matrix::DenseMatrix;
+use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
@@ -8,6 +8,7 @@ pub struct RMSPropConfig {
     learning_rate: f32,
     decay_rate: f32,
     epsilon: f32,
+    scheduler: Option<Box<dyn LearningRateScheduler>>,
 }
 
 #[typetag::serde]
@@ -47,8 +48,13 @@ impl Optimizer for RMSPropOptimizer {
         biases: &mut DenseMatrix,
         d_weights: &DenseMatrix,
         d_biases: &DenseMatrix,
-        _epoch: usize,
+        epoch: usize,
     ) {
+
+        if self.config.scheduler.is_some() {
+            let scheduler = self.config.scheduler.as_ref().unwrap();
+            self.config.learning_rate = scheduler.schedule(epoch, self.config.learning_rate);
+        }
         weights.apply_with_indices(|r, c, v| {
             let grad = d_weights.at(r, c);
             let ema_grad = &mut self.accumulated_squared_grad_weights;
@@ -79,6 +85,7 @@ pub struct RMSProp {
     learning_rate: f32,
     decay_rate: f32,
     epsilon: f32,
+    scheduler: Option<Box<dyn LearningRateScheduler>>,
 }
 
 impl RMSProp {
@@ -87,6 +94,7 @@ impl RMSProp {
             learning_rate: 0.001,
             decay_rate: 0.9,
             epsilon: 1e-8,
+            scheduler: None,
         }
     }
 
@@ -105,11 +113,17 @@ impl RMSProp {
         self
     }
 
+    pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
+        self.scheduler = Some(scheduler);
+        self
+    }
+
     pub fn build(self) -> RMSPropConfig {
         RMSPropConfig {
             learning_rate: self.learning_rate,
             decay_rate: self.decay_rate,
             epsilon: self.epsilon,
+            scheduler: self.scheduler,
         }
     }
 }
@@ -126,6 +140,7 @@ mod tests {
             learning_rate: 0.001,
             decay_rate: 0.9,
             epsilon: 1e-8,
+            scheduler: None,
         };
         let mut optimizer = RMSPropOptimizer::new(config);
         let weights = DenseMatrix::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
@@ -143,6 +158,7 @@ mod tests {
             learning_rate: 0.1,
             decay_rate: 0.9,
             epsilon: 1e-8,
+            scheduler: None,
         };
         let mut optimizer = RMSPropOptimizer::new(config);
         let mut weights = DenseMatrix::new(2, 2, &[1.0, 1.0, 1.0, 1.0]);
@@ -162,6 +178,7 @@ mod tests {
             learning_rate: 0.001,
             decay_rate: 0.9,
             epsilon: 1e-8,
+            scheduler: None,
         };
         let mut optimizer = RMSPropOptimizer::new(config);
         optimizer.update_learning_rate(0.01);
@@ -183,6 +200,7 @@ mod tests {
             learning_rate: 0.01,
             decay_rate: 0.9,
             epsilon: 1e-8,
+            scheduler: None,
         };
         let mut optimizer = RMSPropOptimizer::new(config);
         optimizer.initialize(&weights, &biases);

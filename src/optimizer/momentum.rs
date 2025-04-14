@@ -1,5 +1,5 @@
 use super::{Optimizer, OptimizerConfig};
-use crate::common::matrix::DenseMatrix;
+use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
@@ -7,6 +7,7 @@ use typetag;
 pub struct MomentumConfig {
     learning_rate: f32,
     momentum: f32,
+    scheduler: Option<Box<dyn LearningRateScheduler>>,
 }
 
 #[typetag::serde]
@@ -46,8 +47,12 @@ impl Optimizer for MomentumOptimizer {
         biases: &mut DenseMatrix,
         d_weights: &DenseMatrix,
         d_biases: &DenseMatrix,
-        _epoch: usize,
+        epoch: usize,
     ) {
+        if self.config.scheduler.is_some() {
+            let scheduler = self.config.scheduler.as_ref().unwrap();
+            self.config.learning_rate = scheduler.schedule(epoch, self.config.learning_rate);
+        }
         weights.apply_with_indices(|r, c, v| {
             let velocity = &mut self.velocity_weights;
             let previous_velocity = velocity.at(r, c);
@@ -78,6 +83,7 @@ impl Optimizer for MomentumOptimizer {
 pub struct Momentum {
     learning_rate: f32,
     momentum: f32,
+    scheduler: Option<Box<dyn LearningRateScheduler>>,
 }
 
 impl Momentum {
@@ -85,6 +91,7 @@ impl Momentum {
         Self {
             learning_rate: 0.01,
             momentum: 0.9,
+            scheduler: None,
         }
     }
 
@@ -98,10 +105,16 @@ impl Momentum {
         self
     }
 
+    pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
+        self.scheduler = Some(scheduler);
+        self
+    }
+
     pub fn build(self) -> MomentumConfig {
         MomentumConfig {
             learning_rate: self.learning_rate,
             momentum: self.momentum,
+            scheduler: self.scheduler,
         }
     }
 }
@@ -117,6 +130,7 @@ mod tests {
         let config = MomentumConfig {
             learning_rate: 0.01,
             momentum: 0.9,
+            scheduler: None,
         };
         let mut optimizer = MomentumOptimizer::new(config);
         let weights = DenseMatrix::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
@@ -133,6 +147,7 @@ mod tests {
         let config = MomentumConfig {
             learning_rate: 0.1,
             momentum: 0.9,
+            scheduler: None,
         };
         let mut optimizer = MomentumOptimizer::new(config);
         let mut weights = DenseMatrix::new(2, 2, &[1.0, 1.0, 1.0, 1.0]);
@@ -151,6 +166,7 @@ mod tests {
         let config = MomentumConfig {
             learning_rate: 0.01,
             momentum: 0.9,
+            scheduler: None,
         };
         let mut optimizer = MomentumOptimizer::new(config);
         optimizer.update_learning_rate(0.02);
@@ -171,6 +187,7 @@ mod tests {
         let config = MomentumConfig {
             learning_rate: 0.1,
             momentum: 0.9,
+            scheduler: None,
         };
         let mut optimizer = MomentumOptimizer::new(config);
         optimizer.initialize(&weights, &biases);
