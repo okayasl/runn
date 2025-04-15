@@ -1,4 +1,5 @@
 use csv::Writer;
+use std::fs;
 use std::fs::File;
 use std::io::{self};
 
@@ -48,6 +49,9 @@ fn default_headers() -> Vec<&'static str> {
 }
 
 pub(crate) fn write_search_results(name: &str, results: &[NetworkResult]) -> io::Result<()> {
+    if !std::path::Path::new(".out").exists() {
+        fs::create_dir(".out")?;
+    }
     let file_path = format!(".out/{}-result.csv", name);
     let file = File::create(file_path)?;
     let mut writer = Writer::from_writer(file);

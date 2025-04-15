@@ -1,7 +1,16 @@
 use env_logger::{Builder, Target};
 use log::info;
 use runn::{
-    adam::Adam, cross_entropy::CrossEntropy, flexible::FlexibleBuilder, layer::Dense, matrix::DenseMatrix, network::network::{Network, NetworkBuilder}, network_search::{search, SearchConfigsBuilder}, relu::ReLU, search_param::{Parameters, RangeParameters}, softmax::Softmax, util
+    adam::Adam,
+    cross_entropy::CrossEntropy,
+    layer::Dense,
+    matrix::DenseMatrix,
+    network::network::{Network, NetworkBuilder},
+    network_search::{search, SearchConfigsBuilder},
+    relu::ReLU,
+    search_param::{Parameters, RangeParameters},
+    softmax::Softmax,
+    util,
 };
 
 use std::{env, fs::File};
@@ -161,16 +170,16 @@ fn generate_network(inp_size: usize, targ_size: usize) -> Network {
                 .learning_rate(0.0035)
                 .build(),
         )
-        .early_stopper(
-            FlexibleBuilder::new()
-                .patience(1000)
-                .min_delta(0.000001)
-                .monitor_accuracy(true)
-                .build(),
-        )
+        // .early_stopper(
+        //     Flexible::new()
+        //         .patience(1000)
+        //         .min_delta(0.000001)
+        //         .monitor_accuracy(true)
+        //         .build(),
+        // )
         .batch_size(10)
         .batch_group_size(1)
-        .epochs(3000)
+        .epochs(300)
         .seed(55)
         //.debug(true)
         .build();

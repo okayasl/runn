@@ -17,6 +17,8 @@ rmp-serde = "1.3.0"
 typetag = "0.2"
 special = "0.11.3"
 csv = "1.1"
+tensorboard-rs = "0.5.9"  # Use the latest version available
+tempfile = "3.19.1"
 
 [profile.release]
 opt-level = 3  # Optimization level (0-3, s, z)

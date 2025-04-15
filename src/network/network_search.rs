@@ -174,7 +174,7 @@ pub fn search(
         util::normalize_in_place(&mut validation_inputs, &mins, &maxs);
     }
 
-    let ncs = generate_network_configurations(&np);
+    let ncs: Vec<NetworkConfig> = generate_network_configurations(&np);
     let number_of_networks = ncs.len();
     info!(
         "Total number of network configurations: {}",
@@ -305,7 +305,9 @@ fn generate_tuned_network(nw: &Network, nc: &NetworkConfig) -> Network {
             .build(),
     );
 
-    new_nwb.build().unwrap()
+    let mut network = new_nwb.build().unwrap();
+    network.search = true;
+    return network;
 }
 
 fn run(

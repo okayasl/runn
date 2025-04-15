@@ -71,13 +71,13 @@ impl EarlyStopper for FlexibleEarlyStopper {
     }
 }
 
-pub struct FlexibleBuilder {
+pub struct Flexible {
     patience: usize,
     min_delta: f32,
     monitor_accuracy: bool,
 }
 
-impl FlexibleBuilder {
+impl Flexible {
     pub fn new() -> Self {
         Self {
             patience: 10,
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_early_stopping_by_loss() {
-        let mut early_stopper = FlexibleBuilder::new()
+        let mut early_stopper = Flexible::new()
             .patience(3)
             .min_delta(0.01)
             .monitor_accuracy(false)
@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_early_stopping_by_accuracy() {
-        let mut early_stopper = FlexibleBuilder::new()
+        let mut early_stopper = Flexible::new()
             .patience(3)
             .min_delta(0.01)
             .monitor_accuracy(true)
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn test_no_early_stopping() {
-        let mut early_stopper = FlexibleBuilder::new()
+        let mut early_stopper = Flexible::new()
             .patience(3)
             .min_delta(0.01)
             .monitor_accuracy(false)
@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn test_reset() {
-        let mut early_stopper = FlexibleBuilder::new()
+        let mut early_stopper = Flexible::new()
             .patience(3)
             .min_delta(0.01)
             .monitor_accuracy(false)

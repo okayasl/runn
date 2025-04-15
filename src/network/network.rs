@@ -200,6 +200,7 @@ impl NetworkBuilder {
             mins: None,
             maxs: None,
             randomizer,
+            search: false,
         })
     }
 }
@@ -243,6 +244,7 @@ pub struct Network {
     pub(crate) normalized: bool,
     pub(crate) mins: Option<Vec<f32>>,
     pub(crate) maxs: Option<Vec<f32>>,
+    pub(crate) search: bool,
 }
 
 impl Network {
@@ -301,7 +303,9 @@ impl Network {
         let (batch_size, batch_count) = self.calculate_batches(sample_size);
         let group_count = (batch_count + self.batch_group_size - 1) / self.batch_group_size;
 
-        info!("Network training started: sample_size:{}, group_size:{}, group_count:{}, batch_size:{}, batch_count:{}, epoch:{}", sample_size,group_count,self.batch_group_size, batch_size, batch_count, self.epochs);
+        if !self.search {
+            info!("Network training started: sample_size:{}, group_size:{}, group_count:{}, batch_size:{}, batch_count:{}, epoch:{}", sample_size,group_count,self.batch_group_size, batch_size, batch_count, self.epochs);
+        }
 
         let mut shuffled_inputs = DenseMatrix::zeros(sample_size, self.input_size);
         let mut shuffled_targets = DenseMatrix::zeros(sample_size, self.output_size);
@@ -344,7 +348,8 @@ impl Network {
                         group_batch_targets,
                         &group_predictions,
                     );
-                    info!(
+                    if !self.search {
+                        info!(
                         "Epoch [{}/{}], Group [{}/{}], Avg Group Loss: {:.4}, Avg Group Accuracy: {:.2}%",
                         epoch,
                         self.epochs,
@@ -353,6 +358,7 @@ impl Network {
                         ave_group_loss,
                         ave_group_accuracy * 100.0
                     );
+                    }
                 }
 
                 // Backward pass: accumulate gradients from the mini-batches in the current group.
@@ -392,12 +398,14 @@ impl Network {
         }
 
         let final_result = self.predict(&training_inputs, targets);
-        info!(
-            "Network training finished: epoch:{}, Loss:{:.4}, Accuracy:{:.2}%",
-            last_epoch,
-            final_result.loss,
-            final_result.accuracy * 100.0
-        );
+        if !self.search {
+            info!(
+                "Network training finished: epoch:{}, Loss:{:.4}, Accuracy:{:.2}%",
+                last_epoch,
+                final_result.loss,
+                final_result.accuracy * 100.0
+            );
+        }
 
         Ok(self.predict(&training_inputs, targets))
     }
@@ -687,6 +695,7 @@ impl Network {
             mins: network_io.mins,
             maxs: network_io.maxs,
             randomizer: Randomizer::new(Some(network_io.seed)),
+            search: false,
         }
     }
 

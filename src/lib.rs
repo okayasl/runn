@@ -7,6 +7,7 @@ pub mod network;
 pub mod optimizer;
 pub mod regularization;
 pub mod scheduler;
+pub mod summary;
 
 pub use activation::*;
 pub use common::*;
@@ -17,3 +18,4 @@ pub use network::*;
 pub use optimizer::*;
 pub use regularization::*;
 pub use scheduler::*;
+pub use summary::*;
