@@ -11,6 +11,7 @@ pub trait SummaryWriter: SummaryWriterClone + Send {
         values: &[f32],
     ) -> Result<(), Box<dyn Error>>;
     fn close(&mut self) -> Result<(), Box<dyn Error>>;
+    fn init(&mut self);
 }
 pub trait SummaryWriterClone {
     fn clone_box(&self) -> Box<dyn SummaryWriter>;

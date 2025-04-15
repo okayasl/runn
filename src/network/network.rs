@@ -325,6 +325,7 @@ impl Network {
         let mut epoch_losses = Vec::new();
         let mut epoch_accuracies = Vec::new();
 
+        self.init_summary_writer();
         let mut last_epoch = 0;
         for epoch in 1..=self.epochs {
             self.visualize_layers();
@@ -722,8 +723,7 @@ impl Network {
             maxs: network_io.maxs,
             randomizer: Randomizer::new(Some(network_io.seed)),
             search: false,
-            summary_writer: None,
-            //summary_writer: network_io.summary_writer as Option<Box<dyn SummaryWriter>>,
+            summary_writer: network_io.summary_writer as Option<Box<dyn SummaryWriter>>,
         }
     }
 
@@ -745,7 +745,13 @@ impl Network {
             normalized: self.normalized,
             mins: self.mins.clone(),
             maxs: self.maxs.clone(),
-            //summary_writer: self.summary_writer.clone(),
+            summary_writer: self.summary_writer.clone(),
+        }
+    }
+
+    fn init_summary_writer(&mut self) {
+        if let Some(summary_writer) = &mut self.summary_writer {
+            summary_writer.init()
         }
     }
 }

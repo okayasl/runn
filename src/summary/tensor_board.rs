@@ -26,32 +26,14 @@ impl TensorBoard {
 
 pub struct TensorBoardSummaryWriter {
     logdir: String,
-    inner: InnerWriter,
-}
-impl Serialize for TensorBoardSummaryWriter {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.logdir)
-    }
-}
-
-impl<'de> Deserialize<'de> for TensorBoardSummaryWriter {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let logdir = String::deserialize(deserializer)?;
-        Ok(TensorBoardSummaryWriter::new(&logdir))
-    }
+    inner: Option<InnerWriter>,
 }
 
 impl TensorBoardSummaryWriter {
     pub fn new(logdir: &str) -> Self {
         TensorBoardSummaryWriter {
             logdir: logdir.to_string(),
-            inner: InnerWriter::new(logdir),
+            inner: None,
         }
     }
 
@@ -99,15 +81,36 @@ impl Clone for TensorBoardSummaryWriter {
     fn clone(&self) -> Self {
         TensorBoardSummaryWriter {
             logdir: self.logdir.clone(),
-            inner: InnerWriter::new(&self.logdir), // Recreate the `InnerWriter`
+            inner: None, // Recreate the `InnerWriter`
         }
+    }
+}
+
+impl Serialize for TensorBoardSummaryWriter {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.logdir)
+    }
+}
+
+impl<'de> Deserialize<'de> for TensorBoardSummaryWriter {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let logdir = String::deserialize(deserializer)?;
+        Ok(TensorBoardSummaryWriter::new(&logdir))
     }
 }
 
 #[typetag::serde]
 impl SummaryWriter for TensorBoardSummaryWriter {
     fn write_scalar(&mut self, tag: &str, step: usize, value: f32) -> Result<(), Box<dyn Error>> {
-        self.inner.add_scalar(tag, value, step);
+        if let Some(inner_writer) = &mut self.inner {
+            inner_writer.add_scalar(tag, value, step);
+        }
         Ok(())
     }
 
@@ -124,23 +127,30 @@ impl SummaryWriter for TensorBoardSummaryWriter {
         let (min, max, num, sum, sum_squares) = self.compute_histogram_stats(values);
         let bucket_limits = self.generate_bucket_limits(min, max, bucket_count);
         let bucket_counts = self.compute_bucket_counts(values, min, max, bucket_count);
-        self.inner.add_histogram_raw(
-            tag,
-            min,
-            max,
-            num,
-            sum,
-            sum_squares,
-            &bucket_limits,
-            &bucket_counts,
-            step as usize,
-        );
+        if let Some(inner_writer) = &mut self.inner {
+            inner_writer.add_histogram_raw(
+                tag,
+                min,
+                max,
+                num,
+                sum,
+                sum_squares,
+                &bucket_limits,
+                &bucket_counts,
+                step as usize,
+            );
+        }
         Ok(())
     }
 
     fn close(&mut self) -> Result<(), Box<dyn Error>> {
-        self.inner.flush();
+        if let Some(inner_writer) = &mut self.inner {
+            inner_writer.flush();
+        }
         Ok(())
+    }
+    fn init(&mut self) {
+        self.inner = Some(InnerWriter::new(&self.logdir));
     }
 }
 
