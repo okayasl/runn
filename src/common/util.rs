@@ -222,7 +222,6 @@ pub(crate) fn equal_approx(a: &DenseMatrix, b: &DenseMatrix, tolerance: f32) -> 
 }
 
 /// Flatten matrix into a vector in row-major order
-#[cfg(test)]
 pub(crate) fn flatten(matrix: &DenseMatrix) -> Vec<f32> {
     let (rows, cols) = (matrix.rows(), matrix.cols());
     let mut result = Vec::with_capacity(rows * cols);

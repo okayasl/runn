@@ -10,6 +10,7 @@ use runn::{
     relu::ReLU,
     search_param::{Parameters, RangeParameters},
     softmax::Softmax,
+    tensor_board::TensorBoard,
     util,
 };
 
@@ -181,6 +182,7 @@ fn generate_network(inp_size: usize, targ_size: usize) -> Network {
         .batch_group_size(1)
         .epochs(300)
         .seed(55)
+        .summary(TensorBoard::new().logdir("summary").build())
         //.debug(true)
         .build();
 

@@ -1,6 +1,8 @@
 use dense_layer::DenseLayer;
 
-use crate::{matrix::DenseMatrix, random::Randomizer, ActivationFunction, Optimizer, Regularization};
+use crate::{
+    matrix::DenseMatrix, random::Randomizer, ActivationFunction, Optimizer, Regularization, SummaryWriter,
+};
 
 pub mod dense_layer;
 
@@ -24,7 +26,7 @@ pub trait Layer: LayerClone + Send {
         regularization: &Box<dyn Regularization>,
     );
     fn update(&mut self, d_weights: &DenseMatrix, d_biases: &DenseMatrix, epoch: usize);
-
+    fn summarize(&self, epoch: usize, summary_writer: &mut dyn SummaryWriter);
     fn visualize(&self);
     fn get_input_output_size(&self) -> (usize, usize);
 }

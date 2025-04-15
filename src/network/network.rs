@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use log::info;
+use log::{error, info};
 
 use crate::{
     dropout::DropoutRegularization,
@@ -14,7 +14,7 @@ use crate::{
     random::Randomizer,
     regularization::Regularization,
     util::{self},
-    EarlyStopper, LossFunction, OptimizerConfig,
+    EarlyStopper, LossFunction, OptimizerConfig, SummaryWriter,
 };
 
 use super::network_io::{load_network, save_network, NetworkIO, SerializationFormat};
@@ -34,6 +34,7 @@ pub struct NetworkBuilder {
     early_stopper: Option<Box<dyn EarlyStopper>>,
     debug: bool,
     normalized: bool,
+    summary_writer: Option<Box<dyn SummaryWriter>>,
 }
 
 impl NetworkBuilder {
@@ -53,6 +54,7 @@ impl NetworkBuilder {
             early_stopper: None,
             debug: false,
             normalized: false,
+            summary_writer: None,
         }
     }
 
@@ -116,6 +118,11 @@ impl NetworkBuilder {
         self
     }
 
+    pub fn summary(mut self, summary_writer: Box<dyn SummaryWriter>) -> Self {
+        self.summary_writer = Some(summary_writer);
+        self
+    }
+
     pub(crate) fn from_network(mut self, nw: &Network) -> Self {
         self.loss_function = Some(nw.loss_function.clone());
         self.optimizer_config = Some(nw.optimizer_config.clone());
@@ -128,6 +135,10 @@ impl NetworkBuilder {
 
         if let Some(early_stopper) = &nw.early_stopper {
             self.early_stopper = Some(early_stopper.clone());
+        }
+
+        if let Some(summary_writer) = &nw.summary_writer {
+            self.summary_writer = Some(summary_writer.clone());
         }
 
         self.regularization = nw
@@ -201,6 +212,7 @@ impl NetworkBuilder {
             maxs: None,
             randomizer,
             search: false,
+            summary_writer: self.summary_writer,
         })
     }
 }
@@ -239,12 +251,13 @@ pub struct Network {
     pub(crate) clip_threshold: f32,
     pub(crate) seed: u64,
     pub(crate) randomizer: Randomizer,
-    pub(crate) early_stopper: Option<Box<dyn EarlyStopper>>,
     pub(crate) debug: bool,
     pub(crate) normalized: bool,
     pub(crate) mins: Option<Vec<f32>>,
     pub(crate) maxs: Option<Vec<f32>>,
     pub(crate) search: bool,
+    pub(crate) early_stopper: Option<Box<dyn EarlyStopper>>,
+    pub(crate) summary_writer: Option<Box<dyn SummaryWriter>>,
 }
 
 impl Network {
@@ -391,6 +404,7 @@ impl Network {
             //self.summarize(epoch, epoch_loss, epoch_accuracy);
 
             last_epoch = epoch;
+            self.summarize(epoch, epoch_loss, epoch_accuracy);
             if self.early_stopped(epoch, epoch_loss, epoch_accuracy) {
                 info!("Network training early stopped: epoch:{}", epoch,);
                 break;
@@ -405,6 +419,11 @@ impl Network {
                 final_result.loss,
                 final_result.accuracy * 100.0
             );
+        }
+        if let Some(summary_writer) = self.summary_writer.as_mut() {
+            if let Err(e) = summary_writer.close() {
+                error!("Failed to close summary writer: {}", e);
+            }
         }
 
         Ok(self.predict(&training_inputs, targets))
@@ -629,17 +648,24 @@ impl Network {
         }
     }
 
-    // fn summarize(&self, epoch: usize, epoch_loss: f32, epoch_accuracy: f32) {
-    //     if let Some(summary_writer) = &self.summary_writer {
-    //         summary_writer
-    //             .write_scalar("Training/Loss", epoch as i64, epoch_loss as f32)
-    //             .unwrap();
-    //         summary_writer
-    //             .write_scalar("Training/Accuracy", epoch as i64, epoch_accuracy as f32)
-    //             .unwrap();
-    //         self.write_layer_histograms(epoch as i64);
-    //     }
-    // }
+    fn summarize(&mut self, epoch: usize, epoch_loss: f32, epoch_accuracy: f32) {
+        if self.search {
+            return;
+        }
+        if let Some(summary_writer) = &mut self.summary_writer {
+            summary_writer
+                .write_scalar("Training/Loss", epoch, epoch_loss as f32)
+                .unwrap();
+            summary_writer
+                .write_scalar("Training/Accuracy", epoch, epoch_accuracy as f32)
+                .unwrap();
+            for layer in &self.layers {
+                layer.summarize(epoch, &mut **summary_writer);
+            }
+
+            //self.write_layer_histograms(epoch as i64);
+        }
+    }
 
     // fn write_layer_histograms(&self, epoch: i64) {
     //     for (i, layer) in self.layers.iter().enumerate() {
@@ -696,6 +722,8 @@ impl Network {
             maxs: network_io.maxs,
             randomizer: Randomizer::new(Some(network_io.seed)),
             search: false,
+            summary_writer: None,
+            //summary_writer: network_io.summary_writer as Option<Box<dyn SummaryWriter>>,
         }
     }
 
@@ -717,6 +745,7 @@ impl Network {
             normalized: self.normalized,
             mins: self.mins.clone(),
             maxs: self.maxs.clone(),
+            //summary_writer: self.summary_writer.clone(),
         }
     }
 }

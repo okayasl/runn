@@ -1,16 +1,56 @@
 use std::error::Error;
 
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tensorboard_rs::summary_writer::SummaryWriter as InnerWriter;
 
 use super::SummaryWriter;
 
+pub struct TensorBoard {
+    logdir: Option<String>,
+}
+
+impl TensorBoard {
+    pub fn new() -> Self {
+        TensorBoard { logdir: None }
+    }
+
+    pub fn logdir(mut self, logdir: &str) -> Self {
+        self.logdir = Some(logdir.to_string());
+        self
+    }
+
+    pub fn build(self) -> Box<dyn SummaryWriter> {
+        Box::new(TensorBoardSummaryWriter::new(&self.logdir.unwrap()))
+    }
+}
+
 pub struct TensorBoardSummaryWriter {
+    logdir: String,
     inner: InnerWriter,
+}
+impl Serialize for TensorBoardSummaryWriter {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.logdir)
+    }
+}
+
+impl<'de> Deserialize<'de> for TensorBoardSummaryWriter {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let logdir = String::deserialize(deserializer)?;
+        Ok(TensorBoardSummaryWriter::new(&logdir))
+    }
 }
 
 impl TensorBoardSummaryWriter {
     pub fn new(logdir: &str) -> Self {
         TensorBoardSummaryWriter {
+            logdir: logdir.to_string(),
             inner: InnerWriter::new(logdir),
         }
     }
@@ -42,9 +82,10 @@ impl TensorBoardSummaryWriter {
         &self,
         values: &[f32],
         min: f64,
-        bucket_width: f64,
+        max: f64,
         bucket_count: usize,
     ) -> Vec<f64> {
+        let bucket_width = (max - min) / bucket_count as f64;
         let mut bucket_counts = vec![0.0; bucket_count];
         values.iter().for_each(|&v| {
             let index = ((v as f64 - min) / bucket_width).floor() as usize;
@@ -54,6 +95,16 @@ impl TensorBoardSummaryWriter {
     }
 }
 
+impl Clone for TensorBoardSummaryWriter {
+    fn clone(&self) -> Self {
+        TensorBoardSummaryWriter {
+            logdir: self.logdir.clone(),
+            inner: InnerWriter::new(&self.logdir), // Recreate the `InnerWriter`
+        }
+    }
+}
+
+#[typetag::serde]
 impl SummaryWriter for TensorBoardSummaryWriter {
     fn write_scalar(&mut self, tag: &str, step: usize, value: f32) -> Result<(), Box<dyn Error>> {
         self.inner.add_scalar(tag, value, step);
@@ -72,12 +123,7 @@ impl SummaryWriter for TensorBoardSummaryWriter {
         let bucket_count = 10;
         let (min, max, num, sum, sum_squares) = self.compute_histogram_stats(values);
         let bucket_limits = self.generate_bucket_limits(min, max, bucket_count);
-        let bucket_counts = self.compute_bucket_counts(
-            values,
-            min,
-            (max - min) / bucket_count as f64,
-            bucket_count,
-        );
+        let bucket_counts = self.compute_bucket_counts(values, min, max, bucket_count);
         self.inner.add_histogram_raw(
             tag,
             min,
@@ -168,7 +214,7 @@ mod tests {
     #[test]
     fn test_compute_bucket_counts() {
         let writer = TensorBoardSummaryWriter::new("/tmp");
-        let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let values = vec![0.1, 0.3, 0.5, 0.7, 0.9];
         let bucket_counts = writer.compute_bucket_counts(&values, 0.0, 1.0, 5);
 
         assert_eq!(bucket_counts, vec![1.0, 1.0, 1.0, 1.0, 1.0]);

@@ -1,6 +1,7 @@
 /target
 /.vscode
 /.out
+/summary
 *.log
 
 *.json

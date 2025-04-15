@@ -1,4 +1,4 @@
-use log::info;
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 use typetag;
 
@@ -135,6 +135,24 @@ impl Layer for DenseLayer {
         info!("----- {} Layer (Dense) -----", self.name);
         info!("Weights:\n{}", util::format_matrix(&self.weights));
         info!("Biases:\n{}", util::format_matrix(&self.biases));
+    }
+
+    fn summarize(&self, epoch: usize, summary_writer: &mut dyn crate::summary::SummaryWriter) {
+        if let Err(e) = summary_writer.write_histogram(
+            &format!("{}-weights", self.name),
+            epoch,
+            &util::flatten(&self.weights),
+        ) {
+            error!("Failed to write weights histogram: {}", e);
+        }
+
+        if let Err(e) = summary_writer.write_histogram(
+            &format!("{}-biases", self.name),
+            epoch,
+            &util::flatten(&self.biases),
+        ) {
+            error!("Failed to write biases histogram: {}", e);
+        }
     }
 }
 
