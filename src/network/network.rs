@@ -262,9 +262,7 @@ pub struct Network {
 
 impl Network {
     pub fn train(
-        &mut self,
-        inputs: &DenseMatrix,
-        targets: &DenseMatrix,
+        &mut self, inputs: &DenseMatrix, targets: &DenseMatrix,
     ) -> Result<NetworkResult, Box<dyn Error>> {
         let training_inputs = self.prepare_inputs(inputs);
         let sample_size = training_inputs.rows();
@@ -352,10 +350,7 @@ impl Network {
     }
 
     fn shuffle(
-        &self,
-        inputs: &DenseMatrix,
-        targets: &DenseMatrix,
-        shuffling_inputs: &mut DenseMatrix,
+        &self, inputs: &DenseMatrix, targets: &DenseMatrix, shuffling_inputs: &mut DenseMatrix,
         shuffling_targets: &mut DenseMatrix,
     ) {
         let sample_size = inputs.rows();
@@ -379,9 +374,7 @@ impl Network {
     }
 
     fn create_batches<'a>(
-        &mut self,
-        inputs: &'a DenseMatrix,
-        targets: &'a DenseMatrix,
+        &mut self, inputs: &'a DenseMatrix, targets: &'a DenseMatrix,
     ) -> (Vec<DenseMatrix>, Vec<DenseMatrix>) {
         let sample_size = inputs.rows();
         let (batch_size, batch_count) = self.calculate_batches(sample_size);
@@ -401,12 +394,8 @@ impl Network {
     }
 
     fn log_group_training_info(
-        &mut self,
-        epoch: usize,
-        group_count: usize,
-        group_id: usize,
-        group_batch_inputs: &&[DenseMatrix],
-        group_batch_targets: &&[DenseMatrix],
+        &mut self, epoch: usize, group_count: usize, group_id: usize,
+        group_batch_inputs: &&[DenseMatrix], group_batch_targets: &&[DenseMatrix],
         group_predictions: &Vec<DenseMatrix>,
     ) {
         if self.debug {
@@ -453,9 +442,7 @@ impl Network {
     }
 
     fn create_groups<'a>(
-        &self,
-        all_batch_inputs: &'a [DenseMatrix],
-        all_batch_targets: &'a [DenseMatrix],
+        &self, all_batch_inputs: &'a [DenseMatrix], all_batch_targets: &'a [DenseMatrix],
     ) -> (Vec<&'a [DenseMatrix]>, Vec<&'a [DenseMatrix]>) {
         let batch_group_size = self.batch_group_size;
         let batch_count = all_batch_inputs.len();
@@ -490,12 +477,8 @@ impl Network {
     }
 
     fn get_all_batch_inputs_targets(
-        &mut self,
-        sample_size: usize,
-        batch_size: usize,
-        batch_count: usize,
-        shuffled_inputs: &DenseMatrix,
-        shuffled_targets: &DenseMatrix,
+        &mut self, sample_size: usize, batch_size: usize, batch_count: usize,
+        shuffled_inputs: &DenseMatrix, shuffled_targets: &DenseMatrix,
     ) -> (Vec<DenseMatrix>, Vec<DenseMatrix>) {
         let mut all_batch_inputs = Vec::with_capacity(batch_count);
         let mut all_batch_targets = Vec::with_capacity(batch_count);
@@ -513,9 +496,7 @@ impl Network {
     }
 
     fn forward_loss(
-        &mut self,
-        batch_predictions: &[DenseMatrix],
-        batch_targets: &[DenseMatrix],
+        &mut self, batch_predictions: &[DenseMatrix], batch_targets: &[DenseMatrix],
     ) -> Vec<f32> {
         let mut all_losses = Vec::with_capacity(batch_predictions.len());
 
@@ -528,8 +509,7 @@ impl Network {
     }
 
     fn forward(
-        &mut self,
-        batch_inputs: &[DenseMatrix],
+        &mut self, batch_inputs: &[DenseMatrix],
     ) -> (Vec<DenseMatrix>, Vec<Vec<LayerParams>>) {
         let mut batch_predictions = Vec::with_capacity(batch_inputs.len());
         let mut batch_layer_params = Vec::with_capacity(batch_inputs.len());
@@ -622,18 +602,10 @@ impl Network {
             // Regulate gradients for the current layer
             for reg in &self.regularization {
                 if let Some(_l1) = reg.as_any().downcast_ref::<L1Regularization>() {
-                    layer.regulate(
-                        &mut aggregated_d_weights[i],
-                        &mut aggregated_d_biases[i],
-                        reg,
-                    );
+                    layer.regulate(&mut aggregated_d_weights[i], &mut aggregated_d_biases[i], reg);
                 }
                 if let Some(_l2) = reg.as_any().downcast_ref::<L2Regularization>() {
-                    layer.regulate(
-                        &mut aggregated_d_weights[i],
-                        &mut aggregated_d_biases[i],
-                        reg,
-                    );
+                    layer.regulate(&mut aggregated_d_weights[i], &mut aggregated_d_biases[i], reg);
                 }
             }
 
@@ -761,8 +733,7 @@ impl Network {
 }
 
 fn calculate_group_accuracy(
-    group_batch_inputs: &&[DenseMatrix],
-    group_batch_targets: &&[DenseMatrix],
+    group_batch_inputs: &&[DenseMatrix], group_batch_targets: &&[DenseMatrix],
     group_predictions: &Vec<DenseMatrix>,
 ) -> f32 {
     let group_accuracy: f32 = group_batch_inputs
