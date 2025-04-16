@@ -322,6 +322,7 @@ fn run(
         .network
         .train(training_inputs, training_targets)
         .unwrap();
+
     let elapsed_time_in_sec = start_time.elapsed().as_secs_f32();
     let validation_res = search_job
         .network

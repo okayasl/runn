@@ -261,10 +261,82 @@ pub struct Network {
 }
 
 impl Network {
+    pub fn train(
+        &mut self,
+        inputs: &DenseMatrix,
+        targets: &DenseMatrix,
+    ) -> Result<NetworkResult, Box<dyn Error>> {
+        let training_inputs = self.prepare_inputs(inputs);
+        let sample_size = training_inputs.rows();
+        self.log_start_info(sample_size);
+        let mut shuffled_inputs = DenseMatrix::zeros(sample_size, self.input_size);
+        let mut shuffled_targets = DenseMatrix::zeros(sample_size, self.output_size);
+
+        self.init_summary_writer();
+        let mut last_epoch = 0;
+        for epoch in 1..=self.epochs {
+            self.visualize_layers();
+            self.shuffle(inputs, targets, &mut shuffled_inputs, &mut shuffled_targets);
+            let (batch_inputs, batch_targets) =
+                self.create_batches(&shuffled_inputs, &shuffled_targets);
+            let (group_inputs, group_targets) = self.create_groups(&batch_inputs, &batch_targets);
+
+            let group_count = group_inputs.len();
+
+            for (group_id, (group_batch_inputs, group_batch_targets)) in
+                group_inputs.iter().zip(group_targets.iter()).enumerate()
+            {
+                // Forward pass for the current group.
+                let (group_predictions, mut group_layer_inputs) = self.forward(group_batch_inputs);
+
+                self.log_group_training_info(
+                    epoch,
+                    group_count,
+                    group_id,
+                    group_batch_inputs,
+                    group_batch_targets,
+                    &group_predictions,
+                );
+
+                // Backward pass: accumulate gradients from the mini-batches in the current group.
+                self.backward(
+                    &group_predictions,
+                    group_batch_targets,
+                    &mut group_layer_inputs,
+                    epoch,
+                );
+            }
+
+            let epoch_result = self.predict(&training_inputs, targets);
+            let epoch_accuracy = epoch_result.accuracy;
+            let epoch_loss = self
+                .loss_function
+                .forward(&epoch_result.predictions, targets);
+
+            self.log_epoch_training_info(epoch, epoch_accuracy, epoch_loss);
+            last_epoch = epoch;
+            self.summarize(epoch, epoch_loss, epoch_accuracy);
+            if self.early_stopped(epoch, epoch_loss, epoch_accuracy) {
+                info!("Network training early stopped: epoch:{}", epoch,);
+                break;
+            }
+        }
+
+        let final_result = self.predict(&training_inputs, targets);
+        self.log_finish_info(last_epoch, &final_result);
+        self.close_summary_writer();
+        Ok(final_result)
+    }
+
+    fn close_summary_writer(&mut self) {
+        if let Some(summary_writer) = self.summary_writer.as_mut() {
+            if let Err(e) = summary_writer.close() {
+                error!("Failed to close summary writer: {}", e);
+            }
+        }
+    }
+
     pub fn reset(&mut self) {
-        // for layer in &mut self.layers {
-        //     layer.reset();
-        // }
         if let Some(early_stopper) = &mut self.early_stopper {
             early_stopper.reset();
         }
@@ -277,15 +349,6 @@ impl Network {
         self.layers.iter().for_each(|layer| {
             layer.visualize();
         });
-    }
-
-    fn normalize(&mut self, inputs: &mut DenseMatrix) {
-        if self.normalized {
-            let (mins, maxs) = util::find_min_max(&inputs);
-            util::normalize_in_place(inputs, &mins, &maxs);
-            self.mins = Some(mins);
-            self.maxs = Some(maxs);
-        }
     }
 
     fn shuffle(
@@ -304,115 +367,72 @@ impl Network {
         });
     }
 
-    pub fn train(
-        &mut self,
-        inputs: &DenseMatrix,
-        targets: &DenseMatrix,
-    ) -> Result<NetworkResult, Box<dyn Error>> {
-        let mut training_inputs = inputs.clone(); // Create a mutable copy of inputs
-        self.normalize(&mut training_inputs);
-
-        let sample_size = training_inputs.rows();
-        let (batch_size, batch_count) = self.calculate_batches(sample_size);
-        let group_count = (batch_count + self.batch_group_size - 1) / self.batch_group_size;
-
-        if !self.search {
-            info!("Network training started: sample_size:{}, group_size:{}, group_count:{}, batch_size:{}, batch_count:{}, epoch:{}", sample_size,group_count,self.batch_group_size, batch_size, batch_count, self.epochs);
+    fn prepare_inputs(&mut self, inputs: &DenseMatrix) -> DenseMatrix {
+        let mut training_inputs = inputs.clone();
+        if self.normalized {
+            let (mins, maxs) = util::find_min_max(&inputs);
+            util::normalize_in_place(&mut training_inputs, &mins, &maxs);
+            self.mins = Some(mins);
+            self.maxs = Some(maxs);
         }
+        training_inputs
+    }
 
-        let mut shuffled_inputs = DenseMatrix::zeros(sample_size, self.input_size);
-        let mut shuffled_targets = DenseMatrix::zeros(sample_size, self.output_size);
-        let mut epoch_losses = Vec::new();
-        let mut epoch_accuracies = Vec::new();
+    fn create_batches<'a>(
+        &mut self,
+        inputs: &'a DenseMatrix,
+        targets: &'a DenseMatrix,
+    ) -> (Vec<DenseMatrix>, Vec<DenseMatrix>) {
+        let sample_size = inputs.rows();
+        let (batch_size, batch_count) = self.calculate_batches(sample_size);
+        self.get_all_batch_inputs_targets(sample_size, batch_size, batch_count, inputs, targets)
+    }
 
-        self.init_summary_writer();
-        let mut last_epoch = 0;
-        for epoch in 1..=self.epochs {
-            self.visualize_layers();
-            self.shuffle(inputs, targets, &mut shuffled_inputs, &mut shuffled_targets);
-
-            let (all_batch_inputs, all_batch_targets) = self.get_all_batch_inputs_targets(
-                sample_size,
-                batch_size,
-                batch_count,
-                &shuffled_inputs,
-                &shuffled_targets,
+    fn log_epoch_training_info(&mut self, epoch: usize, epoch_accuracy: f32, epoch_loss: f32) {
+        if self.debug {
+            info!(
+                "Epoch [{}/{}], Loss:{:.4}, Accuracy:{:.2}%",
+                epoch,
+                self.epochs,
+                epoch_loss,
+                epoch_accuracy * 100.0
             );
+        }
+    }
 
-            let (all_group_batch_inputs, all_group_batch_targets) =
-                self.get_all_group_inputs_targets(&all_batch_inputs, &all_batch_targets);
-
-            let group_count = all_group_batch_inputs.len();
-
-            for (group_id, (group_batch_inputs, group_batch_targets)) in all_group_batch_inputs
-                .iter()
-                .zip(all_group_batch_targets.iter())
-                .enumerate()
-            {
-                // Forward pass for the current group.
-                let (group_predictions, mut group_layer_inputs) = self.forward(group_batch_inputs);
-
-                if self.debug {
-                    // Optionally compute the loss and accuracy for this group.
-                    let group_losses = self.forward_loss(&group_predictions, group_batch_targets);
-                    let ave_group_loss: f32 =
-                        group_losses.iter().sum::<f32>() / group_losses.len() as f32;
-                    let ave_group_accuracy = calculate_group_accuracy(
-                        group_batch_inputs,
-                        group_batch_targets,
-                        &group_predictions,
-                    );
-                    if !self.search {
-                        info!(
-                        "Epoch [{}/{}], Group [{}/{}], Avg Group Loss: {:.4}, Avg Group Accuracy: {:.2}%",
-                        epoch,
-                        self.epochs,
-                        group_id,
-                        group_count,
-                        ave_group_loss,
-                        ave_group_accuracy * 100.0
-                    );
-                    }
-                }
-
-                // Backward pass: accumulate gradients from the mini-batches in the current group.
-                self.backward(
-                    &group_predictions,
-                    group_batch_targets,
-                    &mut group_layer_inputs,
-                    epoch,
-                );
-            }
-
-            let epoch_result = self.predict(&training_inputs, targets);
-            let epoch_accuracy = epoch_result.accuracy;
-            let epoch_loss = self
-                .loss_function
-                .forward(&epoch_result.predictions, targets);
-            epoch_losses.push(epoch_loss);
-            epoch_accuracies.push(epoch_accuracy);
-
-            if self.debug {
+    fn log_group_training_info(
+        &mut self,
+        epoch: usize,
+        group_count: usize,
+        group_id: usize,
+        group_batch_inputs: &&[DenseMatrix],
+        group_batch_targets: &&[DenseMatrix],
+        group_predictions: &Vec<DenseMatrix>,
+    ) {
+        if self.debug {
+            // Optionally compute the loss and accuracy for this group.
+            let group_losses = self.forward_loss(group_predictions, group_batch_targets);
+            let ave_group_loss: f32 = group_losses.iter().sum::<f32>() / group_losses.len() as f32;
+            let ave_group_accuracy = calculate_group_accuracy(
+                group_batch_inputs,
+                group_batch_targets,
+                group_predictions,
+            );
+            if !self.search {
                 info!(
-                    "Epoch [{}/{}], Loss:{:.4}, Accuracy:{:.2}%",
+                    "Epoch [{}/{}], Group [{}/{}], Avg Group Loss: {:.4}, Avg Group Accuracy: {:.2}%",
                     epoch,
                     self.epochs,
-                    epoch_loss,
-                    epoch_accuracy * 100.0
+                    group_id,
+                    group_count,
+                    ave_group_loss,
+                    ave_group_accuracy * 100.0
                 );
             }
-
-            //self.summarize(epoch, epoch_loss, epoch_accuracy);
-
-            last_epoch = epoch;
-            self.summarize(epoch, epoch_loss, epoch_accuracy);
-            if self.early_stopped(epoch, epoch_loss, epoch_accuracy) {
-                info!("Network training early stopped: epoch:{}", epoch,);
-                break;
-            }
         }
+    }
 
-        let final_result = self.predict(&training_inputs, targets);
+    fn log_finish_info(&mut self, last_epoch: usize, final_result: &NetworkResult) {
         if !self.search {
             info!(
                 "Network training finished: epoch:{}, Loss:{:.4}, Accuracy:{:.2}%",
@@ -421,16 +441,18 @@ impl Network {
                 final_result.accuracy * 100.0
             );
         }
-        if let Some(summary_writer) = self.summary_writer.as_mut() {
-            if let Err(e) = summary_writer.close() {
-                error!("Failed to close summary writer: {}", e);
-            }
-        }
-
-        Ok(self.predict(&training_inputs, targets))
     }
 
-    fn get_all_group_inputs_targets<'a>(
+    fn log_start_info(&mut self, sample_size: usize) {
+        let (batch_size, batch_count) = self.calculate_batches(sample_size);
+        let group_count = (batch_count + self.batch_group_size - 1) / self.batch_group_size;
+
+        if !self.search {
+            info!("Network training started: sample_size:{}, group_size:{}, group_count:{}, batch_size:{}, batch_count:{}, epoch:{}", sample_size,group_count,self.batch_group_size, batch_size, batch_count, self.epochs);
+        }
+    }
+
+    fn create_groups<'a>(
         &self,
         all_batch_inputs: &'a [DenseMatrix],
         all_batch_targets: &'a [DenseMatrix],
@@ -663,26 +685,8 @@ impl Network {
             for layer in &self.layers {
                 layer.summarize(epoch, &mut **summary_writer);
             }
-
-            //self.write_layer_histograms(epoch as i64);
         }
     }
-
-    // fn write_layer_histograms(&self, epoch: i64) {
-    //     for (i, layer) in self.layers.iter().enumerate() {
-    //         let (params, _) = layer.get_parameters_and_gradients();
-
-    //         let weights = params[0].flatten();
-    //         self.summary_writer
-    //             .write_histogram(&format!("Layer_{}/Weights", i), epoch, &weights)
-    //             .unwrap();
-
-    //         let biases = params[1].flatten();
-    //         self.summary_writer
-    //             .write_histogram(&format!("Layer_{}/Biases", i), epoch, &biases)
-    //             .unwrap();
-    //     }
-    // }
 
     fn early_stopped(&mut self, epoch: usize, val_loss: f32, val_accuracy: f32) -> bool {
         if let Some(early_stopper) = &mut self.early_stopper {
@@ -783,40 +787,6 @@ pub fn clip_gradients(grads: &mut [&mut DenseMatrix], clip_threshold: f32) {
         }
     }
 }
-
-// fn visualize(debug: bool, params: &[&mut DenseMatrix], grads: &[&mut DenseMatrix]) {
-//     if !debug {
-//         return;
-//     }
-
-//     let mut weights: Vec<&DenseMatrix> = Vec::new();
-//     let mut biases: Vec<&DenseMatrix> = Vec::new();
-//     let mut dweights: Vec<&DenseMatrix> = Vec::new();
-//     let mut dbiases: Vec<&DenseMatrix> = Vec::new();
-
-//     // Traverse in params and grads and if index is even put into weights and dweights, if odd put into biases and dbiases
-//     for (i, (param, grad)) in params.iter().zip(grads.iter()).enumerate() {
-//         if i % 2 == 0 {
-//             weights.push(*param);
-//             dweights.push(*grad);
-//         } else {
-//             biases.push(*param);
-//             dbiases.push(*grad);
-//         }
-//     }
-
-//     for (i, weight) in weights.iter().enumerate() {
-//         let mut layer_name = format!("Hidden {}", i);
-//         if i == params.len() - 1 {
-//             layer_name = String::from("Output");
-//         }
-//         info!("----- {} Layer (Dense) -----", layer_name);
-//         info!("Weights: {}", weight);
-//         info!("Biases: {}", biases[i]);
-//         info!("DWeights: {}", dweights[i]);
-//         info!("DBiases: {}", dbiases[i]);
-//     }
-// }
 
 pub fn calculate_metrics(targets: &DenseMatrix, predictions: &DenseMatrix) -> Metrics {
     let (true_positives_map, false_positives_map, false_negatives_map) =
