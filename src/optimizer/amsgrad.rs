@@ -4,22 +4,23 @@ use typetag;
 
 use super::{Optimizer, OptimizerConfig};
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct AMSGradConfig {
-    learning_rate: f32,
-    beta1: f32,
-    beta2: f32,
-    epsilon: f32,
-    scheduler: Option<Box<dyn LearningRateScheduler>>,
-}
-
-#[typetag::serde]
-impl OptimizerConfig for AMSGradConfig {
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(AMSGradOptimizer::new(*self))
-    }
-}
-
+// AMSGrad (Adaptive Moment Estimation with Maximum Moment) is a variant of the Adam optimizer
+// designed to improve convergence in scenarios where Adam may fail due to rapidly changing gradients.
+// Similar to Adam, AMSGrad maintains two moments:
+// - moment1 (m_t): The first moment, which captures the exponentially decaying average of past gradients,
+//   acting as a momentum term to accelerate optimization in the direction of historical gradients.
+// - moment2 (v_t): The second moment, which tracks the exponentially decaying average of squared gradients,
+//   providing an adaptive learning rate that scales based on the magnitude of recent gradients.
+// AMSGrad introduces an additional term:
+// - max_moment2 (v_max): This tracks the maximum value of the second moment (v_t) observed so far,
+//   ensuring that the denominator in the parameter update rule does not decrease over time.
+// This modification addresses issues with Adam's convergence by enforcing a more stable learning rate.
+// Update rules:
+// momentum = beta1 * momentum + (1 - beta1) * gradient
+// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
+// max_accumulated_gradient = max(max_accumulated_gradient, accumulated_gradient)
+// weight = weight - (learning_rate / sqrt(max_accumulated_gradient + epsilon)) * momentum
+// bias = bias - (learning_rate / sqrt(max_accumulated_gradient + epsilon)) * momentum
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AMSGradOptimizer {
     config: AMSGradConfig,
@@ -118,6 +119,22 @@ impl Optimizer for AMSGradOptimizer {
 
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.config.learning_rate = learning_rate;
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AMSGradConfig {
+    learning_rate: f32,
+    beta1: f32,
+    beta2: f32,
+    epsilon: f32,
+    scheduler: Option<Box<dyn LearningRateScheduler>>,
+}
+
+#[typetag::serde]
+impl OptimizerConfig for AMSGradConfig {
+    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
+        Box::new(AMSGradOptimizer::new(*self))
     }
 }
 

@@ -4,22 +4,19 @@ use typetag;
 
 use super::{Optimizer, OptimizerConfig};
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct AdamConfig {
-    learning_rate: f32,
-    beta1: f32,
-    beta2: f32,
-    epsilon: f32,
-    scheduler: Option<Box<dyn LearningRateScheduler>>,
-}
-
-#[typetag::serde]
-impl OptimizerConfig for AdamConfig {
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(AdamOptimizer::new(*self))
-    }
-}
-
+// Adam(Adaptive Moment Estimation) is an optimization algorithm that
+// adapts learning rates for each parameter based on the magnitude of the gradient.
+// moment1 (often referred to as m or v_t in literature) acts as the Momentum,
+// capturing the direction of the gradients over time and
+// accelerating the optimization in the direction of the combined historical gradients.
+// moment2 (typically denoted as v or s_t) represents the RMS component,
+// tracking the magnitude (or scale) of the gradients,
+// allowing for an adaptive learning rate that scales according to the recent gradient history,
+// helping in managing oscillations and stabilizing learning.
+// momentum = beta1 * momentum + (1 - beta1) * gradient
+// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
+// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
+// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AdamOptimizer {
     config: AdamConfig,
@@ -122,6 +119,22 @@ impl Optimizer for AdamOptimizer {
 
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.config.learning_rate = learning_rate;
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AdamConfig {
+    learning_rate: f32,
+    beta1: f32,
+    beta2: f32,
+    epsilon: f32,
+    scheduler: Option<Box<dyn LearningRateScheduler>>,
+}
+
+#[typetag::serde]
+impl OptimizerConfig for AdamConfig {
+    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
+        Box::new(AdamOptimizer::new(*self))
     }
 }
 

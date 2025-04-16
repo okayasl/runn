@@ -5,6 +5,20 @@ use crate::common::random::Randomizer;
 use serde::{Deserialize, Serialize};
 use typetag;
 
+// Dropout regularization is a technique that randomly sets a fraction of the weights
+// to zero during training, effectively "dropping out" some neurons. This helps to
+// prevent overfitting by introducing noise and forcing the network to learn more
+// robust features.
+//
+// Dropout is typically applied after the activation function in each layer during
+// the forward propagation step.
+//
+// The dropoutRate parameter determines the fraction of weights to be set to zero.
+// A higher dropout rate means more weights will be dropped, which can help reduce
+// overfitting but may also make the training process slower and more difficult.
+//
+// Dropout is commonly used in deep neural networks with many layers and parameters,
+// as these networks are more prone to overfitting.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DropoutRegularization {
     dropout_rate: f32,

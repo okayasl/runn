@@ -5,19 +5,12 @@ use typetag;
 
 use super::{Optimizer, OptimizerConfig};
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct SGDConfig {
-    learning_rate: f32,
-    scheduler: Option<Box<dyn LearningRateScheduler>>,
-}
-
-#[typetag::serde]
-impl OptimizerConfig for SGDConfig {
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(SGDOptimizer::new(*self))
-    }
-}
-
+// Stochastic Gradient Descent (SGD) optimizer is a simple and popular optimization algorithm
+// that updates model parameters in the direction of the negative gradient of the loss function.
+// It is widely used due to its simplicity and effectiveness, especially when the dataset is large.
+// However, it can be slow to converge, especially for complex models or noisy data.
+// weight = weight - learning_rate * gradient_of_weight
+// bias = bias - learning_rate * gradient_of_bias
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SGDOptimizer {
     config: SGDConfig,
@@ -53,6 +46,19 @@ impl Optimizer for SGDOptimizer {
 
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.config.learning_rate = learning_rate;
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SGDConfig {
+    learning_rate: f32,
+    scheduler: Option<Box<dyn LearningRateScheduler>>,
+}
+
+#[typetag::serde]
+impl OptimizerConfig for SGDConfig {
+    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
+        Box::new(SGDOptimizer::new(*self))
     }
 }
 

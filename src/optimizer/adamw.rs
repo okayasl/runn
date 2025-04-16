@@ -4,23 +4,24 @@ use typetag;
 
 use super::{Optimizer, OptimizerConfig};
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct AdamWConfig {
-    learning_rate: f32,
-    beta1: f32,
-    beta2: f32,
-    epsilon: f32,
-    weight_decay: f32,
-    scheduler: Option<Box<dyn LearningRateScheduler>>,
-}
-
-#[typetag::serde]
-impl OptimizerConfig for AdamWConfig {
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(AdamWOptimizer::new(*self))
-    }
-}
-
+// AdamW (Adam with Weight Decay) is an optimization algorithm that extends the Adam optimizer
+// by incorporating weight decay directly into the parameter update rule. This modification
+// improves generalization by penalizing large weights, which helps prevent overfitting.
+// Similar to Adam, AdamW maintains two moments:
+// - moment1 (m_t): The first moment, which captures the exponentially decaying average of past gradients,
+//   acting as a momentum term to accelerate optimization in the direction of historical gradients.
+// - moment2 (v_t): The second moment, which tracks the exponentially decaying average of squared gradients,
+//   providing an adaptive learning rate that scales based on the magnitude of recent gradients.
+// AdamW introduces an additional term:
+// - weight_decay: A regularization term that penalizes large weights by scaling them down during updates.
+// This modification ensures that weight decay is applied independently of the adaptive learning rate,
+// addressing issues with traditional L2 regularization in Adam.
+// Update rules:
+// momentum = beta1 * momentum + (1 - beta1) * gradient
+// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
+// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
+// weight = weight - weight_decay * weight // Weight decay
+// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AdamWOptimizer {
     config: AdamWConfig,
@@ -111,6 +112,23 @@ impl Optimizer for AdamWOptimizer {
 
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.config.learning_rate = learning_rate;
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AdamWConfig {
+    learning_rate: f32,
+    beta1: f32,
+    beta2: f32,
+    epsilon: f32,
+    weight_decay: f32,
+    scheduler: Option<Box<dyn LearningRateScheduler>>,
+}
+
+#[typetag::serde]
+impl OptimizerConfig for AdamWConfig {
+    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
+        Box::new(AdamWOptimizer::new(*self))
     }
 }
 

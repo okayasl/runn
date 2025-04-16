@@ -3,21 +3,12 @@ use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct RMSPropConfig {
-    learning_rate: f32,
-    decay_rate: f32,
-    epsilon: f32,
-    scheduler: Option<Box<dyn LearningRateScheduler>>,
-}
-
-#[typetag::serde]
-impl OptimizerConfig for RMSPropConfig {
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(RMSPropOptimizer::new(*self))
-    }
-}
-
+// RmsPropOptimizer is an implementation of the RMSProp(Root Mean Squared Propagation) optimization algorithm.
+// RMSProp is an adaptive learning rate optimization algorithm that divides the
+// learning rate by a running average of the magnitudes of recent gradients.
+// accumulated_gradient = (decay_rate * accumulated_gradient) + ((1 - decay_rate) * gradient * gradien)
+// weight = weight - (learning_rate * gradient) / sqrt(accumulated_gradient + epsilon)
+// bias = bias - (learning_rate * gradient) / sqrt(accumulated_gradient + epsilon)
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RMSPropOptimizer {
     config: RMSPropConfig,
@@ -73,6 +64,21 @@ impl Optimizer for RMSPropOptimizer {
 
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.config.learning_rate = learning_rate;
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RMSPropConfig {
+    learning_rate: f32,
+    decay_rate: f32,
+    epsilon: f32,
+    scheduler: Option<Box<dyn LearningRateScheduler>>,
+}
+
+#[typetag::serde]
+impl OptimizerConfig for RMSPropConfig {
+    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
+        Box::new(RMSPropOptimizer::new(*self))
     }
 }
 

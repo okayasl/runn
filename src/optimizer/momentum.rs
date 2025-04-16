@@ -3,20 +3,12 @@ use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct MomentumConfig {
-    learning_rate: f32,
-    momentum: f32,
-    scheduler: Option<Box<dyn LearningRateScheduler>>,
-}
-
-#[typetag::serde]
-impl OptimizerConfig for MomentumConfig {
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(MomentumOptimizer::new(*self))
-    }
-}
-
+// MomentumOptimizer is an implementation of the Momentum optimization algorithm.
+// Momentum is an optimization algorithm that accelerates gradients in the direction
+// of previous gradients, helping to overcome local minima and speed up convergence.
+// velocity = momentum * velocity + learning_rate * gradient
+// weight = weight - velocity
+// bias = bias - velocity
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MomentumOptimizer {
     config: MomentumConfig,
@@ -31,6 +23,20 @@ impl MomentumOptimizer {
             velocity_weights: DenseMatrix::zeros(0, 0),
             velocity_biases: DenseMatrix::zeros(0, 0),
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct MomentumConfig {
+    learning_rate: f32,
+    momentum: f32,
+    scheduler: Option<Box<dyn LearningRateScheduler>>,
+}
+
+#[typetag::serde]
+impl OptimizerConfig for MomentumConfig {
+    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
+        Box::new(MomentumOptimizer::new(*self))
     }
 }
 

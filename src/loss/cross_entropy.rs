@@ -5,6 +5,21 @@ use crate::matrix::DenseMatrix;
 
 use super::LossFunction;
 
+// CrossEntropyLoss is a commonly used loss function for classification tasks,
+// particularly in scenarios involving probabilistic outputs such as those from a softmax layer.
+// It measures the dissimilarity between the predicted probability distribution and the true labels,
+// penalizing predictions that deviate from the target distribution.
+// The loss is computed as the negative log-likelihood of the true labels given the predicted probabilities.
+// To prevent numerical instability (e.g., log(0)), the predicted probabilities are clamped
+// to the range [epsilon, 1-epsilon], where epsilon is a small positive constant.
+// This ensures that the logarithm operation remains well-defined and avoids issues like division by zero.
+// Forward pass:
+// loss = -Σ(target * log(predicted))
+// where the summation is over all elements in the matrices.
+// Backward pass:
+// gradient = predicted - target
+// The gradient represents the difference between the predicted probabilities and the true labels,
+// which can be used to update the model parameters during optimization.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct CrossEntropyLoss {
     epsilon: f32,
