@@ -8,9 +8,7 @@ use crate::{
     l2::L2Regularization,
     layer::{Layer, LayerConfig},
     matrix::DenseMatrix,
-    metric::{
-        calculate_confusion_matrix, calculate_f1_score, calculate_precision, calculate_recall,
-    },
+    metric::{calculate_confusion_matrix, calculate_f1_score, calculate_precision, calculate_recall},
     random::Randomizer,
     regularization::Regularization,
     util::{self},
@@ -141,11 +139,7 @@ impl NetworkBuilder {
             self.summary_writer = Some(summary_writer.clone());
         }
 
-        self.regularization = nw
-            .regularization
-            .iter()
-            .map(|reg| (**reg).clone_box())
-            .collect();
+        self.regularization = nw.regularization.iter().map(|reg| (**reg).clone_box()).collect();
 
         self
     }
@@ -182,11 +176,7 @@ impl NetworkBuilder {
             let layer = layer_config.create_layer(
                 name,
                 input_size,
-                self.optimizer_config
-                    .as_ref()
-                    .unwrap()
-                    .clone()
-                    .create_optimizer(),
+                self.optimizer_config.as_ref().unwrap().clone().create_optimizer(),
                 &randomizer,
             );
             input_size = size; // Update input_size for the next layer
@@ -261,9 +251,7 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn train(
-        &mut self, inputs: &DenseMatrix, targets: &DenseMatrix,
-    ) -> Result<NetworkResult, Box<dyn Error>> {
+    pub fn train(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> Result<NetworkResult, Box<dyn Error>> {
         let training_inputs = self.prepare_inputs(inputs);
         let sample_size = training_inputs.rows();
         self.log_start_info(sample_size);
@@ -275,41 +263,20 @@ impl Network {
         for epoch in 1..=self.epochs {
             self.visualize_layers();
             self.shuffle(inputs, targets, &mut shuffled_inputs, &mut shuffled_targets);
-            let (batch_inputs, batch_targets) =
-                self.create_batches(&shuffled_inputs, &shuffled_targets);
+            let (batch_inputs, batch_targets) = self.create_batches(&shuffled_inputs, &shuffled_targets);
             let (group_inputs, group_targets) = self.create_groups(&batch_inputs, &batch_targets);
-
             let group_count = group_inputs.len();
 
             for (group_id, (group_batch_inputs, group_batch_targets)) in
-                group_inputs.iter().zip(group_targets.iter()).enumerate()
-            {
-                // Forward pass for the current group.
+                group_inputs.iter().zip(group_targets.iter()).enumerate(){
                 let (group_predictions, mut group_layer_inputs) = self.forward(group_batch_inputs);
-
-                self.log_group_training_info(
-                    epoch,
-                    group_count,
-                    group_id,
-                    group_batch_inputs,
-                    group_batch_targets,
-                    &group_predictions,
-                );
-
-                // Backward pass: accumulate gradients from the mini-batches in the current group.
-                self.backward(
-                    &group_predictions,
-                    group_batch_targets,
-                    &mut group_layer_inputs,
-                    epoch,
-                );
+                self.log_group_training_info(epoch,group_count, group_id, group_batch_inputs, group_batch_targets, &group_predictions);
+                self.backward(&group_predictions, group_batch_targets, &mut group_layer_inputs, epoch);
             }
 
             let epoch_result = self.predict(&training_inputs, targets);
             let epoch_accuracy = epoch_result.accuracy;
-            let epoch_loss = self
-                .loss_function
-                .forward(&epoch_result.predictions, targets);
+            let epoch_loss = self.loss_function.forward(&epoch_result.predictions, targets);
 
             self.log_epoch_training_info(epoch, epoch_accuracy, epoch_loss);
             last_epoch = epoch;
@@ -383,30 +350,20 @@ impl Network {
 
     fn log_epoch_training_info(&mut self, epoch: usize, epoch_accuracy: f32, epoch_loss: f32) {
         if self.debug {
-            info!(
-                "Epoch [{}/{}], Loss:{:.4}, Accuracy:{:.2}%",
-                epoch,
-                self.epochs,
-                epoch_loss,
-                epoch_accuracy * 100.0
-            );
+            info!("Epoch [{}/{}], Loss:{:.4}, Accuracy:{:.2}%", epoch, self.epochs, epoch_loss, epoch_accuracy * 100.0);
         }
     }
 
     fn log_group_training_info(
-        &mut self, epoch: usize, group_count: usize, group_id: usize,
-        group_batch_inputs: &&[DenseMatrix], group_batch_targets: &&[DenseMatrix],
-        group_predictions: &Vec<DenseMatrix>,
+        &mut self, epoch: usize, group_count: usize, group_id: usize, group_batch_inputs: &&[DenseMatrix],
+        group_batch_targets: &&[DenseMatrix], group_predictions: &Vec<DenseMatrix>,
     ) {
         if self.debug {
             // Optionally compute the loss and accuracy for this group.
             let group_losses = self.forward_loss(group_predictions, group_batch_targets);
             let ave_group_loss: f32 = group_losses.iter().sum::<f32>() / group_losses.len() as f32;
-            let ave_group_accuracy = calculate_group_accuracy(
-                group_batch_inputs,
-                group_batch_targets,
-                group_predictions,
-            );
+            let ave_group_accuracy =
+                calculate_group_accuracy(group_batch_inputs, group_batch_targets, group_predictions);
             if !self.search {
                 info!(
                     "Epoch [{}/{}], Group [{}/{}], Avg Group Loss: {:.4}, Avg Group Accuracy: {:.2}%",
@@ -446,10 +403,8 @@ impl Network {
     ) -> (Vec<&'a [DenseMatrix]>, Vec<&'a [DenseMatrix]>) {
         let batch_group_size = self.batch_group_size;
         let batch_count = all_batch_inputs.len();
-        let mut all_group_batch_inputs =
-            Vec::with_capacity((batch_count + batch_group_size - 1) / batch_group_size);
-        let mut all_group_batch_targets =
-            Vec::with_capacity((batch_count + batch_group_size - 1) / batch_group_size);
+        let mut all_group_batch_inputs = Vec::with_capacity((batch_count + batch_group_size - 1) / batch_group_size);
+        let mut all_group_batch_targets = Vec::with_capacity((batch_count + batch_group_size - 1) / batch_group_size);
 
         for group_start in (0..batch_count).step_by(batch_group_size) {
             let group_end = std::cmp::min(group_start + batch_group_size, batch_count);
@@ -477,8 +432,8 @@ impl Network {
     }
 
     fn get_all_batch_inputs_targets(
-        &mut self, sample_size: usize, batch_size: usize, batch_count: usize,
-        shuffled_inputs: &DenseMatrix, shuffled_targets: &DenseMatrix,
+        &mut self, sample_size: usize, batch_size: usize, batch_count: usize, shuffled_inputs: &DenseMatrix,
+        shuffled_targets: &DenseMatrix,
     ) -> (Vec<DenseMatrix>, Vec<DenseMatrix>) {
         let mut all_batch_inputs = Vec::with_capacity(batch_count);
         let mut all_batch_targets = Vec::with_capacity(batch_count);
@@ -495,9 +450,7 @@ impl Network {
         (all_batch_inputs, all_batch_targets)
     }
 
-    fn forward_loss(
-        &mut self, batch_predictions: &[DenseMatrix], batch_targets: &[DenseMatrix],
-    ) -> Vec<f32> {
+    fn forward_loss(&mut self, batch_predictions: &[DenseMatrix], batch_targets: &[DenseMatrix]) -> Vec<f32> {
         let mut all_losses = Vec::with_capacity(batch_predictions.len());
 
         for (predicted, target) in batch_predictions.iter().zip(batch_targets.iter()) {
@@ -508,9 +461,7 @@ impl Network {
         all_losses
     }
 
-    fn forward(
-        &mut self, batch_inputs: &[DenseMatrix],
-    ) -> (Vec<DenseMatrix>, Vec<Vec<LayerParams>>) {
+    fn forward(&mut self, batch_inputs: &[DenseMatrix]) -> (Vec<DenseMatrix>, Vec<Vec<LayerParams>>) {
         let mut batch_predictions = Vec::with_capacity(batch_inputs.len());
         let mut batch_layer_params = Vec::with_capacity(batch_inputs.len());
 
@@ -551,8 +502,8 @@ impl Network {
 
     fn backward(
         &mut self,
-        predicteds: &[DenseMatrix], // Predictions for each batch
-        targets: &[DenseMatrix],    // Targets for each batch
+        predicteds: &[DenseMatrix],                  // Predictions for each batch
+        targets: &[DenseMatrix],                     // Targets for each batch
         batch_layer_params: &mut [Vec<LayerParams>], // LayerParams for each batch
         epoch: usize,
     ) {
@@ -566,10 +517,8 @@ impl Network {
         }
         let layer_idx_length = self.layers.len() - 1;
 
-        for ((predicted, target), layer_params) in predicteds
-            .iter()
-            .zip(targets.iter())
-            .zip(batch_layer_params.iter_mut())
+        for ((predicted, target), layer_params) in
+            predicteds.iter().zip(targets.iter()).zip(batch_layer_params.iter_mut())
         {
             // Compute the initial gradient of the loss with respect to the output
             let mut d_output = self.loss_function.backward(predicted, target);
@@ -582,11 +531,8 @@ impl Network {
                 .zip(layer_params.iter_mut().rev())
                 .enumerate()
             {
-                let (d_input, d_weights, d_biases) = layer.backward(
-                    &d_output,
-                    &params.layer_input,
-                    &mut params.pre_activated_output,
-                );
+                let (d_input, d_weights, d_biases) =
+                    layer.backward(&d_output, &params.layer_input, &mut params.pre_activated_output);
 
                 let grad_i = layer_idx_length - i;
 
@@ -733,8 +679,7 @@ impl Network {
 }
 
 fn calculate_group_accuracy(
-    group_batch_inputs: &&[DenseMatrix], group_batch_targets: &&[DenseMatrix],
-    group_predictions: &Vec<DenseMatrix>,
+    group_batch_inputs: &&[DenseMatrix], group_batch_targets: &&[DenseMatrix], group_predictions: &Vec<DenseMatrix>,
 ) -> f32 {
     let group_accuracy: f32 = group_batch_inputs
         .iter()
