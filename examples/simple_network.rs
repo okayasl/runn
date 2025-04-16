@@ -161,7 +161,7 @@ fn generate_network(inp_size: usize, targ_size: usize) -> Network {
         // )
         .batch_size(10)
         .batch_group_size(1)
-        .epochs(300)
+        .epochs(1500)
         .seed(55)
         .summary(TensorBoard::new().logdir("summary").build())
         //.debug(true)

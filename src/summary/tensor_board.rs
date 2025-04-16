@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use tensorboard_rs::summary_writer::SummaryWriter as InnerWriter;
 
 use super::SummaryWriter;
@@ -23,9 +23,11 @@ impl TensorBoard {
         Box::new(TensorBoardSummaryWriter::new(&self.logdir.unwrap()))
     }
 }
+#[derive(Serialize, Deserialize)]
 
 pub struct TensorBoardSummaryWriter {
     logdir: String,
+    #[serde(skip)] // Skip serialization of the InnerWriter itself
     inner: Option<InnerWriter>,
 }
 
@@ -71,25 +73,6 @@ impl Clone for TensorBoardSummaryWriter {
             logdir: self.logdir.clone(),
             inner: None, // Recreate the `InnerWriter`
         }
-    }
-}
-
-impl Serialize for TensorBoardSummaryWriter {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.logdir)
-    }
-}
-
-impl<'de> Deserialize<'de> for TensorBoardSummaryWriter {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let logdir = String::deserialize(deserializer)?;
-        Ok(TensorBoardSummaryWriter::new(&logdir))
     }
 }
 
