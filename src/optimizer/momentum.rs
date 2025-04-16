@@ -42,12 +42,8 @@ impl Optimizer for MomentumOptimizer {
     }
 
     fn update(
-        &mut self,
-        weights: &mut DenseMatrix,
-        biases: &mut DenseMatrix,
-        d_weights: &DenseMatrix,
-        d_biases: &DenseMatrix,
-        epoch: usize,
+        &mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, d_weights: &DenseMatrix,
+        d_biases: &DenseMatrix, epoch: usize,
     ) {
         if self.config.scheduler.is_some() {
             let scheduler = self.config.scheduler.as_ref().unwrap();
@@ -58,8 +54,8 @@ impl Optimizer for MomentumOptimizer {
             let previous_velocity = velocity.at(r, c);
             // Calculate the new velocity using the Momentum update rule
             // velocity = (momentum * previous_velocity) + (learning_rate * gradient)
-            let new_velocity = self.config.momentum * previous_velocity
-                + self.config.learning_rate * d_weights.at(r, c);
+            let new_velocity =
+                self.config.momentum * previous_velocity + self.config.learning_rate * d_weights.at(r, c);
             velocity.set(r, c, new_velocity);
             *v -= new_velocity
         });
@@ -68,8 +64,7 @@ impl Optimizer for MomentumOptimizer {
             let previous_velocity = velocity.at(r, c);
             // Calculate the new velocity using the Momentum update rule
             // velocity = (momentum * previous_velocity) + (learning_rate * gradient)
-            let new_velocity = self.config.momentum * previous_velocity
-                + self.config.learning_rate * d_biases.at(r, c);
+            let new_velocity = self.config.momentum * previous_velocity + self.config.learning_rate * d_biases.at(r, c);
             velocity.set(r, c, new_velocity);
             *v -= new_velocity
         });

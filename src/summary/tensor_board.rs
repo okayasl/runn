@@ -38,35 +38,23 @@ impl TensorBoardSummaryWriter {
     }
 
     fn compute_histogram_stats(&self, values: &[f32]) -> (f64, f64, f64, f64, f64) {
-        let (min, max, sum, sum_squares) = values.iter().fold(
-            (f64::INFINITY, f64::NEG_INFINITY, 0.0, 0.0),
-            |(min, max, sum, ss), &v| {
-                let v = v as f64;
-                (min.min(v), max.max(v), sum + v, ss + v * v)
-            },
-        );
-        let (min, max) = if min == max {
-            (min, min + 1.0)
-        } else {
-            (min, max)
-        };
+        let (min, max, sum, sum_squares) =
+            values
+                .iter()
+                .fold((f64::INFINITY, f64::NEG_INFINITY, 0.0, 0.0), |(min, max, sum, ss), &v| {
+                    let v = v as f64;
+                    (min.min(v), max.max(v), sum + v, ss + v * v)
+                });
+        let (min, max) = if min == max { (min, min + 1.0) } else { (min, max) };
         (min, max, values.len() as f64, sum, sum_squares)
     }
 
     fn generate_bucket_limits(&self, min: f64, max: f64, bucket_count: usize) -> Vec<f64> {
         let bucket_width = (max - min) / bucket_count as f64;
-        (0..bucket_count)
-            .map(|i| min + (i + 1) as f64 * bucket_width)
-            .collect()
+        (0..bucket_count).map(|i| min + (i + 1) as f64 * bucket_width).collect()
     }
 
-    fn compute_bucket_counts(
-        &self,
-        values: &[f32],
-        min: f64,
-        max: f64,
-        bucket_count: usize,
-    ) -> Vec<f64> {
+    fn compute_bucket_counts(&self, values: &[f32], min: f64, max: f64, bucket_count: usize) -> Vec<f64> {
         let bucket_width = (max - min) / bucket_count as f64;
         let mut bucket_counts = vec![0.0; bucket_count];
         values.iter().for_each(|&v| {
@@ -114,12 +102,7 @@ impl SummaryWriter for TensorBoardSummaryWriter {
         Ok(())
     }
 
-    fn write_histogram(
-        &mut self,
-        tag: &str,
-        step: usize,
-        values: &[f32],
-    ) -> Result<(), Box<dyn Error>> {
+    fn write_histogram(&mut self, tag: &str, step: usize, values: &[f32]) -> Result<(), Box<dyn Error>> {
         if values.is_empty() {
             return Err("values slice is empty".into());
         }

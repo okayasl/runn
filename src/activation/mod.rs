@@ -1,13 +1,13 @@
 pub mod elu;
+pub mod gelu;
+pub mod leaky_relu;
+pub mod linear;
 pub mod relu;
 pub mod sigmoid;
-pub mod tanh;
 pub mod softmax;
-pub mod leaky_relu;
-pub mod gelu;
-pub mod swish;
-pub mod linear;
 pub mod softplus;
+pub mod swish;
+pub mod tanh;
 
 use crate::common::matrix::DenseMatrix;
 

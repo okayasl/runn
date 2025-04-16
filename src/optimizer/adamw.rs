@@ -67,12 +67,7 @@ impl AdamWOptimizer {
         });
     }
 
-    fn update_parameters(
-        &mut self,
-        weights: &mut DenseMatrix,
-        biases: &mut DenseMatrix,
-        step_size: f32,
-    ) {
+    fn update_parameters(&mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, step_size: f32) {
         weights.apply_with_indices(|i, j, v| {
             let m_hat = self.moment1_weights.at(i, j) / self.m_hat_factor;
             let v_hat = self.moment2_weights.at(i, j) / self.v_hat_factor;
@@ -98,12 +93,8 @@ impl Optimizer for AdamWOptimizer {
     }
 
     fn update(
-        &mut self,
-        weights: &mut DenseMatrix,
-        biases: &mut DenseMatrix,
-        d_weights: &DenseMatrix,
-        d_biases: &DenseMatrix,
-        epoch: usize,
+        &mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, d_weights: &DenseMatrix,
+        d_biases: &DenseMatrix, epoch: usize,
     ) {
         if self.config.scheduler.is_some() {
             let scheduler = self.config.scheduler.as_ref().unwrap();
@@ -283,8 +274,7 @@ mod tests {
         optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
 
         // Manually compute the expected values with the AdamW update rule
-        let expected_weights =
-            DenseMatrix::new(2, 2, &[0.9868693, 1.9768693, 2.9668694, 3.9568691]);
+        let expected_weights = DenseMatrix::new(2, 2, &[0.9868693, 1.9768693, 2.9668694, 3.9568691]);
         let expected_biases = DenseMatrix::new(2, 1, &[0.9968377, 1.9968377]);
 
         println!("Updated weights: {:?}", util::flatten(&weights));

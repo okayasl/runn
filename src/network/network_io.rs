@@ -34,17 +34,12 @@ pub struct NetworkIO {
 
 pub fn save_network(network_io: &NetworkIO, filename: &str, format: SerializationFormat) {
     let serialized_data = match format {
-        SerializationFormat::Json => {
-            serde_json::to_vec(&network_io).expect("Failed to serialize to JSON")
-        }
-        SerializationFormat::MessagePack => {
-            encode::to_vec(&network_io).expect("Failed to serialize to MessagePack")
-        }
+        SerializationFormat::Json => serde_json::to_vec(&network_io).expect("Failed to serialize to JSON"),
+        SerializationFormat::MessagePack => encode::to_vec(&network_io).expect("Failed to serialize to MessagePack"),
     };
 
     let mut file = File::create(filename).expect("Failed to create file");
-    file.write_all(&serialized_data)
-        .expect("Failed to write to file");
+    file.write_all(&serialized_data).expect("Failed to write to file");
 }
 
 pub fn load_network(filename: &str, format: SerializationFormat) -> NetworkIO {
@@ -53,9 +48,7 @@ pub fn load_network(filename: &str, format: SerializationFormat) -> NetworkIO {
     file.read_to_end(&mut buffer).expect("Failed to read file");
 
     match format {
-        SerializationFormat::Json => {
-            serde_json::from_slice(&buffer).expect("Failed to deserialize from JSON")
-        }
+        SerializationFormat::Json => serde_json::from_slice(&buffer).expect("Failed to deserialize from JSON"),
         SerializationFormat::MessagePack => {
             decode::from_slice(&buffer).expect("Failed to deserialize from MessagePack")
         }

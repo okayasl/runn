@@ -49,10 +49,7 @@ mod swish_tests {
 
         // Expected output: approximate values
         let expected = DenseMatrix::new(2, 3, &[0.7311, -0.2384, 2.8577, -0.0728, 4.9665, -0.0147]);
-        assert!(
-            equal_approx(&input, &expected, 1e-3),
-            "Swish forward pass failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-3), "Swish forward pass failed");
     }
 
     #[test]
@@ -64,16 +61,7 @@ mod swish_tests {
         swish.backward(&d_output, &mut input);
 
         // Expected output: approximate values
-        let expected = DenseMatrix::new(
-            2,
-            3,
-            &[
-                0.463835, -0.090784, 0.761673, -0.010533, 0.307964, -0.001233,
-            ],
-        );
-        assert!(
-            equal_approx(&input, &expected, 1e-3),
-            "Swish backward pass failed"
-        );
+        let expected = DenseMatrix::new(2, 3, &[0.463835, -0.090784, 0.761673, -0.010533, 0.307964, -0.001233]);
+        assert!(equal_approx(&input, &expected, 1e-3), "Swish backward pass failed");
     }
 }

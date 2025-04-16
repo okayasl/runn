@@ -67,13 +67,8 @@ impl Exponential {
 
     /// Builds the `ExponentialLRScheduler` if all required fields are set.
     pub fn build(self) -> Result<ExponentialLRScheduler, &'static str> {
-        let (initial_lr, decay_rate, decay_factor) =
-            (self.initial_lr, self.decay_rate, self.decay_factor);
-        Ok(ExponentialLRScheduler::new(
-            initial_lr,
-            decay_rate,
-            decay_factor,
-        ))
+        let (initial_lr, decay_rate, decay_factor) = (self.initial_lr, self.decay_rate, self.decay_factor);
+        Ok(ExponentialLRScheduler::new(initial_lr, decay_rate, decay_factor))
     }
 }
 

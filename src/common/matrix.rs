@@ -312,19 +312,13 @@ mod tests {
         let mut matrix_c = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let matrix_d = DenseMatrix::new(2, 3, &[6.0, 5.0, 4.0, 3.0, 2.0, 1.0]);
         matrix_c.mul_elem(&matrix_d);
-        assert_eq!(
-            util::flatten(&matrix_c),
-            &[6.0, 10.0, 12.0, 12.0, 10.0, 6.0]
-        );
+        assert_eq!(util::flatten(&matrix_c), &[6.0, 10.0, 12.0, 12.0, 10.0, 6.0]);
 
         // Case 3: Element-wise multiplication with all ones (identity for element-wise mul)
         let mut matrix_e = DenseMatrix::new(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         let matrix_ones = DenseMatrix::new(3, 3, &[1.0; 9]); // 3x3 matrix of all ones
         matrix_e.mul_elem(&matrix_ones);
-        assert_eq!(
-            util::flatten(&matrix_e),
-            &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
-        );
+        assert_eq!(util::flatten(&matrix_e), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
 
         // Case 4: Element-wise multiplication with a zero matrix (result should be zero matrix)
         let mut matrix_f = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);

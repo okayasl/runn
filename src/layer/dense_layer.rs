@@ -2,9 +2,7 @@ use log::{error, info};
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use crate::{
-    matrix::DenseMatrix, random::Randomizer, util, ActivationFunction, Optimizer, Regularization,
-};
+use crate::{matrix::DenseMatrix, random::Randomizer, util, ActivationFunction, Optimizer, Regularization};
 
 use super::Layer;
 
@@ -24,20 +22,13 @@ pub struct DenseLayer {
 
 impl DenseLayer {
     pub(crate) fn new(
-        name: String,
-        input_size: usize,
-        output_size: usize,
-        activation: Box<dyn ActivationFunction>,
-        mut optimizer: Box<dyn Optimizer>,
-        randomizer: &Randomizer,
+        name: String, input_size: usize, output_size: usize, activation: Box<dyn ActivationFunction>,
+        mut optimizer: Box<dyn Optimizer>, randomizer: &Randomizer,
     ) -> Self {
         let mut weights = DenseMatrix::zeros(output_size, input_size);
         let biases = DenseMatrix::zeros(output_size, 1);
         //let std_dev = activation.weight_initialization_factor()(weights.rows(), weights.cols());
-        weights.apply(|_| {
-            randomizer.float32()
-                * activation.weight_initialization_factor()(output_size, input_size)
-        }); // Initialize weights with random values
+        weights.apply(|_| randomizer.float32() * activation.weight_initialization_factor()(output_size, input_size)); // Initialize weights with random values
         optimizer.initialize(&weights, &biases);
         Self {
             name: name,
@@ -67,10 +58,7 @@ impl Layer for DenseLayer {
     }
 
     fn backward(
-        &mut self,
-        d_output: &DenseMatrix,
-        input: &DenseMatrix,
-        pre_activated_output: &mut DenseMatrix,
+        &mut self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &mut DenseMatrix,
     ) -> (DenseMatrix, DenseMatrix, DenseMatrix) {
         // Compute the gradient of the loss with respect to the activation (dZ)
         // This line computes the local gradient (also known as the derivative) of the loss
@@ -101,26 +89,15 @@ impl Layer for DenseLayer {
     }
 
     fn regulate(
-        &mut self,
-        d_weights: &mut DenseMatrix,
-        d_biases: &mut DenseMatrix,
-        regularization: &Box<dyn Regularization>,
+        &mut self, d_weights: &mut DenseMatrix, d_biases: &mut DenseMatrix, regularization: &Box<dyn Regularization>,
     ) {
         // Apply the single regularization technique
-        regularization.apply(
-            &mut [&mut self.weights, &mut self.biases],
-            &mut [&mut *d_weights, &mut *d_biases],
-        );
+        regularization.apply(&mut [&mut self.weights, &mut self.biases], &mut [&mut *d_weights, &mut *d_biases]);
     }
 
     fn update(&mut self, d_weights: &DenseMatrix, d_biases: &DenseMatrix, epoch: usize) {
-        self.optimizer.update(
-            &mut self.weights,
-            &mut self.biases,
-            d_weights,
-            d_biases,
-            epoch,
-        );
+        self.optimizer
+            .update(&mut self.weights, &mut self.biases, d_weights, d_biases, epoch);
     }
 
     fn activation_function(&self) -> &dyn ActivationFunction {
@@ -138,19 +115,15 @@ impl Layer for DenseLayer {
     }
 
     fn summarize(&self, epoch: usize, summary_writer: &mut dyn crate::summary::SummaryWriter) {
-        if let Err(e) = summary_writer.write_histogram(
-            &format!("{}-weights", self.name),
-            epoch,
-            &util::flatten(&self.weights),
-        ) {
+        if let Err(e) =
+            summary_writer.write_histogram(&format!("{}-weights", self.name), epoch, &util::flatten(&self.weights))
+        {
             error!("Failed to write weights histogram: {}", e);
         }
 
-        if let Err(e) = summary_writer.write_histogram(
-            &format!("{}-biases", self.name),
-            epoch,
-            &util::flatten(&self.biases),
-        ) {
+        if let Err(e) =
+            summary_writer.write_histogram(&format!("{}-biases", self.name), epoch, &util::flatten(&self.biases))
+        {
             error!("Failed to write biases histogram: {}", e);
         }
     }
@@ -219,8 +192,7 @@ mod tests {
         let (_output, mut pre_activated_output) = layer.forward(&input);
 
         let d_output = DenseMatrix::new(1, 2, &[0.1, 0.2]);
-        let (d_input, d_weights, d_biases) =
-            layer.backward(&d_output, &input, &mut pre_activated_output);
+        let (d_input, d_weights, d_biases) = layer.backward(&d_output, &input, &mut pre_activated_output);
 
         assert_eq!(d_input.rows(), 1);
         assert_eq!(d_input.cols(), 3);
@@ -254,8 +226,7 @@ mod tests {
         let (_output, mut pre_activated_output) = layer.forward(&input);
 
         let d_output = DenseMatrix::new(1, 2, &[0.1, 0.2]);
-        let (_d_input, d_weights, d_biases) =
-            layer.backward(&d_output, &input, &mut pre_activated_output);
+        let (_d_input, d_weights, d_biases) = layer.backward(&d_output, &input, &mut pre_activated_output);
 
         layer.update(&d_weights, &d_biases, 1);
 

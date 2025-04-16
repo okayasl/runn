@@ -46,10 +46,7 @@ mod sigmoid_tests {
         sigmoid.forward(&mut input);
 
         let expected = DenseMatrix::new(1, 1, &[0.5f32]);
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "Sigmoid forward pass with zero input failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "Sigmoid forward pass with zero input failed");
     }
 
     #[test]
@@ -72,10 +69,7 @@ mod sigmoid_tests {
             ],
         );
 
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "Sigmoid forward pass with mixed values failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "Sigmoid forward pass with mixed values failed");
     }
 
     #[test]
@@ -103,10 +97,7 @@ mod sigmoid_tests {
             ],
         );
 
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "Sigmoid backward pass failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "Sigmoid backward pass failed");
     }
 
     #[test]
@@ -120,10 +111,7 @@ mod sigmoid_tests {
             sigmoid.forward(&mut input);
 
             let expected = DenseMatrix::new(1, 1, &[expected_output]);
-            assert!(
-                equal_approx(&input, &expected, 1e-6),
-                "Sigmoid forward pass at extreme bounds failed"
-            );
+            assert!(equal_approx(&input, &expected, 1e-6), "Sigmoid forward pass at extreme bounds failed");
         }
     }
 }

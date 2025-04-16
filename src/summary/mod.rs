@@ -4,12 +4,7 @@ use std::error::Error;
 #[typetag::serde]
 pub trait SummaryWriter: SummaryWriterClone + Send {
     fn write_scalar(&mut self, tag: &str, step: usize, value: f32) -> Result<(), Box<dyn Error>>;
-    fn write_histogram(
-        &mut self,
-        tag: &str,
-        step: usize,
-        values: &[f32],
-    ) -> Result<(), Box<dyn Error>>;
+    fn write_histogram(&mut self, tag: &str, step: usize, values: &[f32]) -> Result<(), Box<dyn Error>>;
     fn close(&mut self) -> Result<(), Box<dyn Error>>;
     fn init(&mut self);
 }

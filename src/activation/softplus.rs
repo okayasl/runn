@@ -39,10 +39,7 @@ mod softplus_tests {
         // Expected output: approximate values
         let expected = DenseMatrix::new(2, 3, &[1.3133, 0.1269, 3.0486, 0.0181, 5.0067, 0.0025]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-4),
-            "Softplus forward pass failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-4), "Softplus forward pass failed");
     }
 
     #[test]
@@ -54,14 +51,7 @@ mod softplus_tests {
         softplus.backward(&d_output, &mut input);
 
         // Expected output: approximate values
-        let expected = DenseMatrix::new(
-            2,
-            3,
-            &[0.365529, 0.119203, 0.666802, 0.003597, 0.297992, 0.000247],
-        );
-        assert!(
-            equal_approx(&input, &expected, 1e-4),
-            "Softplus backward pass failed"
-        );
+        let expected = DenseMatrix::new(2, 3, &[0.365529, 0.119203, 0.666802, 0.003597, 0.297992, 0.000247]);
+        assert!(equal_approx(&input, &expected, 1e-4), "Softplus backward pass failed");
     }
 }

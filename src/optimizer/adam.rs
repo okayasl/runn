@@ -79,12 +79,7 @@ impl AdamOptimizer {
     /// * `weights` - A mutable reference to a DenseMatrix representing the weights to be updated.
     /// * `biases` - A mutable reference to a DenseMatrix representing the biases to be updated.
     /// * `step_size` - A floating-point value that represents the step size for scaling the update.
-    fn update_parameters(
-        &self,
-        weights: &mut DenseMatrix,
-        biases: &mut DenseMatrix,
-        step_size: f32,
-    ) {
+    fn update_parameters(&self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, step_size: f32) {
         weights.apply_with_indices(|i, j, v| {
             let m_hat = self.moment1_weights.at(i, j) / self.m_hat_factor;
             let v_hat = self.moment2_weights.at(i, j) / self.v_hat_factor;
@@ -109,12 +104,8 @@ impl Optimizer for AdamOptimizer {
     }
 
     fn update(
-        &mut self,
-        weights: &mut DenseMatrix,
-        biases: &mut DenseMatrix,
-        d_weights: &DenseMatrix,
-        d_biases: &DenseMatrix,
-        epoch: usize,
+        &mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, d_weights: &DenseMatrix,
+        d_biases: &DenseMatrix, epoch: usize,
     ) {
         if self.config.scheduler.is_some() {
             let scheduler = self.config.scheduler.as_ref().unwrap();
@@ -310,8 +301,7 @@ mod tests {
         expected_params.apply_with_indices(|r, c, v| {
             let m_h = m_hat.at(r, c);
             let v_h = v_hat.at(r, c);
-            let update =
-                optimizer.config.learning_rate * m_h / (v_h.sqrt() + optimizer.config.epsilon);
+            let update = optimizer.config.learning_rate * m_h / (v_h.sqrt() + optimizer.config.epsilon);
             *v = weights.at(r, c) - update;
         });
 

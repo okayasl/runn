@@ -47,10 +47,7 @@ mod leakyrelu_tests {
         // Expected output: approximate values
         let expected = DenseMatrix::new(2, 3, &[1.0, -0.02, 3.0, -0.04, 5.0, -0.06]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-4),
-            "LeakyReLU forward pass failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-4), "LeakyReLU forward pass failed");
     }
 
     #[test]
@@ -64,9 +61,6 @@ mod leakyrelu_tests {
         // Expected output: approximate values
         let expected = DenseMatrix::new(2, 3, &[0.5, 0.01, 0.7, 0.002, 0.3, 0.001]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-4),
-            "LeakyReLU backward pass failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-4), "LeakyReLU backward pass failed");
     }
 }

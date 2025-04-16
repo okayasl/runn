@@ -111,28 +111,14 @@ pub fn format_matrix(matrix: &DenseMatrix) -> String {
             "⎥"
         };
 
-        let row: Vec<String> = (0..matrix.cols())
-            .map(|j| format!("{:7.6}", matrix.at(i, j)))
-            .collect();
+        let row: Vec<String> = (0..matrix.cols()).map(|j| format!("{:7.6}", matrix.at(i, j))).collect();
 
-        result.push_str(&format!(
-            "{} {} {}\n",
-            left_border,
-            row.join(" "),
-            right_border
-        ));
+        result.push_str(&format!("{} {} {}\n", left_border, row.join(" "), right_border));
     }
     result
 }
 
-pub fn print_metrics(
-    accuracy: f32,
-    loss: f32,
-    macro_f1: f32,
-    micro_f1: f32,
-    micro_recall: f32,
-    micro_precision: f32,
-) {
+pub fn print_metrics(accuracy: f32, loss: f32, macro_f1: f32, micro_f1: f32, micro_recall: f32, micro_precision: f32) {
     info!(
         "Accuracy: {:.2}%, Loss: {:.5}, MacroF1: {:.4}, MicroF1: {:.4}, MicroRecall: {:.4}, MicroPrecision: {:.4}",
         accuracy * 100.0,
@@ -180,11 +166,7 @@ pub(crate) fn flatten(matrix: &DenseMatrix) -> Vec<f32> {
     result
 }
 
-pub fn print_matrices_comparisons(
-    input: &DenseMatrix,
-    target: &DenseMatrix,
-    prediction: &DenseMatrix,
-) {
+pub fn print_matrices_comparisons(input: &DenseMatrix, target: &DenseMatrix, prediction: &DenseMatrix) {
     let r = input.rows();
     let tc = target.cols();
     let pc = prediction.cols();
@@ -317,8 +299,7 @@ pub fn print_matrices_comparisons(
     }
     target_str.push('⎦');
 
-    if util::find_max_index_in_row(target, r - 1) != util::find_max_index_in_row(prediction, r - 1)
-    {
+    if util::find_max_index_in_row(target, r - 1) != util::find_max_index_in_row(prediction, r - 1) {
         target_str.push_str(" <>");
     } else {
         target_str.push_str("   ");

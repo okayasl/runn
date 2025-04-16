@@ -48,10 +48,7 @@ mod tanh_tests {
         tanh.forward(&mut input);
 
         let expected = DenseMatrix::new(1, 1, &[0.0f32]);
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "Tanh forward pass with zero input failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "Tanh forward pass with zero input failed");
     }
 
     #[test]
@@ -74,10 +71,7 @@ mod tanh_tests {
             ],
         );
 
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "Tanh forward pass with mixed values failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "Tanh forward pass with mixed values failed");
     }
 
     #[test]
@@ -96,31 +90,16 @@ mod tanh_tests {
             2,
             3,
             &[
-                original_input.at(0, 0)
-                    * (1.0 - original_input.at(0, 0).powi(2))
-                    * d_output.at(0, 0),
-                original_input.at(0, 1)
-                    * (1.0 - original_input.at(0, 1).powi(2))
-                    * d_output.at(0, 1),
-                original_input.at(0, 2)
-                    * (1.0 - original_input.at(0, 2).powi(2))
-                    * d_output.at(0, 2),
-                original_input.at(1, 0)
-                    * (1.0 - original_input.at(1, 0).powi(2))
-                    * d_output.at(1, 0),
-                original_input.at(1, 1)
-                    * (1.0 - original_input.at(1, 1).powi(2))
-                    * d_output.at(1, 1),
-                original_input.at(1, 2)
-                    * (1.0 - original_input.at(1, 2).powi(2))
-                    * d_output.at(1, 2),
+                original_input.at(0, 0) * (1.0 - original_input.at(0, 0).powi(2)) * d_output.at(0, 0),
+                original_input.at(0, 1) * (1.0 - original_input.at(0, 1).powi(2)) * d_output.at(0, 1),
+                original_input.at(0, 2) * (1.0 - original_input.at(0, 2).powi(2)) * d_output.at(0, 2),
+                original_input.at(1, 0) * (1.0 - original_input.at(1, 0).powi(2)) * d_output.at(1, 0),
+                original_input.at(1, 1) * (1.0 - original_input.at(1, 1).powi(2)) * d_output.at(1, 1),
+                original_input.at(1, 2) * (1.0 - original_input.at(1, 2).powi(2)) * d_output.at(1, 2),
             ],
         );
 
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "Tanh backward pass failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "Tanh backward pass failed");
     }
 
     #[test]
@@ -134,10 +113,7 @@ mod tanh_tests {
             tanh.forward(&mut input);
 
             let expected = DenseMatrix::new(1, 1, &[expected_output]);
-            assert!(
-                equal_approx(&input, &expected, 1e-6),
-                "Tanh forward pass at extreme bounds failed"
-            );
+            assert!(equal_approx(&input, &expected, 1e-6), "Tanh forward pass at extreme bounds failed");
         }
     }
 
@@ -157,10 +133,7 @@ mod tanh_tests {
             tanh.forward(&mut input);
 
             let expected = DenseMatrix::new(1, 1, &[expected_output]);
-            assert!(
-                equal_approx(&input, &expected, 1e-6),
-                "Tanh forward pass symmetry test failed"
-            );
+            assert!(equal_approx(&input, &expected, 1e-6), "Tanh forward pass symmetry test failed");
         }
     }
 }

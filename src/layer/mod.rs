@@ -1,8 +1,6 @@
 use dense_layer::DenseLayer;
 
-use crate::{
-    matrix::DenseMatrix, random::Randomizer, ActivationFunction, Optimizer, Regularization, SummaryWriter,
-};
+use crate::{matrix::DenseMatrix, random::Randomizer, ActivationFunction, Optimizer, Regularization, SummaryWriter};
 
 pub mod dense_layer;
 
@@ -10,20 +8,14 @@ pub mod dense_layer;
 pub trait Layer: LayerClone + Send {
     fn forward(&mut self, input: &DenseMatrix) -> (DenseMatrix, DenseMatrix);
     fn backward(
-        &mut self,
-        d_output: &DenseMatrix,
-        input: &DenseMatrix,
-        pre_activated_output: &mut DenseMatrix,
+        &mut self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &mut DenseMatrix,
     ) -> (DenseMatrix, DenseMatrix, DenseMatrix);
     // fn get_params_and_grads(&mut self) -> ([&mut DenseMatrix; 2], [&mut DenseMatrix; 2]);
     // fn get_size(&self) -> usize;
     fn activation_function(&self) -> &dyn ActivationFunction;
     //fn reset(&mut self);
     fn regulate(
-        &mut self,
-        d_weights: &mut DenseMatrix,
-        d_biases: &mut DenseMatrix,
-        regularization: &Box<dyn Regularization>,
+        &mut self, d_weights: &mut DenseMatrix, d_biases: &mut DenseMatrix, regularization: &Box<dyn Regularization>,
     );
     fn update(&mut self, d_weights: &DenseMatrix, d_biases: &DenseMatrix, epoch: usize);
     fn summarize(&self, epoch: usize, summary_writer: &mut dyn SummaryWriter);
@@ -53,11 +45,7 @@ impl Clone for Box<dyn Layer> {
 pub trait LayerConfig {
     fn get_size(&self) -> usize;
     fn create_layer(
-        self: Box<Self>,
-        name: String,
-        input_size: usize,
-        optimizer: Box<dyn Optimizer>,
-        randomizer: &Randomizer,
+        self: Box<Self>, name: String, input_size: usize, optimizer: Box<dyn Optimizer>, randomizer: &Randomizer,
     ) -> Box<dyn Layer>;
 }
 
@@ -71,11 +59,7 @@ impl LayerConfig for DenseConfig {
         self.size
     }
     fn create_layer(
-        self: Box<Self>,
-        name: String,
-        input_size: usize,
-        optimizer: Box<dyn Optimizer>,
-        randomizer: &Randomizer,
+        self: Box<Self>, name: String, input_size: usize, optimizer: Box<dyn Optimizer>, randomizer: &Randomizer,
     ) -> Box<dyn Layer> {
         Box::new(DenseLayer::new(
             name,
@@ -120,10 +104,7 @@ impl Dense {
     pub fn build(self) -> DenseConfig {
         DenseConfig {
             size: self.size.expect("Size must be set"),
-            activation_function: Some(
-                self.activation_function
-                    .expect("Activation function must be set"),
-            ),
+            activation_function: Some(self.activation_function.expect("Activation function must be set")),
         }
     }
 }

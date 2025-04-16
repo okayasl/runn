@@ -43,12 +43,8 @@ impl Optimizer for RMSPropOptimizer {
     }
 
     fn update(
-        &mut self,
-        weights: &mut DenseMatrix,
-        biases: &mut DenseMatrix,
-        d_weights: &DenseMatrix,
-        d_biases: &DenseMatrix,
-        epoch: usize,
+        &mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, d_weights: &DenseMatrix,
+        d_biases: &DenseMatrix, epoch: usize,
     ) {
         if self.config.scheduler.is_some() {
             let scheduler = self.config.scheduler.as_ref().unwrap();
@@ -58,8 +54,8 @@ impl Optimizer for RMSPropOptimizer {
             let grad = d_weights.at(r, c);
             let ema_grad = &mut self.accumulated_squared_grad_weights;
             let previous_ema_grad = ema_grad.at(r, c);
-            let new_ema_grad = self.config.decay_rate * previous_ema_grad
-                + (1.0 - self.config.decay_rate) * grad * grad;
+            let new_ema_grad =
+                self.config.decay_rate * previous_ema_grad + (1.0 - self.config.decay_rate) * grad * grad;
             ema_grad.set(r, c, new_ema_grad);
             *v -= self.config.learning_rate * grad / (new_ema_grad.sqrt() + self.config.epsilon);
         });
@@ -68,8 +64,8 @@ impl Optimizer for RMSPropOptimizer {
             let grad = d_biases.at(r, c);
             let ema_grad = &mut self.accumulated_squared_grad_biases;
             let previous_ema_grad = ema_grad.at(r, c);
-            let new_ema_grad = self.config.decay_rate * previous_ema_grad
-                + (1.0 - self.config.decay_rate) * grad * grad;
+            let new_ema_grad =
+                self.config.decay_rate * previous_ema_grad + (1.0 - self.config.decay_rate) * grad * grad;
             ema_grad.set(r, c, new_ema_grad);
             *v -= self.config.learning_rate * grad / (new_ema_grad.sqrt() + self.config.epsilon);
         });
@@ -207,8 +203,7 @@ mod tests {
         // Update the parameters using the mock gradients
         optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
 
-        let expected_weights =
-            DenseMatrix::new(2, 2, &[0.96837723, 1.9683772, 2.9683774, 3.9683774]);
+        let expected_weights = DenseMatrix::new(2, 2, &[0.96837723, 1.9683772, 2.9683774, 3.9683774]);
 
         assert!(equal_approx(&weights, &expected_weights, 1e-6));
     }

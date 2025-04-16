@@ -79,10 +79,7 @@ mod tests {
         // Check if the same float64 is generated
         let float1 = randomizer1.float32();
         let float2 = randomizer2.float32();
-        assert_eq!(
-            float1, float2,
-            "Random floats should match for the same seed"
-        );
+        assert_eq!(float1, float2, "Random floats should match for the same seed");
     }
 
     #[test]
@@ -110,19 +107,11 @@ mod tests {
 
         // Check if the permutation contains all unique values
         let unique_values: HashSet<_> = perm.iter().cloned().collect();
-        assert_eq!(
-            unique_values.len(),
-            n,
-            "Permutation should contain unique values"
-        );
+        assert_eq!(unique_values.len(), n, "Permutation should contain unique values");
 
         // Check if the permutation contains all integers from 0 to n-1
         for i in 0..n {
-            assert!(
-                unique_values.contains(&i),
-                "Permutation should contain {}",
-                i
-            );
+            assert!(unique_values.contains(&i), "Permutation should contain {}", i);
         }
     }
 

@@ -42,10 +42,7 @@ mod linear_tests {
         // Expected output: same as input
         let expected = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-4),
-            "Linear forward pass failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-4), "Linear forward pass failed");
     }
 
     #[test]
@@ -59,9 +56,6 @@ mod linear_tests {
         // Expected output: same as d_output
         let expected = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-4),
-            "Linear backward pass failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-4), "Linear backward pass failed");
     }
 }

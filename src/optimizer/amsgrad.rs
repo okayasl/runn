@@ -74,25 +74,16 @@ impl AMSGradOptimizer {
         });
     }
 
-    fn update_parameters(
-        &mut self,
-        weights: &mut DenseMatrix,
-        biases: &mut DenseMatrix,
-        step_size: f32,
-    ) {
+    fn update_parameters(&mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, step_size: f32) {
         weights.apply_with_indices(|i, j, v| {
-            let m_hat =
-                self.moment1_weights.at(i, j) / (1.0 - self.config.beta1.powi(self.t as i32));
-            let v_hat =
-                self.max_moment2_weights.at(i, j) / (1.0 - self.config.beta2.powi(self.t as i32));
+            let m_hat = self.moment1_weights.at(i, j) / (1.0 - self.config.beta1.powi(self.t as i32));
+            let v_hat = self.max_moment2_weights.at(i, j) / (1.0 - self.config.beta2.powi(self.t as i32));
             *v -= step_size * m_hat / (v_hat.sqrt() + self.config.epsilon);
         });
 
         biases.apply_with_indices(|i, j, v| {
-            let m_hat =
-                self.moment1_biases.at(i, j) / (1.0 - self.config.beta1.powi(self.t as i32));
-            let v_hat =
-                self.max_moment2_biases.at(i, j) / (1.0 - self.config.beta2.powi(self.t as i32));
+            let m_hat = self.moment1_biases.at(i, j) / (1.0 - self.config.beta1.powi(self.t as i32));
+            let v_hat = self.max_moment2_biases.at(i, j) / (1.0 - self.config.beta2.powi(self.t as i32));
             *v -= step_size * m_hat / (v_hat.sqrt() + self.config.epsilon);
         });
     }
@@ -110,12 +101,8 @@ impl Optimizer for AMSGradOptimizer {
     }
 
     fn update(
-        &mut self,
-        weights: &mut DenseMatrix,
-        biases: &mut DenseMatrix,
-        d_weights: &DenseMatrix,
-        d_biases: &DenseMatrix,
-        epoch: usize,
+        &mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, d_weights: &DenseMatrix,
+        d_biases: &DenseMatrix, epoch: usize,
     ) {
         if self.config.scheduler.is_some() {
             let scheduler = self.config.scheduler.as_ref().unwrap();
@@ -310,8 +297,7 @@ mod tests {
         expected_params.apply_with_indices(|r, c, v| {
             let m_h = m_hat.at(r, c);
             let v_h = v_hat.at(r, c);
-            let update =
-                optimizer.config.learning_rate * m_h / (v_h.sqrt() + optimizer.config.epsilon);
+            let update = optimizer.config.learning_rate * m_h / (v_h.sqrt() + optimizer.config.epsilon);
             *v = weights.at(r, c) - update;
         });
 

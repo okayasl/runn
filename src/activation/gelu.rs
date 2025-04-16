@@ -47,13 +47,9 @@ mod gelu_tests {
         gelu.forward(&mut input);
 
         // Expected output: approximate values
-        let expected =
-            DenseMatrix::new(2, 3, &[0.84130001, 1.9545, 2.9964, 3.9999, 4.9999, 5.9999]);
+        let expected = DenseMatrix::new(2, 3, &[0.84130001, 1.9545, 2.9964, 3.9999, 4.9999, 5.9999]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-3),
-            "GELU forward pass failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-3), "GELU forward pass failed");
     }
 
     #[test]
@@ -65,15 +61,8 @@ mod gelu_tests {
         gelu.backward(&d_output, &mut input);
 
         // Expected output: approximate values
-        let expected = DenseMatrix::new(
-            2,
-            3,
-            &[0.541658, 1.085232, 0.708362, 0.200101, 0.300002, 0.100000],
-        );
+        let expected = DenseMatrix::new(2, 3, &[0.541658, 1.085232, 0.708362, 0.200101, 0.300002, 0.100000]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-3),
-            "GELU backward pass failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-3), "GELU backward pass failed");
     }
 }

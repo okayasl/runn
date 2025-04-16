@@ -85,7 +85,6 @@ impl CrossEntropy {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

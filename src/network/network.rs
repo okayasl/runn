@@ -261,28 +261,31 @@ impl Network {
         self.init_summary_writer();
         let mut last_epoch = 0;
         for epoch in 1..=self.epochs {
+            last_epoch = epoch;
             self.visualize_layers();
             self.shuffle(inputs, targets, &mut shuffled_inputs, &mut shuffled_targets);
             let (batch_inputs, batch_targets) = self.create_batches(&shuffled_inputs, &shuffled_targets);
             let (group_inputs, group_targets) = self.create_groups(&batch_inputs, &batch_targets);
-            let group_count = group_inputs.len();
 
-            for (group_id, (group_batch_inputs, group_batch_targets)) in
-                group_inputs.iter().zip(group_targets.iter()).enumerate(){
-                let (group_predictions, mut group_layer_inputs) = self.forward(group_batch_inputs);
-                self.log_group_training_info(epoch,group_count, group_id, group_batch_inputs, group_batch_targets, &group_predictions);
-                self.backward(&group_predictions, group_batch_targets, &mut group_layer_inputs, epoch);
+            for (grp_id, (grp_inputs, grp_targets)) in group_inputs.iter().zip(group_targets.iter()).enumerate() {
+                let (grp_predictions, mut group_layer_inputs) = self.forward(grp_inputs);
+                self.log_group_training_info(
+                    epoch,
+                    group_inputs.len(),
+                    grp_id,
+                    grp_inputs,
+                    grp_targets,
+                    &grp_predictions,
+                );
+                self.backward(&grp_predictions, grp_targets, &mut group_layer_inputs, epoch);
             }
 
             let epoch_result = self.predict(&training_inputs, targets);
             let epoch_accuracy = epoch_result.accuracy;
             let epoch_loss = self.loss_function.forward(&epoch_result.predictions, targets);
-
             self.log_epoch_training_info(epoch, epoch_accuracy, epoch_loss);
-            last_epoch = epoch;
             self.summarize(epoch, epoch_loss, epoch_accuracy);
             if self.early_stopped(epoch, epoch_loss, epoch_accuracy) {
-                info!("Network training early stopped: epoch:{}", epoch,);
                 break;
             }
         }
@@ -610,6 +613,9 @@ impl Network {
         if let Some(early_stopper) = &mut self.early_stopper {
             early_stopper.update(epoch, val_loss, val_accuracy);
             if early_stopper.is_training_stopped() {
+                if !self.search {
+                    info!("Network training early stopped: epoch:{}", epoch,);
+                }
                 return true;
             }
         }

@@ -49,10 +49,7 @@ mod relu_tests {
         // Positive values should remain unchanged
         let expected = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "ReLU forward pass with positive values failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "ReLU forward pass with positive values failed");
     }
 
     #[test]
@@ -65,10 +62,7 @@ mod relu_tests {
         // Expected output: zeros for negative values, unchanged for non-negative
         let expected = DenseMatrix::new(2, 3, &[0.0, 0.0, 2.0, 0.0, 4.2, 0.0]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "ReLU forward pass with mixed values failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "ReLU forward pass with mixed values failed");
     }
 
     #[test]
@@ -85,10 +79,7 @@ mod relu_tests {
         // Expected output: zeros for inputs < 0, gradient otherwise
         let expected = DenseMatrix::new(2, 3, &[0.0, 1.0, 0.7, 0.0, 0.3, 0.1]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "ReLU backward pass failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "ReLU backward pass failed");
     }
 
     #[test]
@@ -105,9 +96,6 @@ mod relu_tests {
         // Expected output: all zeros
         let expected = DenseMatrix::new(1, 3, &[0.0, 0.0, 0.0]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "ReLU backward pass with all negative values failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "ReLU backward pass with all negative values failed");
     }
 }

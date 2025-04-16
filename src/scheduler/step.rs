@@ -16,10 +16,7 @@ pub struct StepLRScheduler {
 impl StepLRScheduler {
     /// Creates a new StepLRScheduler with the given decay rate and step size.
     pub fn new(decay_rate: f32, step_size: usize) -> Self {
-        Self {
-            decay_rate,
-            step_size,
-        }
+        Self { decay_rate, step_size }
     }
 
     /// Updates the learning rate if the current epoch is a multiple of `step_size`,

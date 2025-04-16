@@ -13,9 +13,7 @@ pub struct Softmax {
 
 impl Softmax {
     pub fn new() -> Self {
-        Self {
-            original_output: None,
-        }
+        Self { original_output: None }
     }
 }
 

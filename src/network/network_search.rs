@@ -43,11 +43,7 @@ impl SearchConfigsBuilder {
         }
     }
 
-    pub fn hidden_layer(
-        mut self,
-        layer_sizes: Vec<usize>,
-        af: impl ActivationFunction + 'static,
-    ) -> Self {
+    pub fn hidden_layer(mut self, layer_sizes: Vec<usize>, af: impl ActivationFunction + 'static) -> Self {
         self.hidden_layer_sizes.push(layer_sizes);
         self.activation_functions.push(Box::new(af));
         self
@@ -113,11 +109,7 @@ pub struct NetworkConfig {
 
 impl NetworkConfig {
     pub fn values(&self) -> Vec<String> {
-        let size_string: Vec<String> = self
-            .layer_sizes
-            .iter()
-            .map(|&size| size.to_string())
-            .collect();
+        let size_string: Vec<String> = self.layer_sizes.iter().map(|&size| size.to_string()).collect();
         vec![
             format!("{:.5}", self.learning_rate),
             self.batch_size.to_string(),
@@ -127,13 +119,7 @@ impl NetworkConfig {
 }
 
 pub fn default_headers() -> Vec<&'static str> {
-    vec![
-        "LearningRate",
-        "BatchSize",
-        "HiddenLayerSizes",
-        "Loss",
-        "Accuracy",
-    ]
+    vec!["LearningRate", "BatchSize", "HiddenLayerSizes", "Loss", "Accuracy"]
 }
 
 pub struct SearchResult {
@@ -147,10 +133,7 @@ pub struct SearchResult {
 
 impl SearchResult {
     pub fn values(&self) -> Vec<String> {
-        vec![
-            format!("{:.5}", self.t_loss),
-            format!("{:.3}", self.t_accuracy),
-        ]
+        vec![format!("{:.5}", self.t_loss), format!("{:.3}", self.t_accuracy)]
     }
 }
 
@@ -160,13 +143,8 @@ pub struct SearchJob {
 }
 
 pub fn search(
-    nw: Network,
-    np: SearchConfigs,
-    worker_count: usize,
-    mut training_inputs: DenseMatrix,
-    training_targets: DenseMatrix,
-    mut validation_inputs: DenseMatrix,
-    validation_targets: DenseMatrix,
+    nw: Network, np: SearchConfigs, worker_count: usize, mut training_inputs: DenseMatrix,
+    training_targets: DenseMatrix, mut validation_inputs: DenseMatrix, validation_targets: DenseMatrix,
 ) -> Vec<SearchResult> {
     if np.normalize {
         let (mins, maxs) = util::find_min_max(&training_inputs);
@@ -176,10 +154,7 @@ pub fn search(
 
     let ncs: Vec<NetworkConfig> = generate_network_configurations(&np);
     let number_of_networks = ncs.len();
-    info!(
-        "Total number of network configurations: {}",
-        number_of_networks
-    );
+    info!("Total number of network configurations: {}", number_of_networks);
 
     let (nc_jobs_tx, nc_jobs_rx) = mpsc::channel();
     let (results_tx, results_rx) = mpsc::channel();
@@ -202,28 +177,18 @@ pub fn search(
 
         let handle = thread::spawn(move || {
             while let Ok(job) = nc_jobs_rx.lock().unwrap().recv() {
-                let result = run(
-                    job,
-                    &training_inputs,
-                    &training_targets,
-                    &validation_inputs,
-                    &validation_targets,
-                );
+                let result = run(job, &training_inputs, &training_targets, &validation_inputs, &validation_targets);
                 results_tx.send(result).unwrap();
 
                 let completed_jobs = network_count.fetch_add(1, Ordering::SeqCst) + 1;
                 if completed_jobs % 100 == 0 {
                     let current_period = period.lock().unwrap().elapsed().as_secs_f64() / 60.0;
                     let time_passed = start_time.elapsed().as_secs_f64() / 60.0;
-                    let guessed_remaining_time = (time_passed / completed_jobs as f64)
-                        * (number_of_networks as f64 - completed_jobs as f64);
+                    let guessed_remaining_time =
+                        (time_passed / completed_jobs as f64) * (number_of_networks as f64 - completed_jobs as f64);
                     info!(
                         "[{}/{}] trained. Training period/total(m):[{:.2}/{:.2}]. Guessed remaining time(m):{:.2}",
-                        completed_jobs,
-                        number_of_networks,
-                        current_period,
-                        time_passed,
-                        guessed_remaining_time
+                        completed_jobs, number_of_networks, current_period, time_passed, guessed_remaining_time
                     );
                     *period.lock().unwrap() = Instant::now();
                 }
@@ -287,21 +252,14 @@ fn generate_tuned_network(nw: &Network, nc: &NetworkConfig) -> Network {
     let mut new_nwb = NetworkBuilder::new(nw.input_size, nw.output_size).from_network(nw);
 
     for (i, &size) in nc.layer_sizes.iter().enumerate() {
-        new_nwb = new_nwb.layer(
-            Dense::new()
-                .from(size, nc.activation_functions[i].clone())
-                .build(),
-        );
+        new_nwb = new_nwb.layer(Dense::new().from(size, nc.activation_functions[i].clone()).build());
     }
 
     let output_layer = nw.layers.last().unwrap();
     let (_, output_layer_size) = output_layer.get_input_output_size();
     new_nwb = new_nwb.layer(
         Dense::new()
-            .from(
-                output_layer_size,
-                output_layer.activation_function().clone_box(),
-            )
+            .from(output_layer_size, output_layer.activation_function().clone_box())
             .build(),
     );
 
@@ -311,22 +269,14 @@ fn generate_tuned_network(nw: &Network, nc: &NetworkConfig) -> Network {
 }
 
 fn run(
-    mut search_job: SearchJob,
-    training_inputs: &DenseMatrix,
-    training_targets: &DenseMatrix,
-    validation_inputs: &DenseMatrix,
-    validation_targets: &DenseMatrix,
+    mut search_job: SearchJob, training_inputs: &DenseMatrix, training_targets: &DenseMatrix,
+    validation_inputs: &DenseMatrix, validation_targets: &DenseMatrix,
 ) -> SearchResult {
     let start_time = Instant::now();
-    let train_res = search_job
-        .network
-        .train(training_inputs, training_targets)
-        .unwrap();
+    let train_res = search_job.network.train(training_inputs, training_targets).unwrap();
 
     let elapsed_time_in_sec = start_time.elapsed().as_secs_f32();
-    let validation_res = search_job
-        .network
-        .predict(validation_inputs, validation_targets);
+    let validation_res = search_job.network.predict(validation_inputs, validation_targets);
 
     SearchResult {
         config: search_job.config,

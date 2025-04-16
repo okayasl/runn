@@ -3,7 +3,7 @@ pub mod flexible;
 use typetag;
 
 #[typetag::serde]
-pub trait EarlyStopper: EarlyStopperClone  + Send {
+pub trait EarlyStopper: EarlyStopperClone + Send {
     fn update(&mut self, epoch: usize, val_loss: f32, val_accuracy: f32);
     fn is_training_stopped(&self) -> bool;
     fn reset(&mut self);

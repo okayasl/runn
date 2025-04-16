@@ -52,13 +52,8 @@ pub fn calculate_accuracy_per_element(targets: &DenseMatrix, predictions: &Dense
 }
 
 pub fn calculate_confusion_matrix(
-    targets: &DenseMatrix,
-    predictions: &DenseMatrix,
-) -> (
-    HashMap<usize, usize>,
-    HashMap<usize, usize>,
-    HashMap<usize, usize>,
-) {
+    targets: &DenseMatrix, predictions: &DenseMatrix,
+) -> (HashMap<usize, usize>, HashMap<usize, usize>, HashMap<usize, usize>) {
     let mut true_positives: HashMap<usize, usize> = HashMap::new();
     let mut false_positives: HashMap<usize, usize> = HashMap::new();
     let mut false_negatives: HashMap<usize, usize> = HashMap::new();

@@ -85,10 +85,7 @@ mod elu_tests {
         // Positive values should remain unchanged
         let expected = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "ELU forward pass with positive values failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "ELU forward pass with positive values failed");
     }
 
     #[test]
@@ -118,10 +115,7 @@ mod elu_tests {
         );
 
         // Compare using approximate equality
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "ELU forward pass with mixed values failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "ELU forward pass with mixed values failed");
     }
 
     #[test]
@@ -139,10 +133,7 @@ mod elu_tests {
         // Expected output for positive values: gradient is 1.0
         let expected = DenseMatrix::new(1, 3, &[0.5, 1.0, 0.7]);
 
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "ELU backward pass with positive values failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "ELU backward pass with positive values failed");
     }
 
     #[test]
@@ -175,10 +166,7 @@ mod elu_tests {
         );
 
         // Compare using approximate equality
-        assert!(
-            equal_approx(&input, &expected, 1e-6),
-            "ELU backward pass with mixed values failed"
-        );
+        assert!(equal_approx(&input, &expected, 1e-6), "ELU backward pass with mixed values failed");
     }
 
     #[test]
@@ -198,10 +186,7 @@ mod elu_tests {
 
             let expected = DenseMatrix::new(1, 1, &[expected_output]);
 
-            assert!(
-                equal_approx(&input, &expected, 1e-6),
-                "ELU forward pass with alpha failed"
-            );
+            assert!(equal_approx(&input, &expected, 1e-6), "ELU forward pass with alpha failed");
         }
     }
 }

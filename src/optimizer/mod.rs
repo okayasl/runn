@@ -13,12 +13,8 @@ use typetag;
 pub trait Optimizer: OptimizerClone + Send {
     fn initialize(&mut self, weights: &DenseMatrix, biases: &DenseMatrix);
     fn update(
-        &mut self,
-        weights: &mut DenseMatrix,
-        biases: &mut DenseMatrix,
-        d_weights: &DenseMatrix,
-        d_biases: &DenseMatrix,
-        epoch: usize,
+        &mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, d_weights: &DenseMatrix,
+        d_biases: &DenseMatrix, epoch: usize,
     );
     fn update_learning_rate(&mut self, learning_rate: f32);
 }
