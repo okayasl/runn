@@ -5,6 +5,13 @@ use typetag;
 
 use super::xavier_initialization;
 
+// Tanh (Hyperbolic Tangent) Activation Function
+//
+// Tanh outputs values between -1 and 1, effectively scaling the input data. It is symmetric around the origin, which can help
+// keep the mean activations close to zero and potentially improve convergence rates.
+//
+// Range: (-1, 1)
+// Best for: Hidden layers in a network where data normalization is beneficial, such as in certain types of autoencoders.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Tanh;
 

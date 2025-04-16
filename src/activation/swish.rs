@@ -5,6 +5,13 @@ use typetag;
 
 use super::he_initialization;
 
+// Swish Activation Function
+//
+// Swish is a self-gated activation function defined as x * sigmoid(βx). It has been found to sometimes outperform ReLU
+// in deeper networks due to its non-monotonic form.
+//
+// Range: (-∞, +∞)
+// Best for: Deeper networks where traditional functions like ReLU tend to underperform.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Swish {
     beta: f32,

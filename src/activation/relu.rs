@@ -6,6 +6,14 @@ use typetag;
 
 use super::he_initialization;
 
+// ReLU (Rectified Linear Unit) Activation Function
+//
+// ReLU is a piecewise linear function that outputs zero for negative inputs and raw input for positive inputs.
+// It is the most commonly used activation due to its simplicity and efficiency.
+//
+// Range: [0, +∞)
+// Best for: General use in most neural networks, especially in hidden layers,
+// as it helps to alleviate the vanishing gradient problem.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ReLU;
 

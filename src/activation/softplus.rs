@@ -3,6 +3,13 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
+// Softplus Activation Function
+//
+// Softplus is a smooth approximation to the ReLU function, returning a positive output for any input.
+// It is more differentiable than ReLU and can be useful in scenarios where a non-zero gradient is always necessary.
+//
+// Range: (0, +∞)
+// Best for: Situations where a non-zero gradient is beneficial, providing a smooth approximation to ReLU.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Softplus;
 

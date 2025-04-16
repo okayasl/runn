@@ -5,6 +5,13 @@ use typetag;
 
 use super::he_initialization;
 
+// LeakyReLU (Leaky Rectified Linear Unit) Activation Function
+//
+// LeakyReLU is a variation of ReLU that allows a small, non-zero gradient when the input is less than zero.
+// This helps to mitigate the "dying ReLU" problem, where neurons can get stuck in a permanently inactive state.
+//
+// Range: (-∞, +∞)
+// Best for: Improving learning in networks where the "dying ReLU" problem is a concern.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct LeakyReLU {
     alpha: f32,

@@ -6,7 +6,15 @@ use typetag;
 
 use super::he_initialization;
 
-// ELU Activation Function
+// ELU (Exponential Linear Unit) Activation Function
+//
+// ELU is similar to ReLU but adds a small curve when the input is less than zero,
+// which helps to keep the mean activations closer to zero and improve the learning dynamics.
+// This curve is defined as α(exp(x) - 1) for negative values of x.
+//
+// Range: (-α, +∞) where typically α = 1
+// Best for: Improving learning in networks where vanishing gradients are an issue;
+// it tends to converge faster and produces more accurate results than ReLU in some cases.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ELU {
     alpha: f32,

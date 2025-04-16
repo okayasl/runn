@@ -6,6 +6,13 @@ use typetag;
 
 use super::xavier_initialization;
 
+// Sigmoid Activation Function
+//
+// Sigmoid function outputs a value between 0 and 1, making it suitable for probabilities or as a gate in certain neural network architectures.
+// It has a characteristic S-shaped curve.
+//
+// Range: (0, 1)
+// Best for: Binary classification tasks in the output layer of a network.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Sigmoid;
 

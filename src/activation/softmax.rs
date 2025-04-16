@@ -6,6 +6,13 @@ use typetag;
 
 use super::xavier_initialization;
 
+// Softmax Activation Function converts a vector of values into a normalized probability distribution,
+// where each element is in the range (0, 1) and all elements sum to 1.
+// It is typically used in the output layer of a classification model to represent
+// confidence scores across multiple classes.
+//
+// Range: (0, 1) for each output element
+// Best for: Output layers of multi-class classification models.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Softmax {
     original_output: Option<DenseMatrix>,
