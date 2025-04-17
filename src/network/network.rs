@@ -296,6 +296,137 @@ impl Network {
         Ok(final_result)
     }
 
+    fn forward(&self, batch_inputs: &[DenseMatrix]) -> (Vec<DenseMatrix>, Vec<Vec<LayerParams>>) {
+        let mut batch_predictions = Vec::with_capacity(batch_inputs.len());
+        let mut batch_layer_params = Vec::with_capacity(batch_inputs.len());
+
+        batch_inputs.into_iter().for_each(|input| {
+            let mut layer_params = Vec::with_capacity(self.layers.len());
+            let mut current_input: DenseMatrix = input.clone();
+
+            for layer in &self.layers {
+                // Get both the activated output and the pre-activated output from the layer
+                let (mut activated_output, pre_activated_output) = layer.forward(&current_input);
+
+                // Apply forward regularization
+                for reg in &self.regularization {
+                    if let Some(dropout) = reg.as_any().downcast_ref::<DropoutRegularization>() {
+                        dropout.apply(&mut [&mut activated_output], &mut Vec::new());
+                    }
+                }
+
+                // Store the layer input and pre-activated output in LayerParams
+                layer_params.push(LayerParams::new(
+                    current_input.clone(),
+                    pre_activated_output.clone(),
+                    activated_output.clone(),
+                ));
+
+                // Update the current input for the next layer
+                current_input = activated_output;
+            }
+
+            // Store the final activated output and the layer parameters for this input
+            batch_predictions.push(current_input);
+            batch_layer_params.push(layer_params);
+        });
+
+        (batch_predictions, batch_layer_params)
+    }
+
+    fn backward(
+        &mut self,
+        predicteds: &[DenseMatrix],                  // Predictions for each batch
+        targets: &[DenseMatrix],                     // Targets for each batch
+        batch_layer_params: &mut [Vec<LayerParams>], // LayerParams for each batch
+        epoch: usize,
+    ) {
+        let mut aggregated_d_weights = Vec::new();
+        let mut aggregated_d_biases = Vec::new();
+
+        for layer in &self.layers {
+            let (input_size, output_size) = layer.get_input_output_size();
+            aggregated_d_weights.push(DenseMatrix::zeros(output_size, input_size)); // Initialize weights
+            aggregated_d_biases.push(DenseMatrix::zeros(output_size, 1)); // Initialize biases
+        }
+        let layer_idx_length = self.layers.len() - 1;
+
+        for ((predicted, target), layer_params) in
+            predicteds.iter().zip(targets.iter()).zip(batch_layer_params.iter_mut())
+        {
+            // Compute the initial gradient of the loss with respect to the output
+            let mut d_output = self.loss_function.backward(predicted, target);
+
+            // Iterate over the layers in reverse order
+            for (i, (layer, params)) in self
+                .layers
+                .iter_mut()
+                .rev()
+                .zip(layer_params.iter_mut().rev())
+                .enumerate()
+            {
+                let (d_input, d_weights, d_biases) = layer.backward(
+                    &d_output,
+                    &params.layer_input,
+                    &mut params.pre_activated_output,
+                    &params.activated_output,
+                );
+
+                let grad_i = layer_idx_length - i;
+
+                aggregated_d_weights[grad_i].add(&d_weights);
+                aggregated_d_biases[grad_i].add(&d_biases);
+
+                // Propagate the gradient to the previous layer
+                d_output = d_input;
+            }
+        }
+
+        for (i, layer) in self.layers.iter_mut().enumerate() {
+            // Regulate gradients for the current layer
+            for reg in &self.regularization {
+                if let Some(_l1) = reg.as_any().downcast_ref::<L1Regularization>() {
+                    layer.regulate(&mut aggregated_d_weights[i], &mut aggregated_d_biases[i], reg);
+                }
+                if let Some(_l2) = reg.as_any().downcast_ref::<L2Regularization>() {
+                    layer.regulate(&mut aggregated_d_weights[i], &mut aggregated_d_biases[i], reg);
+                }
+            }
+
+            // Clip gradients for the current layer
+            let gradients = vec![&mut aggregated_d_weights[i], &mut aggregated_d_biases[i]];
+            if self.clip_threshold > 0.0 {
+                for grad in gradients {
+                    grad.clip(self.clip_threshold);
+                }
+            }
+
+            // Update the parameters for the current layer
+            layer.update(&aggregated_d_weights[i], &aggregated_d_biases[i], epoch);
+            if self.debug {
+                layer.visualize();
+            }
+        }
+    }
+
+    pub fn predict(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> NetworkResult {
+        let mut output = inputs.clone();
+        for layer in &mut self.layers {
+            (output, _) = layer.forward(&output);
+        }
+
+        let accuracy = util::calculate_accuracy(&output, targets);
+        let loss = self.loss_function.forward(&output, targets);
+        let metrics = calculate_metrics(targets, &output);
+
+        NetworkResult {
+            predictions: output,
+            accuracy,
+            loss,
+            metrics,
+        }
+    }
+
     fn close_summary_writer(&mut self) {
         if let Some(summary_writer) = self.summary_writer.as_mut() {
             if let Err(e) = summary_writer.close() {
@@ -464,134 +595,6 @@ impl Network {
         all_losses
     }
 
-    fn forward(&mut self, batch_inputs: &[DenseMatrix]) -> (Vec<DenseMatrix>, Vec<Vec<LayerParams>>) {
-        let mut batch_predictions = Vec::with_capacity(batch_inputs.len());
-        let mut batch_layer_params = Vec::with_capacity(batch_inputs.len());
-
-        for input in batch_inputs {
-            let mut layer_params = Vec::with_capacity(self.layers.len());
-
-            // Start with the input as the first layer input
-            let mut current_input: DenseMatrix = input.clone();
-
-            for layer in &mut self.layers {
-                // Get both the activated output and the pre-activated output from the layer
-                let (mut activated_output, pre_activated_output) = layer.forward(&current_input);
-
-                // Apply forward regularization
-                for reg in &self.regularization {
-                    if let Some(dropout) = reg.as_any().downcast_ref::<DropoutRegularization>() {
-                        dropout.apply(&mut [&mut activated_output], &mut Vec::new());
-                    }
-                }
-
-                // Store the layer input and pre-activated output in LayerParams
-                layer_params.push(LayerParams {
-                    layer_input: current_input,
-                    pre_activated_output,
-                });
-
-                // Update the current input for the next layer
-                current_input = activated_output;
-            }
-
-            // Store the final activated output and the layer parameters for this input
-            batch_predictions.push(current_input);
-            batch_layer_params.push(layer_params);
-        }
-
-        (batch_predictions, batch_layer_params)
-    }
-
-    fn backward(
-        &mut self,
-        predicteds: &[DenseMatrix],                  // Predictions for each batch
-        targets: &[DenseMatrix],                     // Targets for each batch
-        batch_layer_params: &mut [Vec<LayerParams>], // LayerParams for each batch
-        epoch: usize,
-    ) {
-        let mut aggregated_d_weights = Vec::new();
-        let mut aggregated_d_biases = Vec::new();
-
-        for layer in &self.layers {
-            let (input_size, output_size) = layer.get_input_output_size();
-            aggregated_d_weights.push(DenseMatrix::zeros(output_size, input_size)); // Initialize weights
-            aggregated_d_biases.push(DenseMatrix::zeros(output_size, 1)); // Initialize biases
-        }
-        let layer_idx_length = self.layers.len() - 1;
-
-        for ((predicted, target), layer_params) in
-            predicteds.iter().zip(targets.iter()).zip(batch_layer_params.iter_mut())
-        {
-            // Compute the initial gradient of the loss with respect to the output
-            let mut d_output = self.loss_function.backward(predicted, target);
-
-            // Iterate over the layers in reverse order
-            for (i, (layer, params)) in self
-                .layers
-                .iter_mut()
-                .rev()
-                .zip(layer_params.iter_mut().rev())
-                .enumerate()
-            {
-                let (d_input, d_weights, d_biases) =
-                    layer.backward(&d_output, &params.layer_input, &mut params.pre_activated_output);
-
-                let grad_i = layer_idx_length - i;
-
-                aggregated_d_weights[grad_i].add(&d_weights);
-                aggregated_d_biases[grad_i].add(&d_biases);
-
-                // Propagate the gradient to the previous layer
-                d_output = d_input;
-            }
-        }
-
-        for (i, layer) in self.layers.iter_mut().enumerate() {
-            // Regulate gradients for the current layer
-            for reg in &self.regularization {
-                if let Some(_l1) = reg.as_any().downcast_ref::<L1Regularization>() {
-                    layer.regulate(&mut aggregated_d_weights[i], &mut aggregated_d_biases[i], reg);
-                }
-                if let Some(_l2) = reg.as_any().downcast_ref::<L2Regularization>() {
-                    layer.regulate(&mut aggregated_d_weights[i], &mut aggregated_d_biases[i], reg);
-                }
-            }
-
-            // Clip gradients for the current layer
-            let gradients = vec![&mut aggregated_d_weights[i], &mut aggregated_d_biases[i]];
-            if self.clip_threshold > 0.0 {
-                for grad in gradients {
-                    grad.clip(self.clip_threshold);
-                }
-            }
-
-            // Update the parameters for the current layer
-            layer.update(&aggregated_d_weights[i], &aggregated_d_biases[i], epoch);
-            if self.debug {
-                layer.visualize();
-            }
-        }
-    }
-
-    pub fn predict(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> NetworkResult {
-        let mut output = inputs.clone();
-        for layer in &mut self.layers {
-            (output, _) = layer.forward(&output);
-        }
-
-        let accuracy = util::calculate_accuracy(&output, targets);
-        let loss = self.loss_function.forward(&output, targets);
-        let metrics = calculate_metrics(targets, &output);
-
-        NetworkResult {
-            predictions: output,
-            accuracy,
-            loss,
-            metrics,
-        }
-    }
-
     fn summarize(&mut self, epoch: usize, epoch_loss: f32, epoch_accuracy: f32) {
         if self.search {
             return;
@@ -700,6 +703,16 @@ fn calculate_group_accuracy(
 struct LayerParams {
     pub(crate) layer_input: DenseMatrix,
     pub(crate) pre_activated_output: DenseMatrix,
+    pub(crate) activated_output: DenseMatrix,
+}
+impl LayerParams {
+    pub fn new(layer_input: DenseMatrix, pre_activated_output: DenseMatrix, activated_output: DenseMatrix) -> Self {
+        LayerParams {
+            layer_input,
+            pre_activated_output,
+            activated_output,
+        }
+    }
 }
 
 pub fn clip_gradients(grads: &mut [&mut DenseMatrix], clip_threshold: f32) {

@@ -133,6 +133,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let logdir = temp_dir.path().to_str().unwrap();
         let mut writer = TensorBoardSummaryWriter::new(logdir);
+        writer.init();
 
         let result = writer.write_scalar("test_scalar", 1, 42.0);
         assert!(result.is_ok());
@@ -146,6 +147,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let logdir = temp_dir.path().to_str().unwrap();
         let mut writer = TensorBoardSummaryWriter::new(logdir);
+        writer.init();
 
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let result = writer.write_histogram("test_histogram", 1, &values);

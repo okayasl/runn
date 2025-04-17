@@ -21,11 +21,11 @@ impl Linear {
 
 #[typetag::serde]
 impl ActivationFunction for Linear {
-    fn forward(&mut self, _input: &mut DenseMatrix) {
+    fn forward(&self, _input: &mut DenseMatrix) {
         // Linear activation: no change to input
     }
 
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix) {
+    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, _output: &DenseMatrix) {
         *input = d_output.clone();
     }
 
@@ -43,7 +43,7 @@ mod linear_tests {
     fn test_linear_forward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
-        let mut linear = Linear::new();
+        let linear = Linear::new();
         linear.forward(&mut input);
 
         // Expected output: same as input
@@ -56,9 +56,10 @@ mod linear_tests {
     fn test_linear_backward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
+        let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
         let linear = Linear::new();
-        linear.backward(&d_output, &mut input);
+        linear.backward(&d_output, &mut input, &output);
 
         // Expected output: same as d_output
         let expected = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);

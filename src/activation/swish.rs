@@ -25,11 +25,11 @@ impl Swish {
 
 #[typetag::serde]
 impl ActivationFunction for Swish {
-    fn forward(&mut self, input: &mut DenseMatrix) {
+    fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| x / (1.0 + (-self.beta * x).exp()));
     }
 
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix) {
+    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, _output: &DenseMatrix) {
         input.apply(|x| {
             let sigmoid = 1.0 / (1.0 + (-self.beta * x).exp());
             sigmoid + x * self.beta * sigmoid * (1.0 - sigmoid)
@@ -51,7 +51,7 @@ mod swish_tests {
     fn test_swish_forward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
 
-        let mut swish = Swish::new(1.0);
+        let swish = Swish::new(1.0);
         swish.forward(&mut input);
 
         // Expected output: approximate values
@@ -63,9 +63,10 @@ mod swish_tests {
     fn test_swish_backward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
         let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
+        let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
         let swish = Swish::new(1.0);
-        swish.backward(&d_output, &mut input);
+        swish.backward(&d_output, &mut input, &output);
 
         // Expected output: approximate values
         let expected = DenseMatrix::new(2, 3, &[0.463835, -0.090784, 0.761673, -0.010533, 0.307964, -0.001233]);

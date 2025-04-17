@@ -6,9 +6,10 @@ pub mod dense_layer;
 
 #[typetag::serde]
 pub trait Layer: LayerClone + Send {
-    fn forward(&mut self, input: &DenseMatrix) -> (DenseMatrix, DenseMatrix);
+    fn forward(&self, input: &DenseMatrix) -> (DenseMatrix, DenseMatrix);
     fn backward(
         &mut self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &mut DenseMatrix,
+        activated_output: &DenseMatrix,
     ) -> (DenseMatrix, DenseMatrix, DenseMatrix);
     // fn get_params_and_grads(&mut self) -> ([&mut DenseMatrix; 2], [&mut DenseMatrix; 2]);
     // fn get_size(&self) -> usize;
@@ -61,14 +62,7 @@ impl LayerConfig for DenseConfig {
     fn create_layer(
         self: Box<Self>, name: String, input_size: usize, optimizer: Box<dyn Optimizer>, randomizer: &Randomizer,
     ) -> Box<dyn Layer> {
-        Box::new(DenseLayer::new(
-            name,
-            input_size,
-            self.size,
-            self.activation_function.unwrap(),
-            optimizer,
-            randomizer,
-        ))
+        Box::new(DenseLayer::new(name, input_size, self.size, self.activation_function.unwrap(), optimizer, randomizer))
     }
 }
 

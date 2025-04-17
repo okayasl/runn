@@ -29,7 +29,7 @@ impl ELU {
 
 #[typetag::serde]
 impl ActivationFunction for ELU {
-    fn forward(&mut self, input: &mut DenseMatrix) {
+    fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| {
             if x > 0.0 {
                 x // ELU(x) = x for x > 0
@@ -39,7 +39,7 @@ impl ActivationFunction for ELU {
         });
     }
 
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix) {
+    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, _output: &DenseMatrix) {
         input.apply(|x| {
             if x > 0.0 {
                 1.0 // dELU(x) = 1 for x > 0
@@ -84,7 +84,7 @@ mod elu_tests {
 
     #[test]
     fn test_elu_forward_positive_values() {
-        let mut elu = ELU::new(1.0);
+        let elu = ELU::new(1.0);
 
         let mut input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
 
@@ -99,7 +99,7 @@ mod elu_tests {
     #[test]
     fn test_elu_forward_mixed_values() {
         // Create an ELU with default alpha (typically 1.0)
-        let mut elu = ELU::new(1.0);
+        let elu = ELU::new(1.0);
 
         // Create a matrix with mixed positive and negative values
         let mut input = DenseMatrix::new(2, 3, &[-1.0, 0.0, 2.0, -3.5, 4.2, 0.0]);
@@ -135,8 +135,9 @@ mod elu_tests {
 
         // Downstream gradient
         let d_output = DenseMatrix::new(1, 3, &[0.5, 1.0, 0.7]);
+        let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        elu.backward(&d_output, &mut input);
+        elu.backward(&d_output, &mut input, &output);
 
         // Expected output for positive values: gradient is 1.0
         let expected = DenseMatrix::new(1, 3, &[0.5, 1.0, 0.7]);
@@ -146,16 +147,15 @@ mod elu_tests {
 
     #[test]
     fn test_elu_backward_mixed_values() {
-        // Create an ELU with default alpha (typically 1.0)
-        let elu = ELU::new(1.0);
-
         // Original input matrix
         let mut input = DenseMatrix::new(2, 3, &[-1.0, 0.0, 2.0, -3.5, 4.2, 0.0]);
-
         // Downstream gradient
         let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
+        let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        elu.backward(&d_output, &mut input);
+        // Create an ELU with default alpha (typically 1.0)
+        let elu = ELU::new(1.0);
+        elu.backward(&d_output, &mut input, &output);
 
         // Expected output:
         // For x > 0: 1.0 * d_output
@@ -186,7 +186,7 @@ mod elu_tests {
         ];
 
         for (alpha, input_value, expected_output) in test_cases {
-            let mut elu = ELU::new(alpha);
+            let elu = ELU::new(alpha);
 
             let mut input = DenseMatrix::new(1, 1, &[input_value]);
 

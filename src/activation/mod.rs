@@ -15,8 +15,8 @@ use typetag;
 
 #[typetag::serde]
 pub trait ActivationFunction: ActivationFunctionClone + Send {
-    fn forward(&mut self, input: &mut DenseMatrix);
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix);
+    fn forward(&self, input: &mut DenseMatrix);
+    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, output: &DenseMatrix);
     fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {
         he_initialization
     }

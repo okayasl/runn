@@ -25,11 +25,11 @@ impl GELU {
 
 #[typetag::serde]
 impl ActivationFunction for GELU {
-    fn forward(&mut self, input: &mut DenseMatrix) {
+    fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| 0.5 * x * (1.0 + special::Primitive::erf(x / (2.0_f32.sqrt()))));
     }
 
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix) {
+    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, _output: &DenseMatrix) {
         input.apply(|x| {
             let cdf = 0.5 * (1.0 + special::Primitive::erf(x / (2.0_f32.sqrt())));
             let pdf = (-(x * x) / 2.0).exp() / (2.0 * std::f32::consts::PI).sqrt();
@@ -45,6 +45,7 @@ impl ActivationFunction for GELU {
 
 #[cfg(test)]
 mod gelu_tests {
+
     use super::*;
     use crate::{common::matrix::DenseMatrix, util::equal_approx};
 
@@ -52,7 +53,7 @@ mod gelu_tests {
     fn test_gelu_forward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
-        let mut gelu = GELU::new();
+        let gelu = GELU::new();
         gelu.forward(&mut input);
 
         // Expected output: approximate values
@@ -65,9 +66,10 @@ mod gelu_tests {
     fn test_gelu_backward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
+        let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
         let gelu = GELU::new();
-        gelu.backward(&d_output, &mut input);
+        gelu.backward(&d_output, &mut input, &output);
 
         // Expected output: approximate values
         let expected = DenseMatrix::new(2, 3, &[0.541658, 1.085232, 0.708362, 0.200101, 0.300002, 0.100000]);

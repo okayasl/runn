@@ -25,11 +25,11 @@ impl LeakyReLU {
 
 #[typetag::serde]
 impl ActivationFunction for LeakyReLU {
-    fn forward(&mut self, input: &mut DenseMatrix) {
+    fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| if x > 0.0 { x } else { self.alpha * x });
     }
 
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix) {
+    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, _output: &DenseMatrix) {
         input.apply(|x| if x > 0.0 { 1.0 } else { self.alpha });
         input.mul_elem(d_output);
     }
@@ -48,7 +48,7 @@ mod leakyrelu_tests {
     fn test_leakyrelu_forward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
 
-        let mut leakyrelu = LeakyReLU::new(0.01);
+        let leakyrelu = LeakyReLU::new(0.01);
         leakyrelu.forward(&mut input);
 
         // Expected output: approximate values
@@ -61,9 +61,10 @@ mod leakyrelu_tests {
     fn test_leakyrelu_backward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
         let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
+        let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
         let leakyrelu = LeakyReLU::new(0.01);
-        leakyrelu.backward(&d_output, &mut input);
+        leakyrelu.backward(&d_output, &mut input, &output);
 
         // Expected output: approximate values
         let expected = DenseMatrix::new(2, 3, &[0.5, 0.01, 0.7, 0.002, 0.3, 0.001]);

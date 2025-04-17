@@ -14,19 +14,17 @@ use super::xavier_initialization;
 // Range: (0, 1) for each output element
 // Best for: Output layers of multi-class classification models.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct Softmax {
-    original_output: Option<DenseMatrix>,
-}
+pub struct Softmax {}
 
 impl Softmax {
     pub fn new() -> Self {
-        Self { original_output: None }
+        Self {}
     }
 }
 
 #[typetag::serde]
 impl ActivationFunction for Softmax {
-    fn forward(&mut self, input: &mut DenseMatrix) {
+    fn forward(&self, input: &mut DenseMatrix) {
         let (rows, cols) = (input.rows(), input.cols());
         let mut result = DenseMatrix::zeros(rows, cols);
 
@@ -48,14 +46,12 @@ impl ActivationFunction for Softmax {
             }
         }
 
-        self.original_output = Some(result.clone());
         *input = result;
     }
 
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix) {
+    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, output: &DenseMatrix) {
         let (rows, cols) = (input.rows(), input.cols());
         let mut result = DenseMatrix::zeros(rows, cols);
-        let output = self.original_output.as_ref().unwrap();
 
         for i in 0..rows {
             for j in 0..cols {

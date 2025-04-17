@@ -26,12 +26,12 @@ impl Sigmoid {
 #[typetag::serde]
 impl ActivationFunction for Sigmoid {
     // Forward pass: Apply Sigmoid element-wise to the input matrix
-    fn forward(&mut self, input: &mut DenseMatrix) {
+    fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| 1.0 / (1.0 + (-x).exp()));
     }
 
     // Backward pass: Compute the derivative of Sigmoid
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix) {
+    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, _output: &DenseMatrix) {
         input.apply(|x| x * (1.0 - x));
         input.mul_elem(d_output);
     }
@@ -49,7 +49,7 @@ mod sigmoid_tests {
     #[test]
     fn test_sigmoid_forward_zero_input() {
         let mut input = DenseMatrix::new(1, 1, &[0.0f32]);
-        let mut sigmoid = Sigmoid;
+        let sigmoid = Sigmoid;
         sigmoid.forward(&mut input);
 
         let expected = DenseMatrix::new(1, 1, &[0.5f32]);
@@ -59,7 +59,7 @@ mod sigmoid_tests {
     #[test]
     fn test_sigmoid_forward_mixed_values() {
         let mut input = DenseMatrix::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
-        let mut sigmoid = Sigmoid;
+        let sigmoid = Sigmoid;
         sigmoid.forward(&mut input);
 
         // Expected outputs calculated manually for verification
@@ -83,12 +83,13 @@ mod sigmoid_tests {
     fn test_sigmoid_backward() {
         let mut input = DenseMatrix::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
         let d_output = DenseMatrix::new(2, 3, &[0.5f32, 1.0, 0.7, 0.2, 0.3, 0.1]);
-        let mut sigmoid = Sigmoid;
+        let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
+        let sigmoid = Sigmoid;
         sigmoid.forward(&mut input); // First apply forward pass
         let original_input = input.clone();
 
-        sigmoid.backward(&d_output, &mut input);
+        sigmoid.backward(&d_output, &mut input, &output);
 
         // Compute expected gradient: sigmoid(x) * (1 - sigmoid(x)) * d_output
         let expected = DenseMatrix::new(
@@ -111,7 +112,7 @@ mod sigmoid_tests {
     fn test_sigmoid_bounds() {
         let test_cases = [(f32::NEG_INFINITY, 0.0f32), (f32::INFINITY, 1.0f32)];
 
-        let mut sigmoid = Sigmoid;
+        let sigmoid = Sigmoid;
 
         for (input_value, expected_output) in test_cases {
             let mut input = DenseMatrix::new(1, 1, &[input_value]);

@@ -176,6 +176,46 @@ fn generate_network(inp_size: usize, targ_size: usize) -> Network {
     }
 }
 
+fn test_search() {
+    let training_inputs = get_training_input_matrix();
+    let training_targets = get_training_target_matrix();
+
+    let validation_inputs = get_validation_input_matrix();
+    let validation_targets = get_validation_target_matrix();
+
+    let nw = generate_network(training_inputs.cols(), training_targets.cols());
+
+    let sp = SearchConfigsBuilder::new()
+        .learning_rates(
+            RangeParameters::new()
+                .lower_limit(0.0025)
+                .upper_limit(0.0045)
+                .increment(0.0005)
+                .float_parameters(),
+        )
+        .batch_sizes(
+            RangeParameters::new()
+                .lower_limit(5.0)
+                .upper_limit(10.0)
+                .increment(1.0)
+                .int_parameters(),
+        )
+        .hidden_layer(
+            RangeParameters::new()
+                .lower_limit(12.0)
+                .upper_limit(24.0)
+                .increment(4.0)
+                .int_parameters(),
+            ReLU::new(),
+        )
+        .export("search".to_string())
+        .build();
+
+    let search_res = search(nw, sp, 4, training_inputs, training_targets, validation_inputs, validation_targets);
+
+    info!("Num Results: {}", search_res.len());
+}
+
 fn get_training_input_matrix() -> DenseMatrix {
     let inps = vec![
         5.0, 4.0, 4.0, 2.0, 5.0, 5.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 1.0, 6.0, 2.0, 1.0, 3.0, 6.0, 5.0, 5.0, 5.0, 3.0,
@@ -273,44 +313,4 @@ fn get_validation_target_matrix() -> DenseMatrix {
     let targ_size = 3;
     let targ_row = tar.len() / targ_size;
     DenseMatrix::new(targ_row, targ_size, &tar)
-}
-
-fn test_search() {
-    let training_inputs = get_training_input_matrix();
-    let training_targets = get_training_target_matrix();
-
-    let validation_inputs = get_validation_input_matrix();
-    let validation_targets = get_validation_target_matrix();
-
-    let nw = generate_network(training_inputs.cols(), training_targets.cols());
-
-    let sp = SearchConfigsBuilder::new()
-        .learning_rates(
-            RangeParameters::new()
-                .lower_limit(0.0025)
-                .upper_limit(0.0045)
-                .increment(0.0005)
-                .float_parameters(),
-        )
-        .batch_sizes(
-            RangeParameters::new()
-                .lower_limit(5.0)
-                .upper_limit(10.0)
-                .increment(1.0)
-                .int_parameters(),
-        )
-        .hidden_layer(
-            RangeParameters::new()
-                .lower_limit(12.0)
-                .upper_limit(24.0)
-                .increment(4.0)
-                .int_parameters(),
-            ReLU::new(),
-        )
-        .export("search".to_string())
-        .build();
-
-    let search_res = search(nw, sp, 4, training_inputs, training_targets, validation_inputs, validation_targets);
-
-    info!("Num Results: {}", search_res.len());
 }
