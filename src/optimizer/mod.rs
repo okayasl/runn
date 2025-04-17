@@ -10,7 +10,7 @@ use crate::common::matrix::DenseMatrix;
 use typetag;
 
 #[typetag::serde]
-pub trait Optimizer: OptimizerClone + Send {
+pub trait Optimizer: OptimizerClone + Send + Sync {
     fn initialize(&mut self, weights: &DenseMatrix, biases: &DenseMatrix);
     fn update(
         &mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, d_weights: &DenseMatrix,
@@ -39,7 +39,7 @@ impl Clone for Box<dyn Optimizer> {
 }
 
 #[typetag::serde]
-pub trait OptimizerConfig: OptimizerConfigClone + Send {
+pub trait OptimizerConfig: OptimizerConfigClone + Send + Sync {
     fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer>;
 }
 

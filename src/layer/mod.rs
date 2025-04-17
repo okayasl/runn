@@ -5,7 +5,7 @@ use crate::{matrix::DenseMatrix, random::Randomizer, ActivationFunction, Optimiz
 pub mod dense_layer;
 
 #[typetag::serde]
-pub trait Layer: LayerClone + Send {
+pub trait Layer: LayerClone + Send + Sync {
     fn forward(&self, input: &DenseMatrix) -> (DenseMatrix, DenseMatrix);
     fn backward(
         &mut self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &mut DenseMatrix,

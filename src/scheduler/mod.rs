@@ -2,7 +2,7 @@ pub mod exponential;
 pub mod step;
 
 #[typetag::serde]
-pub trait LearningRateScheduler: LearningRateSchedulerClone + Send {
+pub trait LearningRateScheduler: LearningRateSchedulerClone + Send + Sync {
     fn schedule(&self, epoch: usize, current_learning_rate: f32) -> f32;
 }
 

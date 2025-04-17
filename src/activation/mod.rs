@@ -14,7 +14,7 @@ use crate::common::matrix::DenseMatrix;
 use typetag;
 
 #[typetag::serde]
-pub trait ActivationFunction: ActivationFunctionClone + Send {
+pub trait ActivationFunction: ActivationFunctionClone + Send + Sync {
     fn forward(&self, input: &mut DenseMatrix);
     fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, output: &DenseMatrix);
     fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {

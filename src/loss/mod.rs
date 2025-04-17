@@ -5,7 +5,7 @@ use crate::common::matrix::DenseMatrix;
 use typetag;
 
 #[typetag::serde]
-pub trait LossFunction: LossFunctionClone + Send {
+pub trait LossFunction: LossFunctionClone + Send + Sync {
     fn forward(&self, predicted: &DenseMatrix, target: &DenseMatrix) -> f32;
     fn backward(&self, predicted: &DenseMatrix, target: &DenseMatrix) -> DenseMatrix;
 }

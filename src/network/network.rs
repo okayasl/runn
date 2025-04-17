@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use log::{error, info};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
     dropout::DropoutRegularization,
@@ -297,39 +298,37 @@ impl Network {
     }
 
     fn forward(&self, batch_inputs: &[DenseMatrix]) -> (Vec<DenseMatrix>, Vec<Vec<LayerParams>>) {
-        let mut batch_predictions = Vec::with_capacity(batch_inputs.len());
-        let mut batch_layer_params = Vec::with_capacity(batch_inputs.len());
-
-        batch_inputs.into_iter().for_each(|input| {
-            let mut layer_params = Vec::with_capacity(self.layers.len());
-            let mut current_input: DenseMatrix = input.clone();
-
-            for layer in &self.layers {
-                // Get both the activated output and the pre-activated output from the layer
-                let (mut activated_output, pre_activated_output) = layer.forward(&current_input);
-
-                // Apply forward regularization
-                for reg in &self.regularization {
-                    if let Some(dropout) = reg.as_any().downcast_ref::<DropoutRegularization>() {
-                        dropout.apply(&mut [&mut activated_output], &mut Vec::new());
+        let results: Vec<(DenseMatrix, Vec<LayerParams>)> = batch_inputs
+            .par_iter()
+            .map(|input| {
+                let mut layer_params = Vec::with_capacity(self.layers.len());
+                let mut current_input: DenseMatrix = input.clone();
+                for layer in &self.layers {
+                    // Get both the activated output and the pre-activated output from the layer
+                    let (mut activated_output, pre_activated_output) = layer.forward(&current_input);
+                    // Apply forward regularization
+                    for reg in &self.regularization {
+                        if let Some(dropout) = reg.as_any().downcast_ref::<DropoutRegularization>() {
+                            dropout.apply(&mut [&mut activated_output], &mut Vec::new());
+                        }
                     }
+                    // Store the layer input and pre-activated output in LayerParams
+                    layer_params.push(LayerParams::new(
+                        current_input.clone(),
+                        pre_activated_output.clone(),
+                        activated_output.clone(),
+                    ));
+                    // Update the current input for the next layer
+                    current_input = activated_output;
                 }
+                // Return the final activated output and the layer parameters for this input
+                (current_input, layer_params)
+            })
+            .collect();
 
-                // Store the layer input and pre-activated output in LayerParams
-                layer_params.push(LayerParams::new(
-                    current_input.clone(),
-                    pre_activated_output.clone(),
-                    activated_output.clone(),
-                ));
+        // Split the results into batch_predictions and batch_layer_params
+        let (batch_predictions, batch_layer_params): (Vec<_>, Vec<_>) = results.into_iter().unzip();
 
-                // Update the current input for the next layer
-                current_input = activated_output;
-            }
-
-            // Store the final activated output and the layer parameters for this input
-            batch_predictions.push(current_input);
-            batch_layer_params.push(layer_params);
-        });
         (batch_predictions, batch_layer_params)
     }
 
