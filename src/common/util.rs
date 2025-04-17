@@ -243,7 +243,7 @@ pub fn print_matrices_comparisons(input: &DenseMatrix, target: &DenseMatrix, pre
     for j in 0..pc {
         write!(prediction_str, "{:.2} ", prediction.at(0, j)).unwrap();
     }
-    prediction_str.push('⎡');
+    prediction_str.push('⎤');
 
     // Append the top border
     writeln!(buf, "{}{}{}", input_str, target_str, prediction_str).unwrap();
@@ -276,7 +276,7 @@ pub fn print_matrices_comparisons(input: &DenseMatrix, target: &DenseMatrix, pre
         for j in 0..pc {
             write!(prediction_str, "{:.2} ", prediction.at(i, j)).unwrap();
         }
-        prediction_str.push('⎢');
+        prediction_str.push('⎥');
 
         // Append the line
         writeln!(buf, "{}{}{}", input_str, target_str, prediction_str).unwrap();
@@ -309,7 +309,7 @@ pub fn print_matrices_comparisons(input: &DenseMatrix, target: &DenseMatrix, pre
     for j in 0..pc {
         write!(prediction_str, "{:.2} ", prediction.at(r - 1, j)).unwrap();
     }
-    prediction_str.push('⎣');
+    prediction_str.push('⎦');
 
     // Append the bottom border
     writeln!(buf, "{}{}{}", input_str, target_str, prediction_str).unwrap();

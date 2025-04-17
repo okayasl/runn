@@ -330,7 +330,6 @@ impl Network {
             batch_predictions.push(current_input);
             batch_layer_params.push(layer_params);
         });
-
         (batch_predictions, batch_layer_params)
     }
 
