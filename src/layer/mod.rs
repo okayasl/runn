@@ -8,7 +8,7 @@ pub mod dense_layer;
 pub trait Layer: LayerClone + Send + Sync {
     fn forward(&self, input: &DenseMatrix) -> (DenseMatrix, DenseMatrix);
     fn backward(
-        &mut self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &mut DenseMatrix,
+        &self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &mut DenseMatrix,
         activated_output: &DenseMatrix,
     ) -> (DenseMatrix, DenseMatrix, DenseMatrix);
     // fn get_params_and_grads(&mut self) -> ([&mut DenseMatrix; 2], [&mut DenseMatrix; 2]);

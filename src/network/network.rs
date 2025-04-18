@@ -1,7 +1,10 @@
 use std::error::Error;
 
 use log::{error, info};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::{
+    iter::{IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator},
+    ThreadPool, ThreadPoolBuilder,
+};
 
 use crate::{
     dropout::DropoutRegularization,
@@ -34,6 +37,7 @@ pub struct NetworkBuilder {
     debug: bool,
     normalized: bool,
     summary_writer: Option<Box<dyn SummaryWriter>>,
+    parallelize: usize,
 }
 
 impl NetworkBuilder {
@@ -54,6 +58,7 @@ impl NetworkBuilder {
             debug: false,
             normalized: false,
             summary_writer: None,
+            parallelize: 1,
         }
     }
 
@@ -122,6 +127,11 @@ impl NetworkBuilder {
         self
     }
 
+    pub fn parallelize(mut self, paralelize: usize) -> Self {
+        self.parallelize = paralelize;
+        self
+    }
+
     pub(crate) fn from_network(mut self, nw: &Network) -> Self {
         self.loss_function = Some(nw.loss_function.clone());
         self.optimizer_config = Some(nw.optimizer_config.clone());
@@ -131,6 +141,7 @@ impl NetworkBuilder {
         self.seed = nw.seed;
         self.clip_threshold = nw.clip_threshold;
         self.debug = nw.debug;
+        self.parallelize = nw.parallelize;
 
         if let Some(early_stopper) = &nw.early_stopper {
             self.early_stopper = Some(early_stopper.clone());
@@ -158,6 +169,9 @@ impl NetworkBuilder {
         if self.epochs == 0 {
             return Err("Epochs must be greater than zero".into());
         }
+        if self.parallelize <= 0 {
+            return Err("Parallelization factor must be greater than zero".into());
+        }
         Ok(())
     }
 
@@ -183,7 +197,6 @@ impl NetworkBuilder {
             input_size = size; // Update input_size for the next layer
             layers.push(layer);
         }
-
         Ok(Network {
             input_size: self.input_size,
             output_size: self.output_size,
@@ -204,6 +217,8 @@ impl NetworkBuilder {
             randomizer,
             search: false,
             summary_writer: self.summary_writer,
+            parallelize: self.parallelize,
+            thread_pool: generate_thread_pool(self.parallelize),
         })
     }
 }
@@ -249,6 +264,8 @@ pub struct Network {
     pub(crate) search: bool,
     pub(crate) early_stopper: Option<Box<dyn EarlyStopper>>,
     pub(crate) summary_writer: Option<Box<dyn SummaryWriter>>,
+    pub(crate) parallelize: usize,
+    pub(crate) thread_pool: Option<rayon::ThreadPool>,
 }
 
 impl Network {
@@ -298,38 +315,40 @@ impl Network {
     }
 
     fn forward(&self, batch_inputs: &[DenseMatrix]) -> (Vec<DenseMatrix>, Vec<Vec<LayerParams>>) {
-        let results: Vec<(DenseMatrix, Vec<LayerParams>)> = batch_inputs
-            .par_iter()
-            .map(|input| {
-                let mut layer_params = Vec::with_capacity(self.layers.len());
-                let mut current_input: DenseMatrix = input.clone();
-                for layer in &self.layers {
-                    // Get both the activated output and the pre-activated output from the layer
-                    let (mut activated_output, pre_activated_output) = layer.forward(&current_input);
-                    // Apply forward regularization
-                    for reg in &self.regularization {
-                        if let Some(dropout) = reg.as_any().downcast_ref::<DropoutRegularization>() {
-                            dropout.apply(&mut [&mut activated_output], &mut Vec::new());
+        self.thread_pool.as_ref().unwrap().install(|| {
+            let results: Vec<(DenseMatrix, Vec<LayerParams>)> = batch_inputs
+                .par_iter()
+                .map(|input| {
+                    let mut layer_params = Vec::with_capacity(self.layers.len());
+                    let mut current_input: DenseMatrix = input.clone();
+                    for layer in &self.layers {
+                        // Get both the activated output and the pre-activated output from the layer
+                        let (mut activated_output, pre_activated_output) = layer.forward(&current_input);
+                        // Apply forward regularization
+                        for reg in &self.regularization {
+                            if let Some(dropout) = reg.as_any().downcast_ref::<DropoutRegularization>() {
+                                dropout.apply(&mut [&mut activated_output], &mut Vec::new());
+                            }
                         }
+                        // Store the layer input and pre-activated output in LayerParams
+                        layer_params.push(LayerParams::new(
+                            current_input.clone(),
+                            pre_activated_output.clone(),
+                            activated_output.clone(),
+                        ));
+                        // Update the current input for the next layer
+                        current_input = activated_output;
                     }
-                    // Store the layer input and pre-activated output in LayerParams
-                    layer_params.push(LayerParams::new(
-                        current_input.clone(),
-                        pre_activated_output.clone(),
-                        activated_output.clone(),
-                    ));
-                    // Update the current input for the next layer
-                    current_input = activated_output;
-                }
-                // Return the final activated output and the layer parameters for this input
-                (current_input, layer_params)
-            })
-            .collect();
+                    // Return the final activated output and the layer parameters for this input
+                    (current_input, layer_params)
+                })
+                .collect();
 
-        // Split the results into batch_predictions and batch_layer_params
-        let (batch_predictions, batch_layer_params): (Vec<_>, Vec<_>) = results.into_iter().unzip();
+            // Split the results into batch_predictions and batch_layer_params
+            let (batch_predictions, batch_layer_params): (Vec<_>, Vec<_>) = results.into_iter().unzip();
 
-        (batch_predictions, batch_layer_params)
+            (batch_predictions, batch_layer_params)
+        })
     }
 
     fn backward(
@@ -339,6 +358,7 @@ impl Network {
         batch_layer_params: &mut [Vec<LayerParams>], // LayerParams for each batch
         epoch: usize,
     ) {
+        // Initialize aggregated gradients for weights and biases
         let mut aggregated_d_weights = Vec::new();
         let mut aggregated_d_biases = Vec::new();
 
@@ -347,39 +367,60 @@ impl Network {
             aggregated_d_weights.push(DenseMatrix::zeros(output_size, input_size)); // Initialize weights
             aggregated_d_biases.push(DenseMatrix::zeros(output_size, 1)); // Initialize biases
         }
+
         let layer_idx_length = self.layers.len() - 1;
 
-        for ((predicted, target), layer_params) in
-            predicteds.iter().zip(targets.iter()).zip(batch_layer_params.iter_mut())
-        {
-            // Compute the initial gradient of the loss with respect to the output
-            let mut d_output = self.loss_function.backward(predicted, target);
+        self.thread_pool.as_ref().unwrap().install(|| {
+            // Parallelize the computation of gradients for each batch
+            let batch_gradients: Vec<(Vec<DenseMatrix>, Vec<DenseMatrix>)> = predicteds
+                .par_iter()
+                .zip(targets.par_iter())
+                .zip(batch_layer_params.par_iter_mut())
+                .map(|((predicted, target), layer_params)| {
+                    let mut d_output = self.loss_function.backward(predicted, target);
 
-            // Iterate over the layers in reverse order
-            for (i, (layer, params)) in self
-                .layers
-                .iter_mut()
-                .rev()
-                .zip(layer_params.iter_mut().rev())
-                .enumerate()
-            {
-                let (d_input, d_weights, d_biases) = layer.backward(
-                    &d_output,
-                    &params.layer_input,
-                    &mut params.pre_activated_output,
-                    &params.activated_output,
-                );
+                    let mut batch_d_weights = Vec::new();
+                    let mut batch_d_biases = Vec::new();
 
-                let grad_i = layer_idx_length - i;
+                    // Initialize gradients for this batch
+                    for layer in &self.layers {
+                        let (input_size, output_size) = layer.get_input_output_size();
+                        batch_d_weights.push(DenseMatrix::zeros(output_size, input_size));
+                        batch_d_biases.push(DenseMatrix::zeros(output_size, 1));
+                    }
 
-                aggregated_d_weights[grad_i].add(&d_weights);
-                aggregated_d_biases[grad_i].add(&d_biases);
+                    // Iterate over the layers in reverse order
+                    for (i, (layer, params)) in self.layers.iter().rev().zip(layer_params.iter_mut().rev()).enumerate()
+                    {
+                        let (d_input, d_weights, d_biases) = layer.backward(
+                            &d_output,
+                            &params.layer_input,
+                            &mut params.pre_activated_output,
+                            &params.activated_output,
+                        );
 
-                // Propagate the gradient to the previous layer
-                d_output = d_input;
+                        let grad_i = layer_idx_length - i;
+
+                        // Accumulate gradients for this batch
+                        batch_d_weights[grad_i].add(&d_weights);
+                        batch_d_biases[grad_i].add(&d_biases);
+
+                        // Propagate the gradient to the previous layer
+                        d_output = d_input;
+                    }
+
+                    (batch_d_weights, batch_d_biases)
+                })
+                .collect();
+
+            // Aggregate gradients across all batches
+            for (batch_d_weights, batch_d_biases) in batch_gradients {
+                for (i, (d_weights, d_biases)) in batch_d_weights.into_iter().zip(batch_d_biases).enumerate() {
+                    aggregated_d_weights[i].add(&d_weights);
+                    aggregated_d_biases[i].add(&d_biases);
+                }
             }
-        }
-
+        });
         for (i, layer) in self.layers.iter_mut().enumerate() {
             // Regulate gradients for the current layer
             for reg in &self.regularization {
@@ -653,6 +694,8 @@ impl Network {
             randomizer: Randomizer::new(Some(network_io.seed)),
             search: false,
             summary_writer: network_io.summary_writer as Option<Box<dyn SummaryWriter>>,
+            parallelize: network_io.parallelize,
+            thread_pool: generate_thread_pool(network_io.parallelize),
         }
     }
 
@@ -675,6 +718,7 @@ impl Network {
             mins: self.mins.clone(),
             maxs: self.maxs.clone(),
             summary_writer: self.summary_writer.clone(),
+            parallelize: self.parallelize,
         }
     }
 
@@ -775,5 +819,19 @@ pub fn calculate_metrics(targets: &DenseMatrix, predictions: &DenseMatrix) -> Me
         macro_f1_score: macro_f1,
         micro_f1_score: micro_f1,
         metrics_by_class,
+    }
+}
+
+fn generate_thread_pool(parallelize: usize) -> Option<ThreadPool> {
+    if parallelize > 0 {
+        Some(
+            ThreadPoolBuilder::new()
+                .num_threads(parallelize)
+                .build()
+                .expect("Failed to create thread pool"),
+        )
+    } else {
+        // Return None if parallelism is not enabled
+        None
     }
 }

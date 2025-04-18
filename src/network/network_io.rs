@@ -30,6 +30,7 @@ pub struct NetworkIO {
     pub(crate) mins: Option<Vec<f32>>,
     pub(crate) maxs: Option<Vec<f32>>,
     pub(crate) summary_writer: Option<Box<dyn crate::summary::SummaryWriter>>,
+    pub(crate) parallelize: usize,
 }
 
 pub fn save_network(network_io: &NetworkIO, filename: &str, format: SerializationFormat) {

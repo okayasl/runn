@@ -58,7 +58,7 @@ impl Layer for DenseLayer {
     }
 
     fn backward(
-        &mut self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &mut DenseMatrix,
+        &self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &mut DenseMatrix,
         activated_output: &DenseMatrix,
     ) -> (DenseMatrix, DenseMatrix, DenseMatrix) {
         // Compute the gradient of the loss with respect to the activation (dZ)
@@ -182,7 +182,7 @@ mod tests {
             .epsilon(1e-8)
             .build();
 
-        let mut layer = DenseLayer::new(
+        let layer = DenseLayer::new(
             "layer".to_owned(),
             3,
             2,
