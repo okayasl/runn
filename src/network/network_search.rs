@@ -4,6 +4,7 @@ use std::thread;
 use std::time::Instant;
 
 use log::info;
+use rayon::ThreadPoolBuilder;
 
 use crate::layer::Dense;
 use crate::matrix::DenseMatrix;
@@ -152,6 +153,8 @@ pub fn search(
         util::normalize_in_place(&mut validation_inputs, &mins, &maxs);
     }
 
+    build_thread_pool();
+
     let ncs: Vec<NetworkConfig> = generate_network_configurations(&np);
     let number_of_networks = ncs.len();
     info!("Total number of network configurations: {}", number_of_networks);
@@ -228,6 +231,13 @@ pub fn search(
     }
 
     search_results
+}
+
+fn build_thread_pool() {
+    ThreadPoolBuilder::new()
+        .num_threads(1)
+        .build_global()
+        .expect("Failed to build global thread pool");
 }
 
 fn generate_network_configurations(np: &SearchConfigs) -> Vec<NetworkConfig> {
