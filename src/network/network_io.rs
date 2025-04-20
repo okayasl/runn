@@ -26,7 +26,7 @@ pub struct NetworkIO {
     pub(crate) seed: u64,
     pub(crate) early_stopper: Option<Box<dyn EarlyStopper>>,
     pub(crate) debug: bool,
-    pub(crate) normalized: bool,
+    pub(crate) normalize: bool,
     pub(crate) mins: Option<Vec<f32>>,
     pub(crate) maxs: Option<Vec<f32>>,
     pub(crate) summary_writer: Option<Box<dyn crate::summary::SummaryWriter>>,

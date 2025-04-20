@@ -11,17 +11,14 @@ pub trait Layer: LayerClone + Send + Sync {
         &self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &mut DenseMatrix,
         activated_output: &DenseMatrix,
     ) -> (DenseMatrix, DenseMatrix, DenseMatrix);
-    // fn get_params_and_grads(&mut self) -> ([&mut DenseMatrix; 2], [&mut DenseMatrix; 2]);
-    // fn get_size(&self) -> usize;
     fn activation_function(&self) -> &dyn ActivationFunction;
-    //fn reset(&mut self);
     fn regulate(
         &mut self, d_weights: &mut DenseMatrix, d_biases: &mut DenseMatrix, regularization: &Box<dyn Regularization>,
     );
     fn update(&mut self, d_weights: &DenseMatrix, d_biases: &DenseMatrix, epoch: usize);
     fn summarize(&self, epoch: usize, summary_writer: &mut dyn SummaryWriter);
     fn visualize(&self);
-    fn get_input_output_size(&self) -> (usize, usize);
+    fn input_output_size(&self) -> (usize, usize);
 }
 
 pub trait LayerClone {
@@ -44,7 +41,7 @@ impl Clone for Box<dyn Layer> {
 }
 
 pub trait LayerConfig {
-    fn get_size(&self) -> usize;
+    fn size(&self) -> usize;
     fn create_layer(
         self: Box<Self>, name: String, input_size: usize, optimizer: Box<dyn Optimizer>, randomizer: &Randomizer,
     ) -> Box<dyn Layer>;
@@ -56,7 +53,7 @@ pub struct DenseConfig {
 }
 
 impl LayerConfig for DenseConfig {
-    fn get_size(&self) -> usize {
+    fn size(&self) -> usize {
         self.size
     }
     fn create_layer(

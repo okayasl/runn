@@ -41,6 +41,8 @@ impl Clone for Box<dyn Optimizer> {
 #[typetag::serde]
 pub trait OptimizerConfig: OptimizerConfigClone + Send + Sync {
     fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer>;
+    fn update_learning_rate(&mut self, learning_rate: f32);
+    fn learning_rate(&self) -> f32;
 }
 
 // Implement OptimizerConfigClone and make OptimizerConfig Clone and Send

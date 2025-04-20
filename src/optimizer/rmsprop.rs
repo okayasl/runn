@@ -77,8 +77,14 @@ pub struct RMSPropConfig {
 
 #[typetag::serde]
 impl OptimizerConfig for RMSPropConfig {
+    fn update_learning_rate(&mut self, learning_rate: f32) {
+        self.learning_rate = learning_rate;
+    }
     fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
         Box::new(RMSPropOptimizer::new(*self))
+    }
+    fn learning_rate(&self) -> f32 {
+        self.learning_rate
     }
 }
 

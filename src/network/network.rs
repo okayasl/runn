@@ -35,7 +35,7 @@ pub struct NetworkBuilder {
     seed: u64,
     early_stopper: Option<Box<dyn EarlyStopper>>,
     debug: bool,
-    normalized: bool,
+    normalize: bool,
     summary_writer: Option<Box<dyn SummaryWriter>>,
     parallelize: usize,
 }
@@ -56,7 +56,7 @@ impl NetworkBuilder {
             seed: 0,
             early_stopper: None,
             debug: false,
-            normalized: false,
+            normalize: false,
             summary_writer: None,
             parallelize: 1,
         }
@@ -117,8 +117,8 @@ impl NetworkBuilder {
         self
     }
 
-    pub fn normalize(mut self, normalized: bool) -> Self {
-        self.normalized = normalized;
+    pub fn normalize(mut self, normalize: bool) -> Self {
+        self.normalize = normalize;
         self
     }
 
@@ -129,6 +129,13 @@ impl NetworkBuilder {
 
     pub fn parallelize(mut self, paralelize: usize) -> Self {
         self.parallelize = paralelize;
+        self
+    }
+
+    pub(crate) fn update_learning_rate(mut self, learning_rate: f32) -> Self {
+        if let Some(optimizer_config) = &mut self.optimizer_config {
+            optimizer_config.update_learning_rate(learning_rate);
+        }
         self
     }
 
@@ -181,11 +188,11 @@ impl NetworkBuilder {
         let randomizer = Randomizer::new(Some(self.seed));
         let mut layers: Vec<Box<dyn Layer>> = Vec::new();
         let mut input_size = self.input_size; // Initialize with input_size
-        let layer_size = self.layer_configs.len();
+        let layer_count = self.layer_configs.len();
         for (i, layer_config) in self.layer_configs.into_iter().enumerate() {
-            let size = layer_config.get_size(); // Get size via &self
+            let size = layer_config.size(); // Get size via &self
             let mut name = format!("Hidden {}", i);
-            if i == layer_size - 1 {
+            if i == layer_count - 1 {
                 name = String::from("Output");
             }
             let layer = layer_config.create_layer(
@@ -212,7 +219,7 @@ impl NetworkBuilder {
             seed: self.seed,
             early_stopper: self.early_stopper,
             debug: self.debug,
-            normalized: self.normalized,
+            normalize: self.normalize,
             mins: None,
             maxs: None,
             randomizer,
@@ -258,7 +265,7 @@ pub struct Network {
     pub(crate) seed: u64,
     pub(crate) randomizer: Randomizer,
     pub(crate) debug: bool,
-    pub(crate) normalized: bool,
+    pub(crate) normalize: bool,
     pub(crate) mins: Option<Vec<f32>>,
     pub(crate) maxs: Option<Vec<f32>>,
     pub(crate) search: bool,
@@ -313,7 +320,7 @@ impl Network {
         self.close_summary_writer();
         Ok(final_result)
     }
-    
+
     fn forward(&self, batch_inputs: &[DenseMatrix]) -> (Vec<DenseMatrix>, Vec<Vec<LayerParams>>) {
         let results: Vec<(DenseMatrix, Vec<LayerParams>)> = batch_inputs
             .par_iter()
@@ -361,7 +368,7 @@ impl Network {
         let mut aggregated_d_biases = Vec::new();
 
         for layer in &self.layers {
-            let (input_size, output_size) = layer.get_input_output_size();
+            let (input_size, output_size) = layer.input_output_size();
             aggregated_d_weights.push(DenseMatrix::zeros(output_size, input_size)); // Initialize weights
             aggregated_d_biases.push(DenseMatrix::zeros(output_size, 1)); // Initialize biases
         }
@@ -381,7 +388,7 @@ impl Network {
 
                 // Initialize gradients for this batch
                 for layer in &self.layers {
-                    let (input_size, output_size) = layer.get_input_output_size();
+                    let (input_size, output_size) = layer.input_output_size();
                     batch_d_weights.push(DenseMatrix::zeros(output_size, input_size));
                     batch_d_biases.push(DenseMatrix::zeros(output_size, 1));
                 }
@@ -462,7 +469,7 @@ impl Network {
     }
 
     fn initialize_threadpool(&mut self) {
-        if self.parallelize <= 0 || self.search{
+        if self.parallelize <= 0 || self.search {
             return;
         }
         ThreadPoolBuilder::new()
@@ -509,7 +516,7 @@ impl Network {
 
     fn prepare_inputs(&mut self, inputs: &DenseMatrix) -> DenseMatrix {
         let mut training_inputs = inputs.clone();
-        if self.normalized {
+        if self.normalize {
             let (mins, maxs) = util::find_min_max(&inputs);
             util::normalize_in_place(&mut training_inputs, &mins, &maxs);
             self.mins = Some(mins);
@@ -693,7 +700,7 @@ impl Network {
             seed: network_io.seed,
             early_stopper: network_io.early_stopper,
             debug: network_io.debug,
-            normalized: network_io.normalized,
+            normalize: network_io.normalize,
             mins: network_io.mins,
             maxs: network_io.maxs,
             randomizer: Randomizer::new(Some(network_io.seed)),
@@ -718,7 +725,7 @@ impl Network {
             seed: self.seed,
             early_stopper: self.early_stopper.clone(),
             debug: self.debug,
-            normalized: self.normalized,
+            normalize: self.normalize,
             mins: self.mins.clone(),
             maxs: self.maxs.clone(),
             summary_writer: self.summary_writer.clone(),

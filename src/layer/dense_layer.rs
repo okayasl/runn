@@ -13,11 +13,8 @@ pub struct DenseLayer {
     output_size: usize,
     weights: DenseMatrix,
     biases: DenseMatrix,
-    //d_weights: DenseMatrix,
-    //d_biases: DenseMatrix,
     activation: Box<dyn ActivationFunction>,
     optimizer: Box<dyn Optimizer>,
-    //pre_activated_output: Option<DenseMatrix>,
 }
 
 impl DenseLayer {
@@ -107,7 +104,7 @@ impl Layer for DenseLayer {
         &*self.activation
     }
 
-    fn get_input_output_size(&self) -> (usize, usize) {
+    fn input_output_size(&self) -> (usize, usize) {
         (self.input_size, self.output_size)
     }
 
@@ -232,10 +229,5 @@ mod tests {
         let (_d_input, d_weights, d_biases) = layer.backward(&d_output, &input, &mut pre_activated_output, &output);
 
         layer.update(&d_weights, &d_biases, 1);
-
-        // Add assertions to verify the updated weights and biases
-        // For example:
-        // assert_eq!(layer.weights, expected_weights);
-        // assert_eq!(layer.biases, expected_biases);
     }
 }

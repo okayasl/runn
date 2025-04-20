@@ -6,7 +6,7 @@ use runn::{
     layer::Dense,
     matrix::DenseMatrix,
     network::network::{Network, NetworkBuilder},
-    network_search::{search, SearchConfigsBuilder},
+    network_search::NetworkSearchBuilder,
     relu::ReLU,
     search_param::{Parameters, RangeParameters},
     softmax::Softmax,
@@ -148,7 +148,7 @@ fn train_and_validate() {
 
 fn generate_network(inp_size: usize, targ_size: usize) -> Network {
     let network = NetworkBuilder::new(inp_size, targ_size)
-        .layer(Dense::new().size(16).activation(ReLU::new()).build())
+        .layer(Dense::new().size(24).activation(ReLU::new()).build())
         .layer(Dense::new().size(targ_size).activation(Softmax::new()).build())
         .loss_function(CrossEntropy::new().epsilon(1e-8).build())
         .optimizer(Adam::new().beta1(0.99).beta2(0.999).learning_rate(0.0035).build())
@@ -159,10 +159,10 @@ fn generate_network(inp_size: usize, targ_size: usize) -> Network {
         //         .monitor_accuracy(true)
         //         .build(),
         // )
-        .batch_size(10)
+        .batch_size(5)
         //.batch_group_size(1)
         // .parallelize(3)
-        .epochs(3000)
+        .epochs(300)
         .seed(55)
         .summary(TensorBoard::new().logdir("summary").build())
         //.debug(true)
@@ -184,9 +184,11 @@ fn test_search() {
     let validation_inputs = get_validation_input_matrix();
     let validation_targets = get_validation_target_matrix();
 
-    let nw = generate_network(training_inputs.cols(), training_targets.cols());
+    let network = generate_network(training_inputs.cols(), training_targets.cols());
 
-    let sp = SearchConfigsBuilder::new()
+    let mut network_search = NetworkSearchBuilder::new()
+        .network(network)
+        .parallelize(4)
         .learning_rates(
             RangeParameters::new()
                 .lower_limit(0.0025)
@@ -209,10 +211,11 @@ fn test_search() {
                 .int_parameters(),
             ReLU::new(),
         )
-        .export("search".to_string())
+        .export("search2".to_string())
         .build();
 
-    let search_res = search(nw, sp, 4, training_inputs, training_targets, validation_inputs, validation_targets);
+    let search_res =
+        network_search.search(&training_inputs, &training_targets, &validation_inputs, &validation_targets);
 
     info!("Num Results: {}", search_res.len());
 }

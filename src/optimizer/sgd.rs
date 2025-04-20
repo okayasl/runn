@@ -57,8 +57,14 @@ pub struct SGDConfig {
 
 #[typetag::serde]
 impl OptimizerConfig for SGDConfig {
+    fn update_learning_rate(&mut self, learning_rate: f32) {
+        self.learning_rate = learning_rate;
+    }
     fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
         Box::new(SGDOptimizer::new(*self))
+    }
+    fn learning_rate(&self) -> f32 {
+        self.learning_rate
     }
 }
 
