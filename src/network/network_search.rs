@@ -158,26 +158,22 @@ pub struct NetworkConfig {
     learning_rate: f32,
     batch_size: usize,
     layer_sizes: Vec<usize>,
-    activation_functions: Vec<Box<dyn ActivationFunction>>,
 }
 
 fn extract_config_from_network(nw: &Network) -> NetworkConfig {
     let learning_rate = nw.optimizer_config.learning_rate();
     let batch_size = nw.batch_size;
     let mut layer_sizes = Vec::new();
-    let mut activation_functions = Vec::new();
 
     for layer in nw.layers.iter().take(nw.layers.len() - 1) {
         let (_, output_size) = layer.input_output_size();
         layer_sizes.push(output_size);
-        activation_functions.push(layer.activation_function().clone_box());
     }
 
     NetworkConfig {
         learning_rate,
         batch_size,
         layer_sizes,
-        activation_functions,
     }
 }
 
