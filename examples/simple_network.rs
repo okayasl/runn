@@ -18,7 +18,8 @@ use std::{env, fs::File};
 
 fn main() {
     // Create a log file
-    let log_file = File::create("app.log").expect("Could not create log file");
+    let log_file = File::create("app.log")
+    .expect("Could not create log file");
 
     // // Initialize the logger to write to the log file
     // Builder::new()
@@ -106,8 +107,8 @@ fn main() {
 
 fn train_and_validate() {
     let filed = String::from("network.json");
-    let training_inputs = get_training_input_matrix();
-    let training_targets = get_training_target_matrix();
+    let training_inputs = get_training_inputs();
+    let training_targets = get_training_targets();
     let mut network = generate_network(training_inputs.cols(), training_targets.cols());
 
     let training_result = network.train(&training_inputs, &training_targets);
@@ -116,7 +117,7 @@ fn train_and_validate() {
             println!("Training completed successfully");
             network.save(&filed, runn::network_io::SerializationFormat::Json);
             let net_results = network.predict(&training_inputs, &training_targets);
-            util::print_matrices_comparisons(&training_inputs, &training_targets, &net_results.predictions);
+            util::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
             util::print_metrics(
                 net_results.accuracy,
                 net_results.loss,
@@ -132,10 +133,10 @@ fn train_and_validate() {
     }
 
     network = Network::load(&filed, runn::network_io::SerializationFormat::Json);
-    let validation_inputs = get_validation_input_matrix();
-    let validation_targets = get_validation_target_matrix();
+    let validation_inputs = get_validation_inputs();
+    let validation_targets = get_validation_targets();
     let net_results = network.predict(&validation_inputs, &validation_targets);
-    util::print_matrices_comparisons(&validation_inputs, &validation_targets, &net_results.predictions);
+    util::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
     util::print_metrics(
         net_results.accuracy,
         net_results.loss,
@@ -148,7 +149,7 @@ fn train_and_validate() {
 
 fn generate_network(inp_size: usize, targ_size: usize) -> Network {
     let network = NetworkBuilder::new(inp_size, targ_size)
-        .layer(Dense::new().size(24).activation(ReLU::new()).build())
+        .layer(Dense::new().size(16).activation(ReLU::new()).build())
         .layer(Dense::new().size(targ_size).activation(Softmax::new()).build())
         .loss_function(CrossEntropy::new().epsilon(1e-8).build())
         .optimizer(Adam::new().beta1(0.99).beta2(0.999).learning_rate(0.0035).build())
@@ -159,10 +160,10 @@ fn generate_network(inp_size: usize, targ_size: usize) -> Network {
         //         .monitor_accuracy(true)
         //         .build(),
         // )
-        .batch_size(5)
-        //.batch_group_size(1)
-        // .parallelize(3)
-        .epochs(300)
+        .batch_size(8)
+        .batch_group_size(2)
+        .parallelize(2)
+        .epochs(3000)
         .seed(55)
         .summary(TensorBoard::new().logdir("summary").build())
         //.debug(true)
@@ -178,11 +179,11 @@ fn generate_network(inp_size: usize, targ_size: usize) -> Network {
 }
 
 fn test_search() {
-    let training_inputs = get_training_input_matrix();
-    let training_targets = get_training_target_matrix();
+    let training_inputs = get_training_inputs();
+    let training_targets = get_training_targets();
 
-    let validation_inputs = get_validation_input_matrix();
-    let validation_targets = get_validation_target_matrix();
+    let validation_inputs = get_validation_inputs();
+    let validation_targets = get_validation_targets();
 
     let network = generate_network(training_inputs.cols(), training_targets.cols());
 
@@ -220,7 +221,7 @@ fn test_search() {
     info!("Num Results: {}", search_res.len());
 }
 
-fn get_training_input_matrix() -> DenseMatrix {
+fn get_training_inputs() -> DenseMatrix {
     let inps = vec![
         5.0, 4.0, 4.0, 2.0, 5.0, 5.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 1.0, 6.0, 2.0, 1.0, 3.0, 6.0, 5.0, 5.0, 5.0, 3.0,
         2.0, 6.0, 4.0, 9.0, 4.0, 0.0, 0.0, 0.0, 2.0, 6.0, 4.0, 2.0, 6.0, 2.0, 8.0, 8.0, 8.0, 2.0, 7.0, 2.0, 0.0, 0.0,
@@ -255,7 +256,7 @@ fn get_training_input_matrix() -> DenseMatrix {
     DenseMatrix::new(inps_row, inp_size, &inps)
 }
 
-fn get_training_target_matrix() -> DenseMatrix {
+fn get_training_targets() -> DenseMatrix {
     let tar = vec![
         0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0,
         0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0,
@@ -291,7 +292,7 @@ fn get_training_target_matrix() -> DenseMatrix {
     DenseMatrix::new(targ_row, targ_size, &tar)
 }
 
-fn get_validation_input_matrix() -> DenseMatrix {
+fn get_validation_inputs() -> DenseMatrix {
     let inps = vec![
         1.0, 6.0, 5.0, 0.0, 8.0, 9.0, 7.0, 6.0, 6.0, 0.0, 9.0, 9.0, 0.0, 7.0, 0.0, 8.0, 3.0, 8.0, 4.0, 9.0, 5.0, 7.0,
         5.0, 6.0, 6.0, 5.0, 5.0, 0.0, 9.0, 8.0, 3.0, 0.0, 3.0, 2.0, 5.0, 7.0, 1.0, 1.0, 1.0, 6.0, 2.0, 0.0, 7.0, 5.0,
@@ -305,7 +306,7 @@ fn get_validation_input_matrix() -> DenseMatrix {
     DenseMatrix::new(inps_row, inp_size, &inps)
 }
 
-fn get_validation_target_matrix() -> DenseMatrix {
+fn get_validation_targets() -> DenseMatrix {
     let tar = vec![
         0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0,
         0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0,

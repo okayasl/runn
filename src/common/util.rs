@@ -166,7 +166,7 @@ pub(crate) fn flatten(matrix: &DenseMatrix) -> Vec<f32> {
     result
 }
 
-pub fn print_matrices_comparisons(input: &DenseMatrix, target: &DenseMatrix, prediction: &DenseMatrix) {
+pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, prediction: &DenseMatrix) {
     let r = input.rows();
     let tc = target.cols();
     let pc = prediction.cols();
