@@ -329,7 +329,7 @@ mod tests {
         adam::Adam,
         cross_entropy::CrossEntropy,
         relu::ReLU,
-        softmax::{Softmax, SoftmaxActivation},
+        softmax::Softmax,
     };
 
     use super::*;

@@ -135,8 +135,8 @@ mod tests {
     use crate::adam::Adam;
     use crate::common::matrix::DenseMatrix;
     use crate::random::Randomizer;
-    use crate::relu::{ReLU, ReLUActivation};
-    use crate::sigmoid::{Sigmoid, SigmoidActivation};
+    use crate::relu::ReLU;
+    use crate::sigmoid::Sigmoid;
     use crate::OptimizerConfig;
 
     #[test]
