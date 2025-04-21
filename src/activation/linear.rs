@@ -11,16 +11,18 @@ use typetag;
 // Range: (-∞, +∞)
 // Best for: Output layers where prediction of continuous values is required.
 #[derive(Serialize, Deserialize, Clone)]
+pub struct LinearActivation;
+
 pub struct Linear;
 
 impl Linear {
-    pub fn new() -> Self {
-        Linear {}
+    pub fn new() -> LinearActivation {
+        LinearActivation {}
     }
 }
 
 #[typetag::serde]
-impl ActivationFunction for Linear {
+impl ActivationFunction for LinearActivation {
     fn forward(&self, _input: &mut DenseMatrix) {
         // Linear activation: no change to input
     }

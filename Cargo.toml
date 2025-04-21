@@ -23,3 +23,11 @@ rayon = "1.7"
 opt-level = 3 # Optimization level (0-3, s, z)
 lto = true    # Enable Link Time Optimization
 debug = false # Disable debug information
+
+[[example]]
+name = "simple"
+path = "examples/simple/simple.rs"
+
+[[example]]
+name = "iris"
+path = "examples/iris/iris.rs"

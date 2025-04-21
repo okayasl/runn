@@ -13,17 +13,19 @@ use super::xavier_initialization;
 // Range: (-1, 1)
 // Best for: Hidden layers in a network where data normalization is beneficial, such as in certain types of autoencoders.
 #[derive(Serialize, Deserialize, Clone)]
+pub struct TanhActivation;
+
+// Builder for Tanh
 pub struct Tanh;
 
 impl Tanh {
-    // Constructor for Tanh
-    pub fn new() -> Self {
-        Tanh {}
+    pub fn new() -> TanhActivation {
+        TanhActivation
     }
 }
 
 #[typetag::serde]
-impl ActivationFunction for Tanh {
+impl ActivationFunction for TanhActivation {
     // Forward pass: Apply Tanh element-wise to the input matrix
     fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| x.tanh());
@@ -52,7 +54,7 @@ mod tanh_tests {
     #[test]
     fn test_tanh_forward_zero_input() {
         let mut input = DenseMatrix::new(1, 1, &[0.0f32]);
-        let tanh = Tanh;
+        let tanh = TanhActivation;
         tanh.forward(&mut input);
 
         let expected = DenseMatrix::new(1, 1, &[0.0f32]);
@@ -62,7 +64,7 @@ mod tanh_tests {
     #[test]
     fn test_tanh_forward_mixed_values() {
         let mut input = DenseMatrix::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
-        let tanh = Tanh;
+        let tanh = TanhActivation;
         tanh.forward(&mut input);
 
         // Expected outputs using tanh function
@@ -86,7 +88,7 @@ mod tanh_tests {
     fn test_tanh_backward() {
         let mut input = DenseMatrix::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
         let d_output = DenseMatrix::new(2, 3, &[0.5f32, 1.0, 0.7, 0.2, 0.3, 0.1]);
-        let tanh = Tanh;
+        let tanh = TanhActivation;
 
         tanh.forward(&mut input); // First apply forward pass
         let original_input = input.clone();
@@ -114,7 +116,7 @@ mod tanh_tests {
     fn test_tanh_bounds() {
         let test_cases = [(f32::NEG_INFINITY, -1.0f32), (f32::INFINITY, 1.0f32)];
 
-        let tanh = Tanh;
+        let tanh = TanhActivation;
 
         for (input_value, expected_output) in test_cases {
             let mut input = DenseMatrix::new(1, 1, &[input_value]);
@@ -134,7 +136,7 @@ mod tanh_tests {
             (0.5f32, 0.5f32.tanh()),
         ];
 
-        let tanh = Tanh;
+        let tanh = TanhActivation;
 
         for (input_value, expected_output) in test_cases {
             let mut input = DenseMatrix::new(1, 1, &[input_value]);

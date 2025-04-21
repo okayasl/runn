@@ -15,17 +15,18 @@ use super::he_initialization;
 // Best for: General use in most neural networks, especially in hidden layers,
 // as it helps to alleviate the vanishing gradient problem.
 #[derive(Serialize, Deserialize, Clone)]
+pub struct ReLUActivation;
+
 pub struct ReLU;
 
 impl ReLU {
-    // Constructor for ELU
-    pub fn new() -> Self {
-        ReLU {}
+    pub fn new() -> ReLUActivation {
+        ReLUActivation {}
     }
 }
 
 #[typetag::serde]
-impl ActivationFunction for ReLU {
+impl ActivationFunction for ReLUActivation {
     // Forward pass: Apply ReLU element-wise to the input matrix.
     fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| x.max(0.0)); // ReLU: max(0, x)
@@ -51,7 +52,7 @@ mod relu_tests {
     fn test_relu_forward_positive_values() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
-        let relu = ReLU;
+        let relu = ReLUActivation;
         relu.forward(&mut input);
 
         // Positive values should remain unchanged
@@ -64,7 +65,7 @@ mod relu_tests {
     fn test_relu_forward_mixed_values() {
         let mut input = DenseMatrix::new(2, 3, &[-1.0, 0.0, 2.0, -3.5, 4.2, 0.0]);
 
-        let relu = ReLU;
+        let relu = ReLUActivation;
         relu.forward(&mut input);
 
         // Expected output: zeros for negative values, unchanged for non-negative
@@ -81,7 +82,7 @@ mod relu_tests {
         // Downstream gradient
         let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
 
-        let relu = ReLU;
+        let relu = ReLUActivation;
         let output = input.clone();
         relu.backward(&d_output, &mut input, &output);
 
@@ -99,7 +100,7 @@ mod relu_tests {
         let d_output = DenseMatrix::new(1, 3, &[0.5, 1.0, 0.7]);
         let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let relu = ReLU;
+        let relu = ReLUActivation;
         relu.backward(&d_output, &mut input, &output);
 
         // Expected output: all zeros

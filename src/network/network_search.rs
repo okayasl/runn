@@ -325,7 +325,12 @@ fn convert_results(search_results: &[SearchResult]) -> Vec<NetworkResult> {
 mod tests {
     use std::error::Error;
 
-    use crate::{adam::Adam, cross_entropy::CrossEntropy, relu::ReLU, softmax::Softmax};
+    use crate::{
+        adam::Adam,
+        cross_entropy::CrossEntropy,
+        relu::ReLU,
+        softmax::{Softmax, SoftmaxActivation},
+    };
 
     use super::*;
 

@@ -13,18 +13,33 @@ use super::he_initialization;
 // Range: (-∞, +∞)
 // Best for: Deeper networks where traditional functions like ReLU tend to underperform.
 #[derive(Serialize, Deserialize, Clone)]
+pub struct SwishActivation {
+    beta: f32,
+}
+
 pub struct Swish {
     beta: f32,
 }
 
 impl Swish {
-    pub fn new(beta: f32) -> Self {
-        Swish { beta }
+    pub fn new() -> Self {
+        Swish { beta: 1.0 } // Default beta = 1.0
+    }
+
+    // Method to set the beta value
+    pub fn beta(mut self, beta: f32) -> Self {
+        self.beta = beta;
+        self
+    }
+
+    // Method to build the Swish instance
+    pub fn build(self) -> SwishActivation {
+        SwishActivation { beta: self.beta }
     }
 }
 
 #[typetag::serde]
-impl ActivationFunction for Swish {
+impl ActivationFunction for SwishActivation {
     fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| x / (1.0 + (-self.beta * x).exp()));
     }
@@ -51,7 +66,7 @@ mod swish_tests {
     fn test_swish_forward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
 
-        let swish = Swish::new(1.0);
+        let swish = Swish::new().beta(1.0).build();
         swish.forward(&mut input);
 
         // Expected output: approximate values
@@ -65,7 +80,7 @@ mod swish_tests {
         let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
         let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let swish = Swish::new(1.0);
+        let swish = Swish::new().beta(1.0).build();
         swish.backward(&d_output, &mut input, &output);
 
         // Expected output: approximate values

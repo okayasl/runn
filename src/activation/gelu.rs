@@ -15,16 +15,18 @@ use super::he_initialization;
 // Best for: Transformer models (such as BERT) where it has been shown to improve performance
 // and convergence over standard ReLU.
 #[derive(Serialize, Deserialize, Clone)]
+pub struct GELUActivation;
+
 pub struct GELU;
 
 impl GELU {
-    pub fn new() -> Self {
-        GELU {}
+    pub fn new() -> GELUActivation {
+        GELUActivation {}
     }
 }
 
 #[typetag::serde]
-impl ActivationFunction for GELU {
+impl ActivationFunction for GELUActivation {
     fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| 0.5 * x * (1.0 + special::Primitive::erf(x / (2.0_f32.sqrt()))));
     }

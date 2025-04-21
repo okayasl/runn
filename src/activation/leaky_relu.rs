@@ -13,18 +13,33 @@ use super::he_initialization;
 // Range: (-∞, +∞)
 // Best for: Improving learning in networks where the "dying ReLU" problem is a concern.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct LeakyReLU {
+pub struct LeakyReLUActivation {
     alpha: f32,
 }
 
+// LeakyReLU Builder for a user-friendly interface
+pub struct LeakyReLU {
+    alpha: f32,
+}
 impl LeakyReLU {
-    pub fn new(alpha: f32) -> Self {
-        LeakyReLU { alpha }
+    pub fn new() -> Self {
+        LeakyReLU { alpha: 0.01 } // Default alpha = 0.01
+    }
+
+    // Method to set the alpha value
+    pub fn alpha(mut self, alpha: f32) -> Self {
+        self.alpha = alpha;
+        self
+    }
+
+    // Method to build the ELU instance
+    pub fn build(self) -> LeakyReLUActivation {
+        LeakyReLUActivation { alpha: self.alpha }
     }
 }
 
 #[typetag::serde]
-impl ActivationFunction for LeakyReLU {
+impl ActivationFunction for LeakyReLUActivation {
     fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| if x > 0.0 { x } else { self.alpha * x });
     }
@@ -48,7 +63,7 @@ mod leakyrelu_tests {
     fn test_leakyrelu_forward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
 
-        let leakyrelu = LeakyReLU::new(0.01);
+        let leakyrelu = LeakyReLU::new().alpha(0.01).build();
         leakyrelu.forward(&mut input);
 
         // Expected output: approximate values
@@ -63,7 +78,7 @@ mod leakyrelu_tests {
         let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
         let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let leakyrelu = LeakyReLU::new(0.01);
+        let leakyrelu = LeakyReLU::new().alpha(0.01).build();
         leakyrelu.backward(&d_output, &mut input, &output);
 
         // Expected output: approximate values

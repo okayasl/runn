@@ -16,10 +16,15 @@ use runn::{
 
 use std::{env, fs::File};
 
+// Multi-class classification
+// One-hot encoding problem with 3 classes.
+// predict 1,0,0 if all input elements are same
+// predict 0,1,0 if only two of the input elements are same
+// predict 0,0,1 if none of the input elements are same
+
 fn main() {
     // Create a log file
-    let log_file = File::create("app.log")
-    .expect("Could not create log file");
+    let log_file = File::create("app.log").expect("Could not create log file");
 
     // // Initialize the logger to write to the log file
     // Builder::new()
@@ -212,7 +217,7 @@ fn test_search() {
                 .int_parameters(),
             ReLU::new(),
         )
-        .export("search2".to_string())
+        .export("search".to_string())
         .build();
 
     let search_res =

@@ -16,19 +16,34 @@ use super::he_initialization;
 // Best for: Improving learning in networks where vanishing gradients are an issue;
 // it tends to converge faster and produces more accurate results than ReLU in some cases.
 #[derive(Serialize, Deserialize, Clone)]
+pub struct ELUActivation {
+    alpha: f32,
+}
+
+//ELU Builder for a user-friendly interface
 pub struct ELU {
     alpha: f32,
 }
 
 impl ELU {
-    // Constructor for ELU
-    pub fn new(alpha: f32) -> Self {
-        ELU { alpha }
+    pub fn new() -> Self {
+        ELU { alpha: 1.0 } // Default alpha = 1.0
+    }
+
+    // Method to set the alpha value
+    pub fn alpha(mut self, alpha: f32) -> Self {
+        self.alpha = alpha;
+        self
+    }
+
+    // Method to build the ELU instance
+    pub fn build(self) -> ELUActivation {
+        ELUActivation { alpha: self.alpha }
     }
 }
 
 #[typetag::serde]
-impl ActivationFunction for ELU {
+impl ActivationFunction for ELUActivation {
     fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| {
             if x > 0.0 {
@@ -55,28 +70,6 @@ impl ActivationFunction for ELU {
     }
 }
 
-//ELU Builder for a user-friendly interface
-pub struct ELUBuilder {
-    alpha: f32,
-}
-
-impl ELUBuilder {
-    pub fn new() -> Self {
-        ELUBuilder { alpha: 1.0 } // Default alpha = 1.0
-    }
-
-    // Method to set the alpha value
-    pub fn alpha(mut self, alpha: f32) -> Self {
-        self.alpha = alpha;
-        self
-    }
-
-    // Method to build the ELU instance
-    pub fn build(self) -> ELU {
-        ELU::new(self.alpha)
-    }
-}
-
 #[cfg(test)]
 mod elu_tests {
     use super::*;
@@ -84,7 +77,7 @@ mod elu_tests {
 
     #[test]
     fn test_elu_forward_positive_values() {
-        let elu = ELU::new(1.0);
+        let elu = ELU::new().alpha(1.0).build();
 
         let mut input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
 
@@ -99,7 +92,7 @@ mod elu_tests {
     #[test]
     fn test_elu_forward_mixed_values() {
         // Create an ELU with default alpha (typically 1.0)
-        let elu = ELU::new(1.0);
+        let elu = ELU::new().alpha(1.0).build();
 
         // Create a matrix with mixed positive and negative values
         let mut input = DenseMatrix::new(2, 3, &[-1.0, 0.0, 2.0, -3.5, 4.2, 0.0]);
@@ -128,7 +121,7 @@ mod elu_tests {
 
     #[test]
     fn test_elu_backward_positive_values() {
-        let elu = ELU::new(1.0);
+        let elu = ELU::new().alpha(1.0).build();
 
         // Original input matrix with positive values
         let mut input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
@@ -154,7 +147,7 @@ mod elu_tests {
         let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
         // Create an ELU with default alpha (typically 1.0)
-        let elu = ELU::new(1.0);
+        let elu = ELU::new().alpha(1.0).build();
         elu.backward(&d_output, &mut input, &output);
 
         // Expected output:
@@ -186,7 +179,7 @@ mod elu_tests {
         ];
 
         for (alpha, input_value, expected_output) in test_cases {
-            let elu = ELU::new(alpha);
+            let elu = ELU::new().alpha(alpha).build();
 
             let mut input = DenseMatrix::new(1, 1, &[input_value]);
 

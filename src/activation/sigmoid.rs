@@ -14,17 +14,19 @@ use super::xavier_initialization;
 // Range: (0, 1)
 // Best for: Binary classification tasks in the output layer of a network.
 #[derive(Serialize, Deserialize, Clone)]
+pub struct SigmoidActivation;
+
+// Builder for SigmoidActivation
 pub struct Sigmoid;
 
 impl Sigmoid {
-    // Constructor for Sigmoid
-    pub fn new() -> Self {
-        Sigmoid {}
+    pub fn new() -> SigmoidActivation {
+        SigmoidActivation {}
     }
 }
 
 #[typetag::serde]
-impl ActivationFunction for Sigmoid {
+impl ActivationFunction for SigmoidActivation {
     // Forward pass: Apply Sigmoid element-wise to the input matrix
     fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| 1.0 / (1.0 + (-x).exp()));
@@ -49,7 +51,7 @@ mod sigmoid_tests {
     #[test]
     fn test_sigmoid_forward_zero_input() {
         let mut input = DenseMatrix::new(1, 1, &[0.0f32]);
-        let sigmoid = Sigmoid;
+        let sigmoid = SigmoidActivation;
         sigmoid.forward(&mut input);
 
         let expected = DenseMatrix::new(1, 1, &[0.5f32]);
@@ -59,7 +61,7 @@ mod sigmoid_tests {
     #[test]
     fn test_sigmoid_forward_mixed_values() {
         let mut input = DenseMatrix::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
-        let sigmoid = Sigmoid;
+        let sigmoid = SigmoidActivation;
         sigmoid.forward(&mut input);
 
         // Expected outputs calculated manually for verification
@@ -85,7 +87,7 @@ mod sigmoid_tests {
         let d_output = DenseMatrix::new(2, 3, &[0.5f32, 1.0, 0.7, 0.2, 0.3, 0.1]);
         let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let sigmoid = Sigmoid;
+        let sigmoid = SigmoidActivation;
         sigmoid.forward(&mut input); // First apply forward pass
         let original_input = input.clone();
 
@@ -112,7 +114,7 @@ mod sigmoid_tests {
     fn test_sigmoid_bounds() {
         let test_cases = [(f32::NEG_INFINITY, 0.0f32), (f32::INFINITY, 1.0f32)];
 
-        let sigmoid = Sigmoid;
+        let sigmoid = SigmoidActivation;
 
         for (input_value, expected_output) in test_cases {
             let mut input = DenseMatrix::new(1, 1, &[input_value]);

@@ -11,16 +11,17 @@ use typetag;
 // Range: (0, +∞)
 // Best for: Situations where a non-zero gradient is beneficial, providing a smooth approximation to ReLU.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct Softplus;
+pub struct SoftplusActivation;
 
+pub struct Softplus;
 impl Softplus {
-    pub fn new() -> Self {
-        Softplus {}
+    pub fn new() -> SoftplusActivation {
+        SoftplusActivation {}
     }
 }
 
 #[typetag::serde]
-impl ActivationFunction for Softplus {
+impl ActivationFunction for SoftplusActivation {
     fn forward(&self, input: &mut DenseMatrix) {
         input.apply(|x| (1.0 + x.exp()).ln());
     }
