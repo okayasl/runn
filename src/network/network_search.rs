@@ -220,15 +220,22 @@ impl NetworkSearch {
         let nc_jobs_rx = Arc::new(Mutex::new(nc_jobs_rx)); // Wrap the Receiver in Arc<Mutex<>>
         let mut handles = vec![];
 
+        let training_inputs = Arc::new(training_inputs.clone());
+        let training_targets = Arc::new(training_targets.clone());
+        let validation_inputs = Arc::new(validation_inputs.clone());
+        let validation_targets = Arc::new(validation_targets.clone());
+
         for _ in 0..self.parallelize {
             let nc_jobs_rx = Arc::clone(&nc_jobs_rx); // Clone the Arc<Mutex<Receiver>>
             let results_tx = results_tx.clone();
             let network_count = Arc::clone(&network_count);
             let period = Arc::clone(&period);
-            let training_inputs = training_inputs.clone();
-            let training_targets = training_targets.clone();
-            let validation_inputs = validation_inputs.clone();
-            let validation_targets = validation_targets.clone();
+
+            // Clone the Arc-wrapped data for each thread
+            let training_inputs = Arc::clone(&training_inputs);
+            let training_targets = Arc::clone(&training_targets);
+            let validation_inputs = Arc::clone(&validation_inputs);
+            let validation_targets = Arc::clone(&validation_targets);
 
             let handle = thread::spawn(move || {
                 while let Ok(job) = nc_jobs_rx.lock().unwrap().recv() {
