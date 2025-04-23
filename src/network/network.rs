@@ -1,10 +1,9 @@
 use std::error::Error;
 
 use log::{error, info};
-use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator},
-    ThreadPoolBuilder,
-};
+use rayon::
+    iter::{IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator}
+;
 
 use crate::{
     dropout::DropoutRegularization,
@@ -282,7 +281,7 @@ impl Network {
         let mut shuffled_inputs = DenseMatrix::zeros(sample_size, self.input_size);
         let mut shuffled_targets = DenseMatrix::zeros(sample_size, self.output_size);
 
-        self.initialize_threadpool();
+        //        self.initialize_threadpool();
         self.init_summary_writer();
         let mut last_epoch = 0;
         for epoch in 1..=self.epochs {
@@ -293,7 +292,7 @@ impl Network {
             let (group_inputs, group_targets) = self.create_groups(&batch_inputs, &batch_targets);
 
             for (grp_id, (grp_inputs, grp_targets)) in group_inputs.iter().zip(group_targets.iter()).enumerate() {
-                let (grp_predictions, mut group_layer_inputs) = self.forward(grp_inputs);
+                let (grp_predictions, mut grp_layer_params) = self.forward(grp_inputs);
                 self.log_group_training_info(
                     epoch,
                     group_inputs.len(),
@@ -302,7 +301,7 @@ impl Network {
                     grp_targets,
                     &grp_predictions,
                 );
-                self.backward(&grp_predictions, grp_targets, &mut group_layer_inputs, epoch);
+                self.backward(&grp_predictions, grp_targets, &mut grp_layer_params, epoch);
             }
 
             let epoch_result = self.predict(&training_inputs, targets);
@@ -321,8 +320,8 @@ impl Network {
         Ok(final_result)
     }
 
-    fn forward(&self, batch_inputs: &[DenseMatrix]) -> (Vec<DenseMatrix>, Vec<Vec<LayerParams>>) {
-        let results: Vec<(DenseMatrix, Vec<LayerParams>)> = batch_inputs
+    fn forward(&self, group_inputs: &[DenseMatrix]) -> (Vec<DenseMatrix>, Vec<Vec<LayerParams>>) {
+        let results: Vec<(DenseMatrix, Vec<LayerParams>)> = group_inputs
             .par_iter()
             .map(|input| {
                 let mut layer_params = Vec::with_capacity(self.layers.len());
@@ -351,16 +350,16 @@ impl Network {
             .collect();
 
         // Split the results into batch_predictions and batch_layer_params
-        let (batch_predictions, batch_layer_params): (Vec<_>, Vec<_>) = results.into_iter().unzip();
+        let (group_predictions, group_layer_params): (Vec<_>, Vec<_>) = results.into_iter().unzip();
 
-        (batch_predictions, batch_layer_params)
+        (group_predictions, group_layer_params)
     }
 
     fn backward(
         &mut self,
-        predicteds: &[DenseMatrix],                  // Predictions for each batch
-        targets: &[DenseMatrix],                     // Targets for each batch
-        batch_layer_params: &mut [Vec<LayerParams>], // LayerParams for each batch
+        group_predictions: &[DenseMatrix],           // Predictions for each batch
+        group_targets: &[DenseMatrix],               // Targets for each batch
+        group_layer_params: &mut [Vec<LayerParams>], // LayerParams for each batch
         epoch: usize,
     ) {
         // Initialize aggregated gradients for weights and biases
@@ -376,10 +375,10 @@ impl Network {
         let layer_idx_length = self.layers.len() - 1;
 
         // Parallelize the computation of gradients for each batch
-        let batch_gradients: Vec<(Vec<DenseMatrix>, Vec<DenseMatrix>)> = predicteds
+        let group_gradients: Vec<(Vec<DenseMatrix>, Vec<DenseMatrix>)> = group_predictions
             .par_iter()
-            .zip(targets.par_iter())
-            .zip(batch_layer_params.par_iter_mut())
+            .zip(group_targets.par_iter())
+            .zip(group_layer_params.par_iter_mut())
             .map(|((predicted, target), layer_params)| {
                 let mut d_output = self.loss_function.backward(predicted, target);
 
@@ -417,12 +416,13 @@ impl Network {
             .collect();
 
         // Aggregate gradients across all batches
-        for (batch_d_weights, batch_d_biases) in batch_gradients {
-            for (i, (d_weights, d_biases)) in batch_d_weights.into_iter().zip(batch_d_biases).enumerate() {
+        for (group_d_weights, group_d_biases) in group_gradients {
+            for (i, (d_weights, d_biases)) in group_d_weights.into_iter().zip(group_d_biases).enumerate() {
                 aggregated_d_weights[i].add(&d_weights);
                 aggregated_d_biases[i].add(&d_biases);
             }
         }
+
         for (i, layer) in self.layers.iter_mut().enumerate() {
             // Regulate gradients for the current layer
             for reg in &self.regularization {
@@ -468,15 +468,15 @@ impl Network {
         }
     }
 
-    fn initialize_threadpool(&mut self) {
-        if self.parallelize <= 0 || self.search {
-            return;
-        }
-        ThreadPoolBuilder::new()
-            .num_threads(self.parallelize)
-            .build_global()
-            .expect("Failed to build global thread pool");
-    }
+    // fn initialize_threadpool(&mut self) {
+    //     if self.parallelize <= 0 || self.search {
+    //         return;
+    //     }
+    //     ThreadPoolBuilder::new()
+    //         .num_threads(self.parallelize)
+    //         .build_global()
+    //         .expect("Failed to build global thread pool");
+    // }
 
     fn close_summary_writer(&mut self) {
         if let Some(summary_writer) = self.summary_writer.as_mut() {
@@ -830,5 +830,170 @@ pub fn calculate_metrics(targets: &DenseMatrix, predictions: &DenseMatrix) -> Me
         macro_f1_score: macro_f1,
         micro_f1_score: micro_f1,
         metrics_by_class,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        dropout::Dropout,
+        l1::L1,
+        l2::L2,
+        matrix::DenseMatrix,
+        mean_squared_error::MeanSquared,
+        numbers::{Numbers, RandomNumbers},
+        relu::ReLU,
+        sgd::SGD,
+        sigmoid::Sigmoid,
+        softmax::Softmax,
+        Dense,
+    };
+
+    #[test]
+    fn test_network_builder_with_minimal_configuration() {
+        let builder = NetworkBuilder::new(4, 3)
+            .layer(Dense::new().size(5).activation(ReLU::new()).build())
+            .layer(Dense::new().size(3).activation(Softmax::new()).build())
+            .loss_function(MeanSquared::new())
+            .optimizer(SGD::new().learning_rate(0.01).build())
+            .epochs(10)
+            .batch_size(2);
+
+        let network = builder.build();
+        assert!(network.is_ok(), "Network should build successfully with minimal configuration");
+    }
+
+    #[test]
+    fn test_network_builder_with_regularization() {
+        let builder = NetworkBuilder::new(4, 3)
+            .layer(Dense::new().size(5).activation(ReLU::new()).build())
+            .layer(Dense::new().size(3).activation(Softmax::new()).build())
+            .loss_function(MeanSquared::new())
+            .optimizer(SGD::new().learning_rate(0.01).build())
+            .regularization(L1::new().lambda(0.01).build())
+            .regularization(L2::new().lambda(0.01).build())
+            .epochs(10)
+            .batch_size(2);
+
+        let network = builder.build();
+        assert!(network.is_ok(), "Network should build successfully with regularization");
+    }
+
+    #[test]
+    fn test_network_builder_with_dropout() {
+        let builder = NetworkBuilder::new(4, 3)
+            .layer(Dense::new().size(5).activation(ReLU::new()).build())
+            .layer(Dense::new().size(3).activation(Softmax::new()).build())
+            .loss_function(MeanSquared::new())
+            .optimizer(SGD::new().learning_rate(0.01).build())
+            .regularization(Dropout::new().dropout_rate(0.5).seed(42).build())
+            .epochs(10)
+            .batch_size(2);
+
+        let network = builder.build();
+        assert!(network.is_ok(), "Network should build successfully with dropout regularization");
+    }
+
+    #[test]
+    fn test_network_training_with_simple_data() {
+        let mut network = NetworkBuilder::new(2, 1)
+            .layer(Dense::new().size(3).activation(ReLU::new()).build())
+            .layer(Dense::new().size(1).activation(Sigmoid::new()).build())
+            .loss_function(MeanSquared::new())
+            .optimizer(SGD::new().learning_rate(0.01).build())
+            .epochs(100)
+            .batch_size(1)
+            .build()
+            .unwrap();
+
+        let inputs = DenseMatrix::new(4, 2, &[0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]);
+        let targets = DenseMatrix::new(4, 1, &[0.0, 1.0, 1.0, 0.0]);
+
+        let result = network.train(&inputs, &targets);
+        assert!(result.is_ok(), "Training should complete without errors");
+        let accuracy = result.unwrap().accuracy;
+        assert!(accuracy > 0.9, "Network should achieve high accuracy on XOR problem");
+    }
+
+    #[test]
+    fn test_network_training_with_multiple_layers_and_regularization() {
+        let mut network = NetworkBuilder::new(4, 3)
+            .layer(Dense::new().size(8).activation(ReLU::new()).build())
+            .layer(Dense::new().size(8).activation(ReLU::new()).build())
+            .layer(Dense::new().size(3).activation(Softmax::new()).build())
+            .loss_function(MeanSquared::new())
+            .optimizer(SGD::new().learning_rate(0.01).build())
+            .regularization(L2::new().lambda(0.01).build())
+            .epochs(1000)
+            .batch_size(2)
+            .build()
+            .unwrap();
+        let input_data = RandomNumbers::new()
+            .lower_limit(0.0)
+            .upper_limit(1.0)
+            .size(100)
+            .seed(42)
+            .floats();
+        let target_data = RandomNumbers::new()
+            .lower_limit(0.0)
+            .upper_limit(1.0)
+            .size(75)
+            .seed(42)
+            .floats();
+
+        let inputs = DenseMatrix::new(25, 4, &input_data);
+        let targets = DenseMatrix::new(25, 3, &target_data);
+
+        let result = network.train(&inputs, &targets);
+        assert!(result.is_ok(), "Training should complete without errors");
+
+        let accuracy = result.unwrap().accuracy;
+        assert!(
+            accuracy > 0.5,
+            "Network should achieve reasonable accuracy on random data.Test accuracy: {}",
+            accuracy
+        );
+    }
+
+    #[test]
+    fn test_network_training_with_dropout_regularization() {
+        let mut network = NetworkBuilder::new(4, 3)
+            .layer(Dense::new().size(8).activation(ReLU::new()).build())
+            .layer(Dense::new().size(8).activation(ReLU::new()).build())
+            .layer(Dense::new().size(3).activation(Softmax::new()).build())
+            .loss_function(MeanSquared::new())
+            .optimizer(SGD::new().learning_rate(0.01).build())
+            .regularization(Dropout::new().dropout_rate(0.01).seed(42).build())
+            .epochs(800)
+            .batch_size(2)
+            .build()
+            .unwrap();
+
+        let input_data = RandomNumbers::new()
+            .lower_limit(0.0)
+            .upper_limit(1.0)
+            .size(100)
+            .seed(42)
+            .floats();
+        let target_data = RandomNumbers::new()
+            .lower_limit(0.0)
+            .upper_limit(1.0)
+            .size(75)
+            .seed(42)
+            .floats();
+
+        let inputs = DenseMatrix::new(25, 4, &input_data);
+        let targets = DenseMatrix::new(25, 3, &target_data);
+
+        let result = network.train(&inputs, &targets);
+        assert!(result.is_ok(), "Training should complete without errors");
+
+        let accuracy = result.unwrap().accuracy;
+        assert!(
+            accuracy > 0.5,
+            "Network should achieve reasonable accuracy with dropout regularization.Test accuracy: {}",
+            accuracy
+        );
     }
 }

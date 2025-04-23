@@ -8,8 +8,8 @@ use runn::{
     matrix::DenseMatrix,
     network::network::{Network, NetworkBuilder},
     network_search::NetworkSearchBuilder,
+    numbers::{Numbers, SequentialNumbers},
     relu::ReLU,
-    search_param::{Parameters, RangeParameters},
     softmax::Softmax,
     util,
 };
@@ -125,36 +125,36 @@ fn test_search() {
         .network(network)
         .parallelize(4)
         .learning_rates(
-            RangeParameters::new()
+            SequentialNumbers::new()
                 .lower_limit(0.0025)
                 .upper_limit(0.0035)
                 .increment(0.0005)
-                .float_parameters(),
+                .floats(),
         )
         .batch_sizes(
-            RangeParameters::new()
+            SequentialNumbers::new()
                 .lower_limit(7.0)
                 .upper_limit(10.0)
                 .increment(1.0)
-                .int_parameters(),
+                .ints(),
         )
         .hidden_layer(
-            RangeParameters::new()
+            SequentialNumbers::new()
                 .lower_limit(12.0)
                 .upper_limit(20.0)
                 .increment(4.0)
-                .int_parameters(),
+                .ints(),
             ReLU::new(),
         )
         .hidden_layer(
-            RangeParameters::new()
+            SequentialNumbers::new()
                 .lower_limit(12.0)
                 .upper_limit(20.0)
                 .increment(4.0)
-                .int_parameters(),
+                .ints(),
             ReLU::new(),
         )
-        .export("iris_search2".to_string())
+        .export("iris_search".to_string())
         .build();
 
     let search_res =

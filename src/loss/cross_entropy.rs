@@ -25,11 +25,30 @@ pub struct CrossEntropyLoss {
     epsilon: f32,
 }
 
-impl CrossEntropyLoss {
-    pub fn new(epsilon: f32) -> Self {
-        Self { epsilon }
+pub struct CrossEntropy {
+    epsilon: Option<f32>,
+}
+
+impl CrossEntropy {
+    /// Creates a new builder for CrossEntropyLoss
+    pub fn new() -> Self {
+        Self { epsilon: None }
+    }
+
+    /// Sets the epsilon value for the loss function
+    pub fn epsilon(mut self, epsilon: f32) -> Self {
+        self.epsilon = Some(epsilon);
+        self
+    }
+
+    /// Builds the CrossEntropyLoss instance
+    pub fn build(self) -> CrossEntropyLoss {
+        CrossEntropyLoss {
+            epsilon: self.epsilon.unwrap_or(1e-8), // Default epsilon value if not set
+        }
     }
 }
+
 #[typetag::serde]
 impl LossFunction for CrossEntropyLoss {
     fn forward(&self, predicted: &DenseMatrix, target: &DenseMatrix) -> f32 {
@@ -76,30 +95,6 @@ impl LossFunction for CrossEntropyLoss {
     }
 }
 
-pub struct CrossEntropy {
-    epsilon: Option<f32>,
-}
-
-impl CrossEntropy {
-    /// Creates a new builder for CrossEntropyLoss
-    pub fn new() -> Self {
-        Self { epsilon: None }
-    }
-
-    /// Sets the epsilon value for the loss function
-    pub fn epsilon(mut self, epsilon: f32) -> Self {
-        self.epsilon = Some(epsilon);
-        self
-    }
-
-    /// Builds the CrossEntropyLoss instance
-    pub fn build(self) -> CrossEntropyLoss {
-        CrossEntropyLoss {
-            epsilon: self.epsilon.unwrap_or(1e-8), // Default epsilon value if not set
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -107,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_forward() {
-        let loss = CrossEntropyLoss::new(1e-7);
+        let loss = CrossEntropy::new().epsilon(1e-7).build();
         let predicted = DenseMatrix::new(2, 2, &[0.9, 0.1, 0.2, 0.8]);
         let target = DenseMatrix::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
         let result = loss.forward(&predicted, &target);
@@ -116,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_backward() {
-        let loss = CrossEntropyLoss::new(1e-7);
+        let loss = CrossEntropy::new().epsilon(1e-7).build();
         let predicted = DenseMatrix::new(2, 2, &[0.9, 0.1, 0.2, 0.8]);
         let target = DenseMatrix::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
         let gradient = loss.backward(&predicted, &target);

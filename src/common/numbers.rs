@@ -1,19 +1,19 @@
 use rand::{Rng, SeedableRng};
 
-pub trait Parameters {
-    fn float_parameters(&self) -> Vec<f32>;
-    fn int_parameters(&self) -> Vec<usize>;
+pub trait Numbers {
+    fn floats(&self) -> Vec<f32>;
+    fn ints(&self) -> Vec<usize>;
 }
 
-pub struct RangeParameters {
+pub struct SequentialNumbers {
     lower_limit: f32,
     upper_limit: f32,
     increment: f32,
 }
 
-impl RangeParameters {
+impl SequentialNumbers {
     pub fn new() -> Self {
-        RangeParameters {
+        SequentialNumbers {
             lower_limit: 0.0,
             upper_limit: 0.0,
             increment: 0.0,
@@ -36,8 +36,8 @@ impl RangeParameters {
     }
 }
 
-impl Parameters for RangeParameters {
-    fn float_parameters(&self) -> Vec<f32> {
+impl Numbers for SequentialNumbers {
+    fn floats(&self) -> Vec<f32> {
         let mut values = Vec::new();
         let mut v = self.lower_limit;
         while v <= self.upper_limit {
@@ -47,7 +47,7 @@ impl Parameters for RangeParameters {
         values
     }
 
-    fn int_parameters(&self) -> Vec<usize> {
+    fn ints(&self) -> Vec<usize> {
         let mut values = Vec::new();
         let mut v = self.lower_limit as usize;
         while v <= self.upper_limit as usize {
@@ -58,20 +58,20 @@ impl Parameters for RangeParameters {
     }
 }
 
-pub struct RandomParameters {
+pub struct RandomNumbers {
     lower_limit: f32,
     upper_limit: f32,
     size: usize,
     seed: u64,
 }
 
-impl RandomParameters {
+impl RandomNumbers {
     pub fn new() -> Self {
-        RandomParameters {
+        RandomNumbers {
             lower_limit: 0.0,
             upper_limit: 0.0,
             size: 0,
-            seed: 0,
+            seed: rand::thread_rng().gen::<u64>(),
         }
     }
 
@@ -111,8 +111,8 @@ impl RandomParameters {
     }
 }
 
-impl Parameters for RandomParameters {
-    fn float_parameters(&self) -> Vec<f32> {
+impl Numbers for RandomNumbers {
+    fn floats(&self) -> Vec<f32> {
         self.check_params();
         let mut rng = rand::rngs::StdRng::seed_from_u64(self.seed);
         let mut seen = Vec::new();
@@ -125,11 +125,10 @@ impl Parameters for RandomParameters {
                 result.push(num);
             }
         }
-
         result
     }
 
-    fn int_parameters(&self) -> Vec<usize> {
+    fn ints(&self) -> Vec<usize> {
         self.check_params();
         let mut rng = rand::rngs::StdRng::seed_from_u64(self.seed);
         let mut seen = std::collections::HashSet::new();

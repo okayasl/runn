@@ -1,17 +1,7 @@
 use env_logger::{Builder, Target};
 use log::info;
 use runn::{
-    adam::Adam,
-    cross_entropy::CrossEntropy,
-    layer::Dense,
-    matrix::DenseMatrix,
-    network::network::{Network, NetworkBuilder},
-    network_search::NetworkSearchBuilder,
-    relu::ReLU,
-    search_param::{Parameters, RangeParameters},
-    softmax::Softmax,
-    tensor_board::TensorBoard,
-    util,
+    adam::Adam, cross_entropy::CrossEntropy, dropout::Dropout, elu::ELU, flexible::Flexible, gelu::GELU, l2::L2, layer::Dense, leaky_relu::LeakyReLU, linear::Linear, matrix::DenseMatrix, network::network::{Network, NetworkBuilder}, network_search::NetworkSearchBuilder, numbers::{Numbers, SequentialNumbers}, relu::ReLU, sigmoid::Sigmoid, softmax::Softmax, swish::Swish, tanh::Tanh, util
 };
 
 use std::{env, fs::File};
@@ -23,15 +13,16 @@ use std::{env, fs::File};
 // predict 0,0,1 if none of the input elements are same
 
 fn main() {
+
+    // ThreadPoolBuilder::new()
+    // .num_threads(2)
+    // .build_global()
+    // .expect("Failed to build global thread pool");
+
     // Create a log file
     let log_file = File::create("app.log").expect("Could not create log file");
 
-    // // Initialize the logger to write to the log file
-    // Builder::new()
-    //     .target(Target::Pipe(Box::new(log_file)))
-    //     .init();
-
-    // Initialize the logger with a default level of "info"
+    // Initialize the logger with a default level of "info" if log level is not set
     if env::var("LOG").is_err() {
         Builder::from_default_env()
             .target(Target::Pipe(Box::new(log_file)))
@@ -115,6 +106,7 @@ fn train_and_validate() {
     let training_inputs = get_training_inputs();
     let training_targets = get_training_targets();
     let mut network = generate_network(training_inputs.cols(), training_targets.cols());
+    //let mut network = generate_complex_network(training_inputs.cols(), training_targets.cols());
 
     let training_result = network.train(&training_inputs, &training_targets);
     match training_result {
@@ -167,10 +159,55 @@ fn generate_network(inp_size: usize, targ_size: usize) -> Network {
         // )
         .batch_size(8)
         .batch_group_size(2)
-        .parallelize(2)
+        //.parallelize(2)
         .epochs(3000)
         .seed(55)
-        .summary(TensorBoard::new().logdir("summary").build())
+        //.summary(TensorBoard::new().logdir("summary").build())
+        //.debug(true)
+        .build();
+
+    match network {
+        Ok(net) => net,
+        Err(e) => {
+            eprintln!("Failed to build network: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn generate_complex_network(inp_size: usize, targ_size: usize) -> Network {
+    let network = NetworkBuilder::new(inp_size, targ_size)
+        .layer(Dense::new().size(4).activation(ELU::new().alpha(1.0).build()).build())
+        .layer(Dense::new().size(4).activation(GELU::new()).build())
+        .layer(
+            Dense::new()
+                .size(4)
+                .activation(LeakyReLU::new().alpha(1.0).build())
+                .build(),
+        )
+        .layer(Dense::new().size(4).activation(Linear::new()).build())
+        .layer(Dense::new().size(4).activation(ReLU::new()).build())
+        .layer(Dense::new().size(4).activation(Sigmoid::new()).build())
+        .layer(Dense::new().size(4).activation(Swish::new().beta(1.0).build()).build())
+        .layer(Dense::new().size(4).activation(Tanh::new()).build())
+        .layer(Dense::new().size(targ_size).activation(Softmax::new()).build())
+        .loss_function(CrossEntropy::new().epsilon(1e-8).build())
+        .optimizer(Adam::new().beta1(0.99).beta2(0.999).learning_rate(0.0035).build())
+        .early_stopper(
+            Flexible::new()
+                .patience(1000)
+                .min_delta(0.000001)
+                .monitor_accuracy(true)
+                .build(),
+        )
+        .regularization(L2::new().lambda(0.01).build())
+        .regularization(Dropout::new().dropout_rate(0.5).seed(55).build())
+        .batch_size(8)
+        .batch_group_size(2)
+       // .parallelize(2)
+        .epochs(500)
+        .seed(55)
+        //.summary(TensorBoard::new().logdir("summary").build())
         //.debug(true)
         .build();
 
@@ -196,25 +233,25 @@ fn test_search() {
         .network(network)
         .parallelize(4)
         .learning_rates(
-            RangeParameters::new()
+            SequentialNumbers::new()
                 .lower_limit(0.0025)
                 .upper_limit(0.0045)
                 .increment(0.0005)
-                .float_parameters(),
+                .floats(),
         )
         .batch_sizes(
-            RangeParameters::new()
+            SequentialNumbers::new()
                 .lower_limit(5.0)
                 .upper_limit(10.0)
                 .increment(1.0)
-                .int_parameters(),
+                .ints(),
         )
         .hidden_layer(
-            RangeParameters::new()
+            SequentialNumbers::new()
                 .lower_limit(12.0)
                 .upper_limit(24.0)
                 .increment(4.0)
-                .int_parameters(),
+                .ints(),
             ReLU::new(),
         )
         .export("search".to_string())

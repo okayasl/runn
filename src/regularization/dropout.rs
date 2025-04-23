@@ -22,7 +22,6 @@ use typetag;
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DropoutRegularization {
     dropout_rate: f32,
-    // #[serde(skip)] // Skip serialization if needed
     randomizer: Randomizer,
 }
 
@@ -44,36 +43,33 @@ impl Regularization for DropoutRegularization {
 }
 
 pub struct Dropout {
-    dropout_rate: Option<f32>,
-    randomizer: Option<Randomizer>,
+    dropout_rate: f32,
+    seed: Option<u64>,
 }
 
 impl Dropout {
     /// Creates a new builder for DropoutRegularization
     pub fn new() -> Self {
         Self {
-            dropout_rate: None,
-            randomizer: None,
+            dropout_rate: 0.5,
+            seed: None,
         }
     }
 
-    /// Sets the dropout rate
     pub fn dropout_rate(mut self, dropout_rate: f32) -> Self {
-        self.dropout_rate = Some(dropout_rate);
+        self.dropout_rate = dropout_rate;
         self
     }
 
-    /// Sets the randomizer
-    pub fn randomizer(mut self, randomizer: Randomizer) -> Self {
-        self.randomizer = Some(randomizer);
+    pub fn seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
         self
     }
 
-    /// Builds the DropoutRegularization instance
     pub fn build(self) -> DropoutRegularization {
         DropoutRegularization {
-            dropout_rate: self.dropout_rate.expect("Dropout rate must be set"),
-            randomizer: self.randomizer.expect("Randomizer must be set"),
+            dropout_rate: self.dropout_rate,
+            randomizer: Randomizer::new(self.seed),
         }
     }
 }
@@ -82,15 +78,13 @@ impl Dropout {
 mod tests {
     use super::*;
     use crate::common::matrix::DenseMatrix;
-    use crate::common::random::Randomizer;
     use crate::util;
 
     #[test]
     fn test_dropout_regularization() {
         let mut params = vec![DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0])];
         let mut grads = vec![DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1])];
-        let rnd = Randomizer::new(Some(42));
-        let dropout = Dropout::new().dropout_rate(0.5).randomizer(rnd).build();
+        let dropout = Dropout::new().dropout_rate(0.5).seed(42).build();
 
         let mut params_refs: Vec<&mut DenseMatrix> = params.iter_mut().collect();
         let mut grads_refs: Vec<&mut DenseMatrix> = grads.iter_mut().collect();

@@ -18,9 +18,12 @@ use super::LossFunction;
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MeanSquaredErrorLoss;
 
-impl MeanSquaredErrorLoss {
-    pub fn new() -> Self {
-        Self
+pub struct MeanSquared;
+
+impl MeanSquared {
+    /// Creates a new builder for CrossEntropyLoss
+    pub fn new() -> MeanSquaredErrorLoss {
+        MeanSquaredErrorLoss {}
     }
 }
 
@@ -58,7 +61,7 @@ mod tests {
 
     #[test]
     fn test_forward() {
-        let loss = MeanSquaredErrorLoss::new();
+        let loss = MeanSquared::new();
         let predicted = DenseMatrix::new(2, 1, &[0.9, 0.2]);
         let target = DenseMatrix::new(2, 1, &[1.0, 0.0]);
         let result = loss.forward(&predicted, &target);
@@ -67,7 +70,7 @@ mod tests {
 
     #[test]
     fn test_backward() {
-        let loss = MeanSquaredErrorLoss::new();
+        let loss = MeanSquared::new();
         let predicted = DenseMatrix::new(2, 1, &[0.9, 0.2]);
         let target = DenseMatrix::new(2, 1, &[1.0, 0.0]);
         let gradient = loss.backward(&predicted, &target);

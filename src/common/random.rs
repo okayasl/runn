@@ -50,7 +50,12 @@ impl<'de> Deserialize<'de> for Randomizer {
     where
         D: serde::Deserializer<'de>,
     {
-        let seed = u64::deserialize(deserializer)?;
+        #[derive(Deserialize)]
+        struct RandomizerSeed {
+            seed: u64,
+        }
+
+        let RandomizerSeed { seed } = RandomizerSeed::deserialize(deserializer)?;
         let rng = StdRng::seed_from_u64(seed);
         Ok(Self {
             seed,
@@ -126,5 +131,12 @@ mod tests {
             "Random float should be in range [0, 1), got {}",
             random_value
         );
+    }
+
+    #[test]
+    fn test_randomizer_deserialization() {
+        let json = r#"{"seed": 55}"#;
+        let randomizer: Randomizer = serde_json::from_str(json).expect("Failed to deserialize");
+        assert_eq!(randomizer.seed, 55);
     }
 }
