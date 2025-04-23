@@ -1,9 +1,7 @@
 use std::error::Error;
 
 use log::{error, info};
-use rayon::
-    iter::{IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator}
-;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::{
     dropout::DropoutRegularization,
@@ -229,7 +227,7 @@ impl NetworkBuilder {
     }
 }
 
-pub struct NetworkResult {
+pub struct TrainResult {
     pub predictions: DenseMatrix,
     pub accuracy: f32,
     pub loss: f32,
@@ -274,7 +272,7 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn train(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> Result<NetworkResult, Box<dyn Error>> {
+    pub fn train(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> Result<TrainResult, Box<dyn Error>> {
         let training_inputs = self.prepare_inputs(inputs);
         let sample_size = training_inputs.rows();
         self.log_start_info(sample_size);
@@ -450,7 +448,7 @@ impl Network {
         }
     }
 
-    pub fn predict(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> NetworkResult {
+    pub fn predict(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> TrainResult {
         let mut output = inputs.clone();
         for layer in &mut self.layers {
             (output, _) = layer.forward(&output);
@@ -460,7 +458,7 @@ impl Network {
         let loss = self.loss_function.forward(&output, targets);
         let metrics = calculate_metrics(targets, &output);
 
-        NetworkResult {
+        TrainResult {
             predictions: output,
             accuracy,
             loss,
@@ -563,7 +561,7 @@ impl Network {
         }
     }
 
-    fn log_finish_info(&mut self, last_epoch: usize, final_result: &NetworkResult) {
+    fn log_finish_info(&mut self, last_epoch: usize, final_result: &TrainResult) {
         if !self.search {
             info!(
                 "Network training finished: epoch:{}, Loss:{:.4}, Accuracy:{:.2}%",

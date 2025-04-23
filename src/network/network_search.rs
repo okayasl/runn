@@ -207,7 +207,7 @@ impl NetworkSearch {
         validation_targets: &DenseMatrix,
     ) -> Vec<SearchResult> {
         let (training_inputs, validation_inputs) = self.prepare_inputs(training_inputs, validation_inputs);
-        self.build_thread_pool(self.parallelize);
+        //self.build_thread_pool(self.parallelize);
         let number_of_networks = self.networks.len();
         info!("Total number of network to train: {}", number_of_networks);
 
@@ -325,12 +325,7 @@ fn convert_results(search_results: &[SearchResult]) -> Vec<NetworkResult> {
 mod tests {
     use std::error::Error;
 
-    use crate::{
-        adam::Adam,
-        cross_entropy::CrossEntropy,
-        relu::ReLU,
-        softmax::Softmax,
-    };
+    use crate::{adam::Adam, cross_entropy::CrossEntropy, relu::ReLU, softmax::Softmax};
 
     use super::*;
 

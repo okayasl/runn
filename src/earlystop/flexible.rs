@@ -7,53 +7,49 @@ use super::EarlyStopper;
 pub struct FlexibleEarlyStopper {
     patience: usize,
     min_delta: f32,
-    best_loss: f32,
-    best_accuracy: f32,
+    best: f32,
     wait: usize,
     stopped_epoch: isize,
     stop_training: bool,
-    monitor_accuracy: bool,
+    monitor_metric: MonitorMetric,
 }
 
 impl FlexibleEarlyStopper {
-    pub fn new(patience: usize, min_delta: f32, monitor_accuracy: bool) -> Self {
+    pub fn new(patience: usize, min_delta: f32, monitor_metric: MonitorMetric) -> Self {
         Self {
             patience,
             min_delta,
-            best_loss: 9999999.0,
-            best_accuracy: 0.0,
+            best: match monitor_metric {
+                MonitorMetric::Loss => f32::MAX, // Initialize for loss
+                MonitorMetric::Accuracy => 0.0,  // Initialize for accuracy
+            },
             wait: 0,
             stopped_epoch: -1,
             stop_training: false,
-            monitor_accuracy,
+            monitor_metric,
         }
     }
 }
 
 #[typetag::serde]
 impl EarlyStopper for FlexibleEarlyStopper {
-    fn update(&mut self, epoch: usize, val_loss: f32, val_accuracy: f32) {
-        if self.monitor_accuracy {
-            if (val_accuracy - self.best_accuracy) > self.min_delta {
-                self.best_accuracy = val_accuracy;
-                self.wait = 0;
-            } else {
-                self.wait += 1;
-                if self.wait >= self.patience {
-                    self.stopped_epoch = epoch as isize;
-                    self.stop_training = true;
-                }
-            }
+    fn update(&mut self, epoch: usize, loss: f32, accuracy: f32) {
+        let current_value = match self.monitor_metric {
+            MonitorMetric::Loss => loss,
+            MonitorMetric::Accuracy => accuracy,
+        };
+
+        if self
+            .monitor_metric
+            .is_improvement(current_value, self.best, self.min_delta)
+        {
+            self.best = current_value; // Update the best value
+            self.wait = 0; // Reset the wait counter
         } else {
-            if (self.best_loss - val_loss) > self.min_delta {
-                self.best_loss = val_loss;
-                self.wait = 0;
-            } else {
-                self.wait += 1;
-                if self.wait >= self.patience {
-                    self.stopped_epoch = epoch as isize;
-                    self.stop_training = true;
-                }
+            self.wait += 1; // Increment the wait counter if no improvement
+            if self.wait >= self.patience {
+                self.stopped_epoch = epoch as isize;
+                self.stop_training = true; // Stop training if patience is exceeded
             }
         }
     }
@@ -63,8 +59,7 @@ impl EarlyStopper for FlexibleEarlyStopper {
     }
 
     fn reset(&mut self) {
-        self.best_loss = 9999999.0;
-        self.best_accuracy = 0.0;
+        self.best = self.monitor_metric.initial_best();
         self.wait = 0;
         self.stopped_epoch = -1;
         self.stop_training = false;
@@ -74,7 +69,7 @@ impl EarlyStopper for FlexibleEarlyStopper {
 pub struct Flexible {
     patience: usize,
     min_delta: f32,
-    monitor_accuracy: bool,
+    monitor_metric: MonitorMetric,
 }
 
 impl Flexible {
@@ -82,7 +77,7 @@ impl Flexible {
         Self {
             patience: 10,
             min_delta: 0.0,
-            monitor_accuracy: false,
+            monitor_metric: MonitorMetric::Loss, // Default to monitoring loss
         }
     }
 
@@ -96,13 +91,37 @@ impl Flexible {
         self
     }
 
-    pub fn monitor_accuracy(mut self, monitor_accuracy: bool) -> Self {
-        self.monitor_accuracy = monitor_accuracy;
+    pub fn monitor_metric(mut self, monitor_metric: MonitorMetric) -> Self {
+        self.monitor_metric = monitor_metric;
         self
     }
 
     pub fn build(self) -> FlexibleEarlyStopper {
-        FlexibleEarlyStopper::new(self.patience, self.min_delta, self.monitor_accuracy)
+        FlexibleEarlyStopper::new(self.patience, self.min_delta, self.monitor_metric)
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub enum MonitorMetric {
+    Loss,
+    Accuracy,
+}
+
+impl MonitorMetric {
+    /// Determines if the current value is an improvement over the best value
+    pub fn is_improvement(&self, current: f32, best: f32, min_delta: f32) -> bool {
+        match self {
+            MonitorMetric::Loss => (best - current) > min_delta, // Minimize loss
+            MonitorMetric::Accuracy => (current - best) > min_delta, // Maximize accuracy
+        }
+    }
+
+    /// Provides the initial best value for the metric
+    pub fn initial_best(&self) -> f32 {
+        match self {
+            MonitorMetric::Loss => f32::MAX, // Start with a very high loss
+            MonitorMetric::Accuracy => 0.0,  // Start with a very low accuracy
+        }
     }
 }
 
@@ -115,14 +134,12 @@ mod tests {
         let mut early_stopper = Flexible::new()
             .patience(3)
             .min_delta(0.01)
-            .monitor_accuracy(false)
+            .monitor_metric(MonitorMetric::Loss)
             .build();
 
-        let val_losses = vec![0.5, 0.4, 0.35, 0.36, 0.37, 0.38];
-
-        for (epoch, &val_loss) in val_losses.iter().enumerate() {
+        let losses = vec![0.5, 0.4, 0.35, 0.36, 0.37, 0.38];
+        for (epoch, &val_loss) in losses.iter().enumerate() {
             early_stopper.update(epoch, val_loss, 0.0);
-
             if early_stopper.is_training_stopped() {
                 assert_eq!(epoch, 5);
                 break;
@@ -135,14 +152,12 @@ mod tests {
         let mut early_stopper = Flexible::new()
             .patience(3)
             .min_delta(0.01)
-            .monitor_accuracy(true)
+            .monitor_metric(MonitorMetric::Accuracy)
             .build();
 
         let val_accuracies = vec![0.7, 0.75, 0.76, 0.75, 0.74, 0.73];
-
         for (epoch, &val_accuracy) in val_accuracies.iter().enumerate() {
             early_stopper.update(epoch, 0.0, val_accuracy);
-
             if early_stopper.is_training_stopped() {
                 assert_eq!(epoch, 4);
                 break;
@@ -155,15 +170,13 @@ mod tests {
         let mut early_stopper = Flexible::new()
             .patience(3)
             .min_delta(0.01)
-            .monitor_accuracy(false)
+            .monitor_metric(MonitorMetric::Loss)
             .build();
 
         let val_losses = vec![0.5, 0.4, 0.35, 0.34, 0.33, 0.32];
-
         for (epoch, &val_loss) in val_losses.iter().enumerate() {
             early_stopper.update(epoch, val_loss, 0.0);
         }
-
         assert!(!early_stopper.is_training_stopped());
     }
 
@@ -172,7 +185,7 @@ mod tests {
         let mut early_stopper = Flexible::new()
             .patience(3)
             .min_delta(0.01)
-            .monitor_accuracy(false)
+            .monitor_metric(MonitorMetric::Loss)
             .build();
 
         let val_losses = vec![0.5, 0.4, 0.35, 0.36, 0.37, 0.38];
@@ -185,12 +198,9 @@ mod tests {
                 break;
             }
         }
-
         early_stopper.reset();
-
         assert!(!early_stopper.is_training_stopped());
-        assert_eq!(early_stopper.best_loss, 9999999.0);
-        assert_eq!(early_stopper.best_accuracy, 0.0);
+        assert_eq!(early_stopper.best, f32::MAX);
         assert_eq!(early_stopper.wait, 0);
         assert_eq!(early_stopper.stopped_epoch, -1);
     }

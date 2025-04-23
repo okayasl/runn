@@ -77,7 +77,6 @@ impl ActivationFunction for SoftmaxActivation {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -106,20 +105,20 @@ mod tests {
         softmax.backward(&d_output, &mut input, &output);
 
         // Compute expected gradients manually for verification
-        let expected_gradients = DenseMatrix::new(2, 3, &[
-            -0.0016, -0.0011, 0.0028, 
-            -0.0016, -0.0011, 0.0028,
-        ]);
+        let expected_gradients = DenseMatrix::new(2, 3, &[-0.0016, -0.0011, 0.0028, -0.0016, -0.0011, 0.0028]);
 
         for i in 0..input.rows() {
             for j in 0..input.cols() {
-            let computed = input.at(i, j);
-            let expected = expected_gradients.at(i, j);
-            assert!(
-                (computed - expected).abs() < 1e-4,
-                "Gradient mismatch at ({}, {}): computed = {}, expected = {}",
-                i, j, computed, expected
-            );
+                let computed = input.at(i, j);
+                let expected = expected_gradients.at(i, j);
+                assert!(
+                    (computed - expected).abs() < 1e-4,
+                    "Gradient mismatch at ({}, {}): computed = {}, expected = {}",
+                    i,
+                    j,
+                    computed,
+                    expected
+                );
             }
         }
     }
@@ -138,7 +137,9 @@ mod tests {
             assert!(
                 (computed - expected_val).abs() < 1e-4,
                 "Mismatch at column {}: computed = {}, expected = {}",
-                j, computed, expected_val
+                j,
+                computed,
+                expected_val
             );
         }
     }
@@ -180,7 +181,9 @@ mod tests {
             assert!(
                 (computed - expected).abs() < 1e-6,
                 "Mismatch at column {}: computed = {}, expected = {}",
-                j, computed, expected
+                j,
+                computed,
+                expected
             );
         }
     }
