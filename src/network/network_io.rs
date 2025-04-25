@@ -18,7 +18,7 @@ pub struct NetworkIO {
     pub(crate) layers: Vec<Box<dyn Layer>>,
     pub(crate) loss_function: Box<dyn LossFunction>,
     pub(crate) optimizer_config: Box<dyn OptimizerConfig>,
-    pub(crate) regularization: Vec<Box<dyn Regularization>>,
+    pub(crate) regularizations: Vec<Box<dyn Regularization>>,
     pub(crate) batch_size: usize,
     pub(crate) batch_group_size: usize,
     pub(crate) epochs: usize,

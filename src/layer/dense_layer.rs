@@ -55,7 +55,7 @@ impl Layer for DenseLayer {
     }
 
     fn backward(
-        &self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &mut DenseMatrix,
+        &self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &DenseMatrix,
         activated_output: &DenseMatrix,
     ) -> (DenseMatrix, DenseMatrix, DenseMatrix) {
         // Compute the gradient of the loss with respect to the activation (dZ)
@@ -63,12 +63,13 @@ impl Layer for DenseLayer {
         // with respect to the pre-activation output of the dense layer.
         // This local gradient is used to update the weights and biases of the layer.
 
+        let mut pre_activated_output = pre_activated_output.clone();
         //let pao: &mut DenseMatrix = pre_activated_output;
         self.activation
-            .backward(d_output, pre_activated_output, activated_output);
+            .backward(d_output, &mut pre_activated_output, activated_output);
 
         // after backward method pao becomes gradient of activation function
-        let act_grad = pre_activated_output;
+        let act_grad = &pre_activated_output;
 
         let d_weights = DenseMatrix::mul_new(&act_grad.transpose(), input);
 

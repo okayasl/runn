@@ -4,7 +4,6 @@ use std::{env, fs::File};
 
 use env_logger::{Builder, Target};
 use log::info;
-use rayon::ThreadPoolBuilder;
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
@@ -23,7 +22,6 @@ use runn::{
 // predict 0,0,1 if none of the input elements are same
 fn main() {
     initialize_logger();
-    initialize_thread_pool();
 
     let args: Vec<String> = env::args().collect();
     if args.contains(&"-search".to_string()) {
@@ -133,9 +131,10 @@ fn triplets_network(inp_size: usize, targ_size: usize) -> Network {
         // )
         .batch_size(8)
         .batch_group_size(2)
-        //.parallelize(2)
+        .parallelize(2)
         .epochs(1500)
         .seed(55)
+        //.regularization(L1::new().lambda(0.0001).build())
         //.summary(TensorBoard::new().logdir("summary").build())
         //.debug(true)
         .build();
@@ -147,18 +146,6 @@ fn triplets_network(inp_size: usize, targ_size: usize) -> Network {
             std::process::exit(1);
         }
     }
-}
-
-/// Initializes the global thread pool with a specified number of threads.
-/// The number of threads is set to 2 in this example.
-/// The thread pool is used for parallel processing in the application.
-/// It is built using the `ThreadPoolBuilder` from the `rayon` crate.
-/// The `build_global` method creates a global thread pool that can be used across the application.
-fn initialize_thread_pool() {
-    ThreadPoolBuilder::new()
-        .num_threads(2)
-        .build_global()
-        .expect("Failed to build global thread pool");
 }
 
 /// Initializes the logger for the application.

@@ -1,16 +1,15 @@
 use std::{
-    sync::{
-        atomic::{AtomicI64, Ordering},
-        mpsc, Arc, Mutex,
-    },
-    thread,
+    sync::
+        Arc
+    ,
     time::Instant,
 };
 
 use log::info;
-use rayon::ThreadPoolBuilder;
 
-use crate::{matrix::DenseMatrix, network_search_io::write_search_results, util, ActivationFunction, Dense};
+use crate::{
+    matrix::DenseMatrix, network_search_io::write_search_results, parallel::ThreadPool, util, ActivationFunction, Dense,
+};
 
 use super::{
     network::{Network, NetworkBuilder},
@@ -97,7 +96,7 @@ impl NetworkSearchBuilder {
     fn generate_network_combinations(&self) -> Vec<Network> {
         let mut networks = Vec::new();
         let nw = self.network.as_ref().unwrap();
-        let output_layer = nw.layers.last().unwrap();
+        let output_layer = nw.layers.last().unwrap().read().unwrap();
         let (_, output_layer_size) = output_layer.input_output_size();
         let hidden_layer_sizes_groups = generate_layer_size_combinations(&self.hidden_layer_sizes);
         for hlsg in &hidden_layer_sizes_groups {
@@ -166,7 +165,7 @@ fn extract_config_from_network(nw: &Network) -> NetworkConfig {
     let mut layer_sizes = Vec::new();
 
     for layer in nw.layers.iter().take(nw.layers.len() - 1) {
-        let (_, output_size) = layer.input_output_size();
+        let (_, output_size) = layer.read().unwrap().input_output_size();
         layer_sizes.push(output_size);
     }
 
@@ -185,6 +184,93 @@ pub struct NetworkSearch {
 }
 
 impl NetworkSearch {
+    // fn build_thread_pool(&self, worker_count: usize) {
+    //     ThreadPoolBuilder::new()
+    //         .num_threads(worker_count)
+    //         .build_global()
+    //         .expect("Failed to build global thread pool");
+    // }
+
+    // pub fn search(
+    //     &mut self, training_inputs: &DenseMatrix, training_targets: &DenseMatrix, validation_inputs: &DenseMatrix,
+    //     validation_targets: &DenseMatrix,
+    // ) -> Vec<SearchResult> {
+    //     let (training_inputs, validation_inputs) = self.prepare_inputs(training_inputs, validation_inputs);
+    //     //self.build_thread_pool(self.parallelize);
+    //     let number_of_networks = self.networks.len();
+    //     info!("Total number of network to train: {}", number_of_networks);
+
+    //     let (nc_jobs_tx, nc_jobs_rx) = mpsc::channel();
+    //     let (results_tx, results_rx) = mpsc::channel();
+    //     let network_count = Arc::new(AtomicI64::new(0));
+    //     let start_time = Instant::now();
+    //     let period = Arc::new(Mutex::new(start_time));
+
+    //     let nc_jobs_rx = Arc::new(Mutex::new(nc_jobs_rx)); // Wrap the Receiver in Arc<Mutex<>>
+    //     let mut handles = vec![];
+
+    //     let training_inputs = Arc::new(training_inputs.clone());
+    //     let training_targets = Arc::new(training_targets.clone());
+    //     let validation_inputs = Arc::new(validation_inputs.clone());
+    //     let validation_targets = Arc::new(validation_targets.clone());
+
+    //     for _ in 0..self.parallelize {
+    //         let nc_jobs_rx = Arc::clone(&nc_jobs_rx); // Clone the Arc<Mutex<Receiver>>
+    //         let results_tx = results_tx.clone();
+    //         let network_count = Arc::clone(&network_count);
+    //         let period = Arc::clone(&period);
+
+    //         // Clone the Arc-wrapped data for each thread
+    //         let training_inputs = Arc::clone(&training_inputs);
+    //         let training_targets = Arc::clone(&training_targets);
+    //         let validation_inputs = Arc::clone(&validation_inputs);
+    //         let validation_targets = Arc::clone(&validation_targets);
+
+    //         let handle = thread::spawn(move || {
+    //             while let Ok(job) = nc_jobs_rx.lock().unwrap().recv() {
+    //                 let result = run(job, &training_inputs, &training_targets, &validation_inputs, &validation_targets);
+    //                 results_tx.send(result).unwrap();
+
+    //                 let completed_jobs = network_count.fetch_add(1, Ordering::SeqCst) + 1;
+    //                 if completed_jobs % 100 == 0 {
+    //                     let current_period = period.lock().unwrap().elapsed().as_secs_f64() / 60.0;
+    //                     let time_passed = start_time.elapsed().as_secs_f64() / 60.0;
+    //                     let guessed_remaining_time =
+    //                         (time_passed / completed_jobs as f64) * (number_of_networks as f64 - completed_jobs as f64);
+    //                     info!(
+    //                         "[{}/{}] trained. Training period/total(m):[{:.2}/{:.2}]. Guessed remaining time(m):{:.2}",
+    //                         completed_jobs, number_of_networks, current_period, time_passed, guessed_remaining_time
+    //                     );
+    //                     *period.lock().unwrap() = Instant::now();
+    //                 }
+    //             }
+    //         });
+    //         handles.push(handle);
+    //     }
+
+    //     for network in self.networks.drain(..) {
+    //         nc_jobs_tx.send(network).unwrap(); // Move the `Network` into the channel
+    //     }
+
+    //     drop(nc_jobs_tx);
+    //     handles.into_iter().for_each(|handle| {
+    //         handle.join().unwrap();
+    //     });
+
+    //     drop(results_tx); // Close the results channel
+
+    //     let mut search_results = Vec::new();
+    //     while let Ok(res) = results_rx.recv() {
+    //         search_results.push(res);
+    //     }
+
+    //     if !search_results.is_empty() && !self.filename.is_empty() {
+    //         write_search_results(&self.filename, &convert_results(&search_results)).unwrap();
+    //     }
+
+    //     search_results
+    // }
+
     fn prepare_inputs(&mut self, t_inputs: &DenseMatrix, v_inputs: &DenseMatrix) -> (DenseMatrix, DenseMatrix) {
         let mut training_inputs = t_inputs.clone();
         let mut validation_inputs = v_inputs.clone();
@@ -195,86 +281,34 @@ impl NetworkSearch {
         }
         (training_inputs, validation_inputs)
     }
-    fn build_thread_pool(&self, worker_count: usize) {
-        ThreadPoolBuilder::new()
-            .num_threads(worker_count)
-            .build_global()
-            .expect("Failed to build global thread pool");
-    }
 
     pub fn search(
         &mut self, training_inputs: &DenseMatrix, training_targets: &DenseMatrix, validation_inputs: &DenseMatrix,
         validation_targets: &DenseMatrix,
     ) -> Vec<SearchResult> {
         let (training_inputs, validation_inputs) = self.prepare_inputs(training_inputs, validation_inputs);
-        //self.build_thread_pool(self.parallelize);
         let number_of_networks = self.networks.len();
-        info!("Total number of network to train: {}", number_of_networks);
+        info!("Total number of networks to train: {}", number_of_networks);
 
-        let (nc_jobs_tx, nc_jobs_rx) = mpsc::channel();
-        let (results_tx, results_rx) = mpsc::channel();
-        let network_count = Arc::new(AtomicI64::new(0));
-        let start_time = Instant::now();
-        let period = Arc::new(Mutex::new(start_time));
-
-        let nc_jobs_rx = Arc::new(Mutex::new(nc_jobs_rx)); // Wrap the Receiver in Arc<Mutex<>>
-        let mut handles = vec![];
-
-        let training_inputs = Arc::new(training_inputs.clone());
+        let training_inputs = Arc::new(training_inputs);
         let training_targets = Arc::new(training_targets.clone());
-        let validation_inputs = Arc::new(validation_inputs.clone());
+        let validation_inputs = Arc::new(validation_inputs);
         let validation_targets = Arc::new(validation_targets.clone());
 
-        for _ in 0..self.parallelize {
-            let nc_jobs_rx = Arc::clone(&nc_jobs_rx); // Clone the Arc<Mutex<Receiver>>
-            let results_tx = results_tx.clone();
-            let network_count = Arc::clone(&network_count);
-            let period = Arc::clone(&period);
-
-            // Clone the Arc-wrapped data for each thread
+        let pool = ThreadPool::new(self.parallelize);
+        let mut receivers = Vec::new();
+        for network in self.networks.drain(..) {
             let training_inputs = Arc::clone(&training_inputs);
             let training_targets = Arc::clone(&training_targets);
             let validation_inputs = Arc::clone(&validation_inputs);
             let validation_targets = Arc::clone(&validation_targets);
 
-            let handle = thread::spawn(move || {
-                while let Ok(job) = nc_jobs_rx.lock().unwrap().recv() {
-                    let result = run(job, &training_inputs, &training_targets, &validation_inputs, &validation_targets);
-                    results_tx.send(result).unwrap();
-
-                    let completed_jobs = network_count.fetch_add(1, Ordering::SeqCst) + 1;
-                    if completed_jobs % 100 == 0 {
-                        let current_period = period.lock().unwrap().elapsed().as_secs_f64() / 60.0;
-                        let time_passed = start_time.elapsed().as_secs_f64() / 60.0;
-                        let guessed_remaining_time =
-                            (time_passed / completed_jobs as f64) * (number_of_networks as f64 - completed_jobs as f64);
-                        info!(
-                            "[{}/{}] trained. Training period/total(m):[{:.2}/{:.2}]. Guessed remaining time(m):{:.2}",
-                            completed_jobs, number_of_networks, current_period, time_passed, guessed_remaining_time
-                        );
-                        *period.lock().unwrap() = Instant::now();
-                    }
-                }
-            });
-            handles.push(handle);
+            receivers.push(pool.submit(move || {
+                run(network, &training_inputs, &training_targets, &validation_inputs, &validation_targets)
+            }));
         }
-
-        for network in self.networks.drain(..) {
-            nc_jobs_tx.send(network).unwrap(); // Move the `Network` into the channel
-        }
-
-        drop(nc_jobs_tx);
-        handles.into_iter().for_each(|handle| {
-            handle.join().unwrap();
-        });
-
-        drop(results_tx); // Close the results channel
-
-        let mut search_results = Vec::new();
-        while let Ok(res) = results_rx.recv() {
-            search_results.push(res);
-        }
-
+        pool.join();
+        let search_results: Vec<_> = receivers.into_iter().map(|r| r.recv().unwrap()).collect();
         if !search_results.is_empty() && !self.filename.is_empty() {
             write_search_results(&self.filename, &convert_results(&search_results)).unwrap();
         }
