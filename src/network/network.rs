@@ -231,7 +231,7 @@ impl NetworkBuilder {
     }
 }
 
-pub struct TrainResult {
+pub struct NetworkResult {
     pub predictions: DenseMatrix,
     pub accuracy: f32,
     pub loss: f32,
@@ -278,7 +278,7 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn train(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> Result<TrainResult, Box<dyn Error>> {
+    pub fn train(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> Result<NetworkResult, Box<dyn Error>> {
         let training_inputs = self.prepare_inputs(inputs);
         let sample_size = training_inputs.rows();
         self.log_start_info(sample_size);
@@ -341,79 +341,6 @@ impl Network {
         receivers.into_iter().map(|res| res.recv().unwrap()).unzip()
     }
 
-    // fn backward(
-    //     &mut self,
-    //     group_predictions: &[DenseMatrix],                // Predictions for each batch
-    //     group_targets: &[DenseMatrix],                    // Targets for each batch
-    //     group_layer_params: &mut [Arc<Vec<LayerParams>>], // LayerParams for each batch
-    //     epoch: usize,
-    // ) {
-    //     let mut receivers = Vec::new();
-    //     let base_layers: Vec<_> = self.layers.iter().map(Arc::clone).collect();
-
-    //     // Initialize aggregated gradients for weights and biases
-    //     let mut aggregated_d_weights = Vec::new();
-    //     let mut aggregated_d_biases = Vec::new();
-
-    //     self.layers.iter().for_each(|layer| {
-    //         let (input_size, output_size) = layer.read().unwrap().input_output_size();
-    //         aggregated_d_weights.push(DenseMatrix::zeros(output_size, input_size)); // Initialize weights
-    //         aggregated_d_biases.push(DenseMatrix::zeros(output_size, 1)); // Initialize biases
-    //     });
-
-    //     // Compute gradients for each batch sequentially
-    //     for ((prediction, target), layer_params) in group_predictions
-    //         .iter()
-    //         .zip(group_targets.iter())
-    //         .zip(group_layer_params.iter_mut())
-    //     {
-    //         let d_output = self.loss_function.backward(prediction, target);
-    //         let layer_params = Arc::clone(layer_params);
-    //         let layers = base_layers.clone();
-    //         receivers.push(
-    //             self.backward_pool
-    //                 .submit(move || backward_job(&layers, d_output, &layer_params)),
-    //         );
-    //     }
-
-    //     self.backward_pool.join();
-
-    //     receivers.into_iter().for_each(|res| {
-    //         let (batch_d_weights, batch_d_biases) = res.recv().unwrap().ok().unwrap();
-    //         for (i, (d_weights, d_biases)) in batch_d_weights.into_iter().zip(batch_d_biases).enumerate() {
-    //             aggregated_d_weights[i].add(&d_weights);
-    //             aggregated_d_biases[i].add(&d_biases);
-    //         }
-    //     });
-
-    //     for (i, layer) in self.layers.iter_mut().enumerate() {
-    //         let mut layer = layer.write().unwrap();
-    //         // Regulate gradients for the current layer
-    //         self.regularizations.iter().for_each(|reg| {
-    //             if let Some(_l1) = reg.as_any().downcast_ref::<L1Regularization>() {
-    //                 layer.regulate(&mut aggregated_d_weights[i], &mut aggregated_d_biases[i], reg);
-    //             }
-    //             if let Some(_l2) = reg.as_any().downcast_ref::<L2Regularization>() {
-    //                 layer.regulate(&mut aggregated_d_weights[i], &mut aggregated_d_biases[i], reg);
-    //             }
-    //         });
-
-    //         // Clip gradients for the current layer
-    //         let gradients = vec![&mut aggregated_d_weights[i], &mut aggregated_d_biases[i]];
-    //         if self.clip_threshold > 0.0 {
-    //             for grad in gradients {
-    //                 grad.clip(self.clip_threshold);
-    //             }
-    //         }
-
-    //         // Update the parameters for the current layer
-    //         layer.update(&aggregated_d_weights[i], &aggregated_d_biases[i], epoch);
-    //         if self.debug {
-    //             layer.visualize();
-    //         }
-    //     }
-    // }
-
     fn backward(
         &mut self, group_predictions: &[DenseMatrix], group_targets: &[DenseMatrix],
         group_layer_params: &mut [Arc<Vec<LayerParams>>], epoch: usize,
@@ -426,8 +353,8 @@ impl Network {
             .layers
             .iter()
             .map(|layer| {
-                let (in_sz, out_sz) = layer.read().unwrap().input_output_size();
-                (DenseMatrix::zeros(out_sz, in_sz), DenseMatrix::zeros(out_sz, 1))
+                let (input_size, output_size) = layer.read().unwrap().input_output_size();
+                (DenseMatrix::zeros(output_size, input_size), DenseMatrix::zeros(output_size, 1))
             })
             .collect::<Vec<_>>();
 
@@ -479,7 +406,7 @@ impl Network {
         }
     }
 
-    pub fn predict(&self, inputs: &DenseMatrix, targets: &DenseMatrix) -> TrainResult {
+    pub fn predict(&self, inputs: &DenseMatrix, targets: &DenseMatrix) -> NetworkResult {
         let mut output = inputs.clone();
         self.layers.iter().for_each(|layer| {
             (output, _) = layer.read().unwrap().forward(&output);
@@ -489,7 +416,7 @@ impl Network {
         let loss = self.loss_function.forward(&output, targets);
         let metrics = calculate_metrics(targets, &output);
 
-        TrainResult {
+        NetworkResult {
             predictions: output,
             accuracy,
             loss,
@@ -582,7 +509,7 @@ impl Network {
         }
     }
 
-    fn log_finish_info(&mut self, last_epoch: usize, final_result: &TrainResult) {
+    fn log_finish_info(&mut self, last_epoch: usize, final_result: &NetworkResult) {
         if !self.search {
             info!(
                 "Network training finished: epoch:{}, Loss:{:.4}, Accuracy:{:.2}%",
