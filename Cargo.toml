@@ -31,3 +31,7 @@ path = "examples/triplets/triplets.rs"
 [[example]]
 name = "iris"
 path = "examples/iris/iris.rs"
+
+[[example]]
+name = "wine_quality"
+path = "examples/wine_quality/wine_quality.rs"

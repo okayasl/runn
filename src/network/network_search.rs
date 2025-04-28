@@ -1,14 +1,10 @@
-use std::{
-    sync::
-        Arc
-    ,
-    time::Instant,
-};
+use std::{sync::Arc, time::Instant};
 
 use log::info;
 
 use crate::{
-    matrix::DenseMatrix, network_search_io::write_search_results, parallel::ThreadPool, util, ActivationFunction, Dense,
+    matrix::DenseMatrix, network_search_io::write_search_results, parallel::ThreadPool, ActivationFunction, Dense,
+    Normalization,
 };
 
 use super::{
@@ -23,7 +19,8 @@ pub struct NetworkSearchBuilder {
     batch_sizes: Vec<usize>,
     learning_rates: Vec<f32>,
     filename: String,
-    normalize: bool,
+    normalize_input: Option<Box<dyn Normalization>>,
+    normalize_output: Option<Box<dyn Normalization>>,
     parallelize: usize,
 }
 
@@ -36,7 +33,8 @@ impl NetworkSearchBuilder {
             batch_sizes: Vec::new(),
             learning_rates: Vec::new(),
             filename: String::new(),
-            normalize: false,
+            normalize_input: None,
+            normalize_output: None,
             parallelize: 1,
         }
     }
@@ -66,10 +64,16 @@ impl NetworkSearchBuilder {
         self
     }
 
-    pub fn normalize(mut self, normalize: bool) -> Self {
-        self.normalize = normalize;
+    pub fn normalize_input(mut self, normalization: impl Normalization + 'static) -> Self {
+        self.normalize_input = Some(Box::new(normalization));
         self
     }
+
+    pub fn normalize_output(mut self, normalization: impl Normalization + 'static) -> Self {
+        self.normalize_output = Some(Box::new(normalization));
+        self
+    }
+
     pub fn parallelize(mut self, parallelize: usize) -> Self {
         self.parallelize = parallelize;
         self
@@ -128,7 +132,8 @@ impl NetworkSearchBuilder {
         NetworkSearch {
             networks: self.generate_network_combinations(),
             filename: self.filename,
-            normalize: self.normalize,
+            normalize_input: self.normalize_input,
+            normalize_output: self.normalize_output,
             parallelize: self.parallelize,
         }
     }
@@ -179,7 +184,8 @@ fn extract_config_from_network(nw: &Network) -> NetworkConfig {
 pub struct NetworkSearch {
     networks: Vec<Network>,
     filename: String,
-    normalize: bool,
+    normalize_input: Option<Box<dyn Normalization>>,
+    normalize_output: Option<Box<dyn Normalization>>,
     parallelize: usize,
 }
 
@@ -271,29 +277,48 @@ impl NetworkSearch {
     //     search_results
     // }
 
-    fn prepare_inputs(&mut self, t_inputs: &DenseMatrix, v_inputs: &DenseMatrix) -> (DenseMatrix, DenseMatrix) {
-        let mut training_inputs = t_inputs.clone();
-        let mut validation_inputs = v_inputs.clone();
-        if self.normalize {
-            let (mins, maxs) = util::find_min_max(&t_inputs);
-            util::normalize_in_place(&mut training_inputs, &mins, &maxs);
-            util::normalize_in_place(&mut validation_inputs, &mins, &maxs);
+    // fn prepare_inputs(&mut self, t_inputs: &DenseMatrix, v_inputs: &DenseMatrix) -> (DenseMatrix, DenseMatrix) {
+    //     let mut training_inputs = t_inputs.clone();
+    //     let mut validation_inputs = v_inputs.clone();
+    //     if self.normalize {
+    //         let (mins, maxs) = util::find_min_max(&t_inputs);
+    //         util::normalize_in_place(&mut training_inputs, &mins, &maxs);
+    //         util::normalize_in_place(&mut validation_inputs, &mins, &maxs);
+    //     }
+    //     (training_inputs, validation_inputs)
+    // }
+
+    fn prepare_data(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> (DenseMatrix, DenseMatrix) {
+        let mut inputs = inputs.clone();
+
+        if self.normalize_input.is_some() {
+            let normalize_input = self.normalize_input.as_mut().unwrap();
+            normalize_input.normalize(&mut inputs).unwrap();
         }
-        (training_inputs, validation_inputs)
+
+        let mut targets = targets.clone();
+        if self.normalize_output.is_some() {
+            let normalize_output = self.normalize_output.as_mut().unwrap();
+            normalize_output.normalize(&mut targets).unwrap();
+        }
+
+        (inputs, targets)
     }
 
     pub fn search(
         &mut self, training_inputs: &DenseMatrix, training_targets: &DenseMatrix, validation_inputs: &DenseMatrix,
         validation_targets: &DenseMatrix,
     ) -> Vec<SearchResult> {
-        let (training_inputs, validation_inputs) = self.prepare_inputs(training_inputs, validation_inputs);
+        let (training_inputs, training_targets) = self.prepare_data(training_inputs, training_targets);
+        let (validation_inputs, validation_targets) = self.prepare_data(validation_inputs, validation_targets);
+
         let number_of_networks = self.networks.len();
         info!("Total number of networks to train: {}", number_of_networks);
 
         let training_inputs = Arc::new(training_inputs);
-        let training_targets = Arc::new(training_targets.clone());
+        let training_targets = Arc::new(training_targets);
         let validation_inputs = Arc::new(validation_inputs);
-        let validation_targets = Arc::new(validation_targets.clone());
+        let validation_targets = Arc::new(validation_targets);
 
         let pool = ThreadPool::new(self.parallelize);
         let mut receivers = Vec::new();
@@ -325,7 +350,7 @@ fn run(
     let train_res = network.train(training_inputs, training_targets).unwrap();
 
     let elapsed_time_in_sec = start_time.elapsed().as_secs_f32();
-    let validation_res = network.predict(validation_inputs, validation_targets);
+    let validation_res = network.predict_internal(validation_inputs, validation_targets);
 
     SearchResult {
         config: extract_config_from_network(&network),
@@ -366,7 +391,7 @@ fn convert_results(search_results: &[SearchResult]) -> Vec<NetworkResult> {
 mod tests {
     use std::error::Error;
 
-    use crate::{adam::Adam, cross_entropy::CrossEntropy, relu::ReLU, softmax::Softmax};
+    use crate::{adam::Adam, cross_entropy::CrossEntropy, min_max::MinMax, relu::ReLU, softmax::Softmax};
 
     use super::*;
 
@@ -408,13 +433,13 @@ mod tests {
             .batch_sizes(vec![32, 64])
             .learning_rates(vec![0.01, 0.02])
             .export("test_file".to_string())
-            .normalize(true)
+            .normalize_input(MinMax::new())
             .parallelize(4);
 
         let network_search = builder.build();
 
         assert_eq!(network_search.filename, "test_file");
-        assert!(network_search.normalize);
+        assert!(network_search.normalize_input.is_some());
         assert_eq!(network_search.parallelize, 4);
         assert!(!network_search.networks.is_empty());
     }

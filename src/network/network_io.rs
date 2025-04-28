@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 
 use crate::layer::Layer;
-use crate::{EarlyStopper, LossFunction, OptimizerConfig, Regularization};
+use crate::{EarlyStopper, LossFunction, Normalization, OptimizerConfig, Regularization};
 
 pub enum SerializationFormat {
     Json,
@@ -26,9 +26,8 @@ pub struct NetworkIO {
     pub(crate) seed: u64,
     pub(crate) early_stopper: Option<Box<dyn EarlyStopper>>,
     pub(crate) debug: bool,
-    pub(crate) normalize: bool,
-    pub(crate) mins: Option<Vec<f32>>,
-    pub(crate) maxs: Option<Vec<f32>>,
+    pub(crate) normalize_input: Option<Box<dyn Normalization>>,
+    pub(crate) normalize_output: Option<Box<dyn Normalization>>,
     pub(crate) summary_writer: Option<Box<dyn crate::summary::SummaryWriter>>,
     pub(crate) parallelize: usize,
 }

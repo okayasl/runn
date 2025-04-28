@@ -6,50 +6,50 @@ use crate::util;
 
 use super::matrix;
 
-/// Find minimum and maximum values for each column
-pub(crate) fn find_min_max(matrix: &DenseMatrix) -> (Vec<f32>, Vec<f32>) {
-    let (rows, cols) = (matrix.rows(), matrix.cols());
-    let mut mins = vec![f32::INFINITY; cols];
-    let mut maxs = vec![f32::NEG_INFINITY; cols];
+// /// Find minimum and maximum values for each column
+// pub(crate) fn find_min_max(matrix: &DenseMatrix) -> (Vec<f32>, Vec<f32>) {
+//     let (rows, cols) = (matrix.rows(), matrix.cols());
+//     let mut mins = vec![f32::INFINITY; cols];
+//     let mut maxs = vec![f32::NEG_INFINITY; cols];
 
-    for j in 0..cols {
-        for i in 0..rows {
-            let val = matrix.at(i, j);
-            if val < mins[j] {
-                mins[j] = val;
-            }
-            if val > maxs[j] {
-                maxs[j] = val;
-            }
-        }
-    }
+//     for j in 0..cols {
+//         for i in 0..rows {
+//             let val = matrix.at(i, j);
+//             if val < mins[j] {
+//                 mins[j] = val;
+//             }
+//             if val > maxs[j] {
+//                 maxs[j] = val;
+//             }
+//         }
+//     }
 
-    (mins, maxs)
-}
+//     (mins, maxs)
+// }
 
-/// Normalize matrix values to range [0, 1] in-place using min-max normalization
-pub(crate) fn normalize_in_place(matrix: &mut DenseMatrix, mins: &[f32], maxs: &[f32]) {
-    let (rows, cols) = (matrix.rows(), matrix.cols());
+// /// Normalize matrix values to range [0, 1] in-place using min-max normalization
+// pub(crate) fn normalize_in_place(matrix: &mut DenseMatrix, mins: &[f32], maxs: &[f32]) {
+//     let (rows, cols) = (matrix.rows(), matrix.cols());
 
-    // Check if dimensions match
-    if mins.len() != cols || maxs.len() != cols {
-        return;
-    }
+//     // Check if dimensions match
+//     if mins.len() != cols || maxs.len() != cols {
+//         return;
+//     }
 
-    for i in 0..rows {
-        for j in 0..cols {
-            let val = matrix.at(i, j);
-            let min = mins[j];
-            let max = maxs[j];
+//     for i in 0..rows {
+//         for j in 0..cols {
+//             let val = matrix.at(i, j);
+//             let min = mins[j];
+//             let max = maxs[j];
 
-            if (max - min).abs() < f32::EPSILON {
-                matrix.set(i, j, 0.0); // Set to 0 if min and max are the same
-            } else {
-                matrix.set(i, j, (val - min) / (max - min)); // Normalize value
-            }
-        }
-    }
-}
+//             if (max - min).abs() < f32::EPSILON {
+//                 matrix.set(i, j, 0.0); // Set to 0 if min and max are the same
+//             } else {
+//                 matrix.set(i, j, (val - min) / (max - min)); // Normalize value
+//             }
+//         }
+//     }
+// }
 
 /// Calculate accuracy by comparing max values in each row
 pub(crate) fn calculate_accuracy(predictions: &DenseMatrix, targets: &DenseMatrix) -> f32 {
@@ -120,7 +120,7 @@ pub fn format_matrix(matrix: &DenseMatrix) -> String {
 
 pub fn print_metrics(accuracy: f32, loss: f32, macro_f1: f32, micro_f1: f32, micro_recall: f32, micro_precision: f32) {
     info!(
-        "Accuracy: {:.2}%, Loss: {:.5}, MacroF1: {:.4}, MicroF1: {:.4}, MicroRecall: {:.4}, MicroPrecision: {:.4}",
+        "Accuracy: {:.3}%, Loss: {:.5}, MacroF1: {:.4}, MicroF1: {:.4}, MicroRecall: {:.4}, MicroPrecision: {:.4}",
         accuracy * 100.0,
         loss,
         macro_f1,
@@ -188,13 +188,13 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
 
         input_str.push('[');
         for j in 0..input.cols() {
-            write!(input_str, "{:.2} ", input.at(0, j)).unwrap();
+            write!(input_str, "{:>6.2} ", input.at(0, j)).unwrap();
         }
         input_str.push(']');
 
         target_str.push_str("  [");
         for j in 0..tc {
-            write!(target_str, "{:.2} ", target.at(0, j)).unwrap();
+            write!(target_str, "{:>6.2} ", target.at(0, j)).unwrap();
         }
         target_str.push(']');
 
@@ -206,7 +206,7 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
 
         prediction_str.push_str(" [");
         for j in 0..pc {
-            write!(prediction_str, "{:.2} ", prediction.at(0, j)).unwrap();
+            write!(prediction_str, "{:>6.2} ", prediction.at(0, j)).unwrap();
         }
         prediction_str.push(']');
 
@@ -223,13 +223,13 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
 
     input_str.push('⎡');
     for j in 0..input.cols() {
-        write!(input_str, "{:.2} ", input.at(0, j)).unwrap();
+        write!(input_str, "{:>6.2} ", input.at(0, j)).unwrap();
     }
     input_str.push('⎤');
 
     target_str.push_str("  ⎡");
     for j in 0..tc {
-        write!(target_str, "{:.2} ", target.at(0, j)).unwrap();
+        write!(target_str, "{:>6.2} ", target.at(0, j)).unwrap();
     }
     target_str.push('⎤');
 
@@ -241,7 +241,7 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
 
     prediction_str.push_str(" ⎡");
     for j in 0..pc {
-        write!(prediction_str, "{:.2} ", prediction.at(0, j)).unwrap();
+        write!(prediction_str, "{:>6.2} ", prediction.at(0, j)).unwrap();
     }
     prediction_str.push('⎤');
 
@@ -256,13 +256,13 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
 
         input_str.push('⎢');
         for j in 0..input.cols() {
-            write!(input_str, "{:.2} ", input.at(i, j)).unwrap();
+            write!(input_str, "{:>6.2} ", input.at(i, j)).unwrap();
         }
         input_str.push('⎥');
 
         target_str.push_str("  ⎢");
         for j in 0..tc {
-            write!(target_str, "{:.2} ", target.at(i, j)).unwrap();
+            write!(target_str, "{:>6.2} ", target.at(i, j)).unwrap();
         }
         target_str.push('⎥');
 
@@ -274,7 +274,7 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
 
         prediction_str.push_str(" ⎢");
         for j in 0..pc {
-            write!(prediction_str, "{:.2} ", prediction.at(i, j)).unwrap();
+            write!(prediction_str, "{:>6.2} ", prediction.at(i, j)).unwrap();
         }
         prediction_str.push('⎥');
 
@@ -289,13 +289,13 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
 
     input_str.push('⎣');
     for j in 0..input.cols() {
-        write!(input_str, "{:.2} ", input.at(r - 1, j)).unwrap();
+        write!(input_str, "{:>6.2} ", input.at(r - 1, j)).unwrap();
     }
     input_str.push('⎦');
 
     target_str.push_str("  ⎣");
     for j in 0..tc {
-        write!(target_str, "{:.2} ", target.at(r - 1, j)).unwrap();
+        write!(target_str, "{:>6.2} ", target.at(r - 1, j)).unwrap();
     }
     target_str.push('⎦');
 
@@ -307,7 +307,7 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
 
     prediction_str.push_str(" ⎣");
     for j in 0..pc {
-        write!(prediction_str, "{:.2} ", prediction.at(r - 1, j)).unwrap();
+        write!(prediction_str, "{:>6.2} ", prediction.at(r - 1, j)).unwrap();
     }
     prediction_str.push('⎦');
 
@@ -318,44 +318,76 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
     info!("{}", buf);
 }
 
+pub fn one_hot_encode(targets: &DenseMatrix) -> DenseMatrix {
+    // Find the unique values in the target matrix to determine the number of classes
+    let mut unique_values: Vec<f32> = Vec::new();
+
+    for i in 0..targets.rows() {
+        for j in 0..targets.cols() {
+            let target_value = targets.at(i, j);
+            if !unique_values.contains(&target_value) {
+                unique_values.push(target_value);
+            }
+        }
+    }
+
+    // Sort the unique values and create a mapping for each class
+    unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let num_classes = unique_values.len();
+
+    // Initialize the one-hot encoded matrix with `num_classes` columns for each target
+    let mut one_hot_targets = DenseMatrix::zeros(targets.rows(), targets.cols() * num_classes);
+
+    for i in 0..targets.rows() {
+        for j in 0..targets.cols() {
+            let target_value = targets.at(i, j);
+            // Find the index of the class (which class it corresponds to)
+            let class_index = unique_values.iter().position(|&x| x == target_value).unwrap();
+            one_hot_targets.set(i, j * num_classes + class_index, 1.0); // Set 1 in the correct column
+        }
+    }
+
+    one_hot_targets
+}
+
 // Tests for utility functions
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_normalize_in_place() {
-        // Test case 1: Normal range
-        let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        let (mins, maxs) = find_min_max(&matrix);
-        normalize_in_place(&mut matrix, &mins, &maxs);
-        let expected = DenseMatrix::new(2, 2, &[0.0, 0.0, 1.0, 1.0]);
-        assert!(equal_approx(&matrix, &expected, 1e-6));
+    // #[test]
+    // fn test_normalize_in_place() {
+    //     // Test case 1: Normal range
+    //     let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+    //     let (mins, maxs) = find_min_max(&matrix);
+    //     normalize_in_place(&mut matrix, &mins, &maxs);
+    //     let expected = DenseMatrix::new(2, 2, &[0.0, 0.0, 1.0, 1.0]);
+    //     assert!(equal_approx(&matrix, &expected, 1e-6));
 
-        // Test case 2: Custom range
-        let mut input1 = DenseMatrix::new(4, 2, &[0.0, -10.0, 5.0, -7.0, 7.0, -5.0, 10.0, 0.0]);
-        let mins1 = vec![0.0, -10.0];
-        let maxs1 = vec![10.0, 0.0];
-        let expected1 = DenseMatrix::new(4, 2, &[0.0, 0.0, 0.5, 0.3, 0.7, 0.5, 1.0, 1.0]);
-        normalize_in_place(&mut input1, &mins1, &maxs1);
-        assert!(equal_approx(&input1, &expected1, 1e-6));
+    //     // Test case 2: Custom range
+    //     let mut input1 = DenseMatrix::new(4, 2, &[0.0, -10.0, 5.0, -7.0, 7.0, -5.0, 10.0, 0.0]);
+    //     let mins1 = vec![0.0, -10.0];
+    //     let maxs1 = vec![10.0, 0.0];
+    //     let expected1 = DenseMatrix::new(4, 2, &[0.0, 0.0, 0.5, 0.3, 0.7, 0.5, 1.0, 1.0]);
+    //     normalize_in_place(&mut input1, &mins1, &maxs1);
+    //     assert!(equal_approx(&input1, &expected1, 1e-6));
 
-        // Test case 3: Zero range in a column
-        let mut input2 = DenseMatrix::new(3, 2, &[5.0, 1.0, 5.0, 2.0, 5.0, 3.0]);
-        let mins2 = vec![5.0, 1.0];
-        let maxs2 = vec![5.0, 3.0];
-        let expected2 = DenseMatrix::new(3, 2, &[0.0, 0.0, 0.0, 0.5, 0.0, 1.0]);
-        normalize_in_place(&mut input2, &mins2, &maxs2);
-        assert!(equal_approx(&input2, &expected2, 1e-6));
+    //     // Test case 3: Zero range in a column
+    //     let mut input2 = DenseMatrix::new(3, 2, &[5.0, 1.0, 5.0, 2.0, 5.0, 3.0]);
+    //     let mins2 = vec![5.0, 1.0];
+    //     let maxs2 = vec![5.0, 3.0];
+    //     let expected2 = DenseMatrix::new(3, 2, &[0.0, 0.0, 0.0, 0.5, 0.0, 1.0]);
+    //     normalize_in_place(&mut input2, &mins2, &maxs2);
+    //     assert!(equal_approx(&input2, &expected2, 1e-6));
 
-        // Test case 4: Negative numbers
-        let mut input3 = DenseMatrix::new(2, 2, &[-10.0, -5.0, -2.0, -1.0]);
-        let mins3 = vec![-10.0, -5.0];
-        let maxs3 = vec![-2.0, -1.0];
-        let expected3 = DenseMatrix::new(2, 2, &[0.0, 0.0, 1.0, 1.0]);
-        normalize_in_place(&mut input3, &mins3, &maxs3);
-        assert!(equal_approx(&input3, &expected3, 1e-6));
-    }
+    //     // Test case 4: Negative numbers
+    //     let mut input3 = DenseMatrix::new(2, 2, &[-10.0, -5.0, -2.0, -1.0]);
+    //     let mins3 = vec![-10.0, -5.0];
+    //     let maxs3 = vec![-2.0, -1.0];
+    //     let expected3 = DenseMatrix::new(2, 2, &[0.0, 0.0, 1.0, 1.0]);
+    //     normalize_in_place(&mut input3, &mins3, &maxs3);
+    //     assert!(equal_approx(&input3, &expected3, 1e-6));
+    // }
 
     #[test]
     fn test_calculate_accuracy() {

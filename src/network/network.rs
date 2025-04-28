@@ -14,7 +14,7 @@ use crate::{
     random::Randomizer,
     regularization::Regularization,
     util::{self},
-    EarlyStopper, LossFunction, OptimizerConfig, SummaryWriter,
+    EarlyStopper, LossFunction, Normalization, OptimizerConfig, SummaryWriter,
 };
 
 use super::network_io::{load_network, save_network, NetworkIO, SerializationFormat};
@@ -33,7 +33,8 @@ pub struct NetworkBuilder {
     seed: u64,
     early_stopper: Option<Box<dyn EarlyStopper>>,
     debug: bool,
-    normalize: bool,
+    normalize_input: Option<Box<dyn Normalization>>,
+    normalize_output: Option<Box<dyn Normalization>>,
     summary_writer: Option<Box<dyn SummaryWriter>>,
     parallelize: usize,
 }
@@ -54,7 +55,8 @@ impl NetworkBuilder {
             seed: 0,
             early_stopper: None,
             debug: false,
-            normalize: false,
+            normalize_input: None,
+            normalize_output: None,
             summary_writer: None,
             parallelize: 1,
         }
@@ -115,8 +117,13 @@ impl NetworkBuilder {
         self
     }
 
-    pub fn normalize(mut self, normalize: bool) -> Self {
-        self.normalize = normalize;
+    pub fn normalize_input(mut self, normalization: impl Normalization + 'static) -> Self {
+        self.normalize_input = Some(Box::new(normalization));
+        self
+    }
+
+    pub fn normalize_output(mut self, normalization: impl Normalization + 'static) -> Self {
+        self.normalize_output = Some(Box::new(normalization));
         self
     }
 
@@ -142,11 +149,11 @@ impl NetworkBuilder {
         self.optimizer_config = Some(nw.optimizer_config.clone());
         self.batch_size = nw.batch_size;
         self.batch_group_size = nw.batch_group_size;
+        self.parallelize = nw.parallelize;
         self.epochs = nw.epochs;
         self.seed = nw.seed;
         self.clip_threshold = nw.clip_threshold;
         self.debug = nw.debug;
-        self.parallelize = nw.parallelize;
 
         if let Some(early_stopper) = &nw.early_stopper {
             self.early_stopper = Some(early_stopper.clone());
@@ -218,9 +225,8 @@ impl NetworkBuilder {
             seed: self.seed,
             early_stopper: self.early_stopper,
             debug: self.debug,
-            normalize: self.normalize,
-            mins: None,
-            maxs: None,
+            normalize_input: self.normalize_input,
+            normalize_output: self.normalize_output,
             randomizer,
             search: false,
             summary_writer: self.summary_writer,
@@ -266,9 +272,8 @@ pub struct Network {
     pub(crate) seed: u64,
     pub(crate) randomizer: Randomizer,
     pub(crate) debug: bool,
-    pub(crate) normalize: bool,
-    pub(crate) mins: Option<Vec<f32>>,
-    pub(crate) maxs: Option<Vec<f32>>,
+    pub(crate) normalize_input: Option<Box<dyn Normalization>>,
+    pub(crate) normalize_output: Option<Box<dyn Normalization>>,
     pub(crate) search: bool,
     pub(crate) early_stopper: Option<Box<dyn EarlyStopper>>,
     pub(crate) summary_writer: Option<Box<dyn SummaryWriter>>,
@@ -279,7 +284,8 @@ pub struct Network {
 
 impl Network {
     pub fn train(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> Result<NetworkResult, Box<dyn Error>> {
-        let training_inputs = self.prepare_inputs(inputs);
+        //let training_inputs = self.prepare_inputs(inputs);
+        let (training_inputs, training_targets) = self.prepare_data(inputs, targets);
         let sample_size = training_inputs.rows();
         self.log_start_info(sample_size);
         let mut shuffled_inputs = DenseMatrix::zeros(sample_size, self.input_size);
@@ -292,7 +298,7 @@ impl Network {
         for epoch in 1..=self.epochs {
             last_epoch = epoch;
             self.visualize_layers();
-            self.shuffle(inputs, targets, &mut shuffled_inputs, &mut shuffled_targets);
+            self.shuffle(&training_inputs, &training_targets, &mut shuffled_inputs, &mut shuffled_targets);
             let (batch_inputs, batch_targets) = self.create_batches(&shuffled_inputs, &shuffled_targets);
             let (group_inputs, group_targets) = self.create_groups(&batch_inputs, &batch_targets);
 
@@ -309,17 +315,19 @@ impl Network {
                 self.backward(&grp_predictions, grp_targets, &mut grp_layer_params, epoch);
             }
 
-            let epoch_result = self.predict(&training_inputs, targets);
-            let epoch_accuracy = epoch_result.accuracy;
-            let epoch_loss = self.loss_function.forward(&epoch_result.predictions, targets);
-            self.log_epoch_training_info(epoch, epoch_accuracy, epoch_loss);
-            self.summarize(epoch, epoch_loss, epoch_accuracy);
-            if self.early_stopped(epoch, epoch_loss, epoch_accuracy) {
-                break;
+            if self.debug || self.summary_writer.is_some() || self.early_stopper.is_some() {
+                let epoch_result = self.predict_internal(&training_inputs, &training_targets);
+                let epoch_accuracy = epoch_result.accuracy;
+                let epoch_loss = epoch_result.loss;
+                self.log_epoch_training_info(epoch, epoch_accuracy, epoch_loss);
+                self.summarize(epoch, epoch_loss, epoch_accuracy);
+                if self.early_stopped(epoch, epoch_loss, epoch_accuracy) {
+                    break;
+                }
             }
         }
 
-        let final_result = self.predict(&training_inputs, targets);
+        let final_result = self.predict_internal(&training_inputs, &training_targets);
         self.log_finish_info(last_epoch, &final_result);
         self.close_summary_writer();
         Ok(final_result)
@@ -406,15 +414,36 @@ impl Network {
         }
     }
 
-    pub fn predict(&self, inputs: &DenseMatrix, targets: &DenseMatrix) -> NetworkResult {
-        let mut output = inputs.clone();
+    pub(crate) fn predict_internal(
+        &mut self, training_inputs: &DenseMatrix, training_targets: &DenseMatrix,
+    ) -> NetworkResult {
+        let mut output = training_inputs.clone();
         self.layers.iter().for_each(|layer| {
             (output, _) = layer.read().unwrap().forward(&output);
         });
 
-        let accuracy = util::calculate_accuracy(&output, targets);
-        let loss = self.loss_function.forward(&output, targets);
-        let metrics = calculate_metrics(targets, &output);
+        let accuracy = util::calculate_accuracy(&output, &training_targets);
+        let loss = self.loss_function.forward(&output, &training_targets);
+        let metrics = calculate_metrics(&training_targets, &output);
+
+        NetworkResult {
+            predictions: output,
+            accuracy,
+            loss,
+            metrics,
+        }
+    }
+
+    pub fn predict(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> NetworkResult {
+        let (inputs, targets) = self.prepare_data(inputs, targets);
+        let mut output = inputs;
+        self.layers.iter().for_each(|layer| {
+            (output, _) = layer.read().unwrap().forward(&output);
+        });
+
+        let accuracy = util::calculate_accuracy(&output, &targets);
+        let loss = self.loss_function.forward(&output, &targets);
+        let metrics = calculate_metrics(&targets, &output);
 
         NetworkResult {
             predictions: output,
@@ -460,15 +489,32 @@ impl Network {
         });
     }
 
-    fn prepare_inputs(&mut self, inputs: &DenseMatrix) -> DenseMatrix {
+    // fn prepare_inputs(&mut self, inputs: &DenseMatrix) -> DenseMatrix {
+    //     let mut training_inputs = inputs.clone();
+    //     if self.normalize {
+    //         let (mins, maxs) = util::find_min_max(&inputs);
+    //         util::normalize_in_place(&mut training_inputs, &mins, &maxs);
+    //         self.mins = Some(mins);
+    //         self.maxs = Some(maxs);
+    //     }
+    //     training_inputs
+    // }
+
+    fn prepare_data(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> (DenseMatrix, DenseMatrix) {
         let mut training_inputs = inputs.clone();
-        if self.normalize {
-            let (mins, maxs) = util::find_min_max(&inputs);
-            util::normalize_in_place(&mut training_inputs, &mins, &maxs);
-            self.mins = Some(mins);
-            self.maxs = Some(maxs);
+
+        if self.normalize_input.is_some() {
+            let normalize_input = self.normalize_input.as_mut().unwrap();
+            normalize_input.normalize(&mut training_inputs).unwrap();
         }
-        training_inputs
+
+        let mut training_targets = targets.clone();
+        if self.normalize_output.is_some() {
+            let normalize_output = self.normalize_output.as_mut().unwrap();
+            normalize_output.normalize(&mut training_targets).unwrap();
+        }
+
+        (training_inputs, training_targets)
     }
 
     fn create_batches<'a>(
@@ -481,20 +527,19 @@ impl Network {
 
     fn log_epoch_training_info(&mut self, epoch: usize, epoch_accuracy: f32, epoch_loss: f32) {
         if self.debug {
-            info!("Epoch [{}/{}], Loss:{:.4}, Accuracy:{:.2}%", epoch, self.epochs, epoch_loss, epoch_accuracy * 100.0);
+            info!("Epoch [{}/{}], Loss:{:.4}, Accuracy:{:.3}%", epoch, self.epochs, epoch_loss, epoch_accuracy * 100.0);
         }
     }
 
     fn log_group_training_info(
-        &mut self, epoch: usize, group_count: usize, group_id: usize, group_batch_inputs: &&[DenseMatrix],
-        group_batch_targets: &&[DenseMatrix], group_predictions: &Vec<DenseMatrix>,
+        &mut self, epoch: usize, group_count: usize, group_id: usize, group_inputs: &&[DenseMatrix],
+        group_targets: &&[DenseMatrix], group_predictions: &Vec<DenseMatrix>,
     ) {
         if self.debug {
             // Optionally compute the loss and accuracy for this group.
-            let group_losses = self.forward_loss(group_predictions, group_batch_targets);
+            let group_losses = self.forward_loss(group_predictions, group_targets);
             let ave_group_loss: f32 = group_losses.iter().sum::<f32>() / group_losses.len() as f32;
-            let ave_group_accuracy =
-                calculate_group_accuracy(group_batch_inputs, group_batch_targets, group_predictions);
+            let ave_group_accuracy = calculate_group_accuracy(group_inputs, group_targets, group_predictions);
             if !self.search {
                 info!(
                     "Epoch [{}/{}], Group [{}/{}], Avg Group Loss: {:.4}, Avg Group Accuracy: {:.2}%",
@@ -512,7 +557,7 @@ impl Network {
     fn log_finish_info(&mut self, last_epoch: usize, final_result: &NetworkResult) {
         if !self.search {
             info!(
-                "Network training finished: epoch:{}, Loss:{:.4}, Accuracy:{:.2}%",
+                "Network training finished: epoch:{}, Loss:{:.4}, Accuracy:{:.3}%",
                 last_epoch,
                 final_result.loss,
                 final_result.accuracy * 100.0
@@ -655,9 +700,8 @@ impl Network {
             seed: network_io.seed,
             early_stopper: network_io.early_stopper,
             debug: network_io.debug,
-            normalize: network_io.normalize,
-            mins: network_io.mins,
-            maxs: network_io.maxs,
+            normalize_input: network_io.normalize_input,
+            normalize_output: network_io.normalize_output,
             randomizer: Randomizer::new(Some(network_io.seed)),
             search: false,
             summary_writer: network_io.summary_writer as Option<Box<dyn SummaryWriter>>,
@@ -691,9 +735,8 @@ impl Network {
             seed: self.seed,
             early_stopper: self.early_stopper.clone(),
             debug: self.debug,
-            normalize: self.normalize,
-            mins: self.mins.clone(),
-            maxs: self.maxs.clone(),
+            normalize_input: self.normalize_input.clone(),
+            normalize_output: self.normalize_output.clone(),
             summary_writer: self.summary_writer.clone(),
             parallelize: self.parallelize,
         }
@@ -760,15 +803,15 @@ fn backward_job(
 }
 
 fn calculate_group_accuracy(
-    group_batch_inputs: &&[DenseMatrix], group_batch_targets: &&[DenseMatrix], group_predictions: &Vec<DenseMatrix>,
+    group_inputs: &&[DenseMatrix], group_targets: &&[DenseMatrix], group_predictions: &Vec<DenseMatrix>,
 ) -> f32 {
-    let group_accuracy: f32 = group_batch_inputs
+    let group_accuracy: f32 = group_inputs
         .iter()
         .zip(group_predictions.iter())
-        .zip(group_batch_targets.iter())
+        .zip(group_targets.iter())
         .map(|((_, prediction), target)| util::calculate_accuracy(prediction, target))
         .sum::<f32>()
-        / (group_batch_targets.len() as f32);
+        / (group_targets.len() as f32);
     group_accuracy
 }
 
