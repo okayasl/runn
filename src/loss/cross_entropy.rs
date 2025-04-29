@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use crate::matrix::DenseMatrix;
+use crate::{classification::ClassificationEvaluator, matrix::DenseMatrix, MetricEvaluator, MetricResult};
 
 use super::LossFunction;
 
@@ -92,6 +92,9 @@ impl LossFunction for CrossEntropyLoss {
         });
 
         gradient
+    }
+    fn calculate_metrics(&self, targets: &DenseMatrix, predictions: &DenseMatrix) -> MetricResult {
+        ClassificationEvaluator.evaluate(targets, predictions)
     }
 }
 

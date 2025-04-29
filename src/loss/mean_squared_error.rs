@@ -1,4 +1,4 @@
-use crate::common::matrix::DenseMatrix;
+use crate::{common::matrix::DenseMatrix, regression::RegressionEvaluator, MetricEvaluator, MetricResult};
 use serde::{Deserialize, Serialize};
 use typetag;
 
@@ -51,6 +51,10 @@ impl LossFunction for MeanSquaredErrorLoss {
         });
 
         gradient
+    }
+
+    fn calculate_metrics(&self, targets: &DenseMatrix, predictions: &DenseMatrix) -> MetricResult {
+        RegressionEvaluator.evaluate(targets, predictions)
     }
 }
 

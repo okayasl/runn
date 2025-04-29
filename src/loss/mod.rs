@@ -1,13 +1,14 @@
 pub mod cross_entropy;
 pub mod mean_squared_error;
 
-use crate::common::matrix::DenseMatrix;
+use crate::{common::matrix::DenseMatrix, MetricResult};
 use typetag;
 
 #[typetag::serde]
 pub trait LossFunction: LossFunctionClone + Send + Sync {
     fn forward(&self, predicted: &DenseMatrix, target: &DenseMatrix) -> f32;
     fn backward(&self, predicted: &DenseMatrix, target: &DenseMatrix) -> DenseMatrix;
+    fn calculate_metrics(&self, targets: &DenseMatrix, predictions: &DenseMatrix) -> MetricResult;
 }
 
 pub trait LossFunctionClone {

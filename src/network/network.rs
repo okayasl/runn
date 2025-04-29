@@ -9,12 +9,11 @@ use crate::{
     dropout::DropoutRegularization,
     layer::{Layer, LayerConfig},
     matrix::DenseMatrix,
-    metric::{calculate_confusion_matrix, calculate_f1_score, calculate_precision, calculate_recall},
     parallel::ThreadPool,
     random::Randomizer,
     regularization::Regularization,
     util::{self},
-    EarlyStopper, LossFunction, Normalization, OptimizerConfig, SummaryWriter,
+    EarlyStopper, LossFunction, MetricResult, Normalization, OptimizerConfig, SummaryWriter,
 };
 
 use super::network_io::{load_network, save_network, NetworkIO, SerializationFormat};
@@ -241,22 +240,28 @@ pub struct NetworkResult {
     pub predictions: DenseMatrix,
     pub accuracy: f32,
     pub loss: f32,
-    pub metrics: Metrics,
+    pub metrics: MetricResult,
 }
 
-pub struct Metrics {
-    pub micro_precision: f32,
-    pub micro_recall: f32,
-    pub macro_f1_score: f32,
-    pub micro_f1_score: f32,
-    pub metrics_by_class: Vec<Metric>,
+impl NetworkResult {
+    pub fn display_metrics(&self) -> String {
+        format!("Accuracy: {:.3}%, Loss: {:.4}\n{}", self.accuracy * 100.0, self.loss, self.metrics.display())
+    }
 }
 
-pub struct Metric {
-    pub f1_score: f32,
-    pub recall: f32,
-    pub precision: f32,
-}
+// pub struct Metrics {
+//     pub micro_precision: f32,
+//     pub micro_recall: f32,
+//     pub macro_f1_score: f32,
+//     pub micro_f1_score: f32,
+//     pub metrics_by_class: Vec<Metric>,
+// }
+
+// pub struct Metric {
+//     pub f1_score: f32,
+//     pub recall: f32,
+//     pub precision: f32,
+// }
 
 pub struct Network {
     pub(crate) input_size: usize,
@@ -424,7 +429,7 @@ impl Network {
 
         let accuracy = util::calculate_accuracy(&output, &training_targets);
         let loss = self.loss_function.forward(&output, &training_targets);
-        let metrics = calculate_metrics(&training_targets, &output);
+        let metrics = self.loss_function.calculate_metrics(&training_targets, &output);
 
         NetworkResult {
             predictions: output,
@@ -443,7 +448,7 @@ impl Network {
 
         let accuracy = util::calculate_accuracy(&output, &targets);
         let loss = self.loss_function.forward(&output, &targets);
-        let metrics = calculate_metrics(&targets, &output);
+        let metrics = self.loss_function.calculate_metrics(&targets, &output);
 
         NetworkResult {
             predictions: output,
@@ -488,17 +493,6 @@ impl Network {
             shuffling_targets.set_row(i, &targets.get_row(idx));
         });
     }
-
-    // fn prepare_inputs(&mut self, inputs: &DenseMatrix) -> DenseMatrix {
-    //     let mut training_inputs = inputs.clone();
-    //     if self.normalize {
-    //         let (mins, maxs) = util::find_min_max(&inputs);
-    //         util::normalize_in_place(&mut training_inputs, &mins, &maxs);
-    //         self.mins = Some(mins);
-    //         self.maxs = Some(maxs);
-    //     }
-    //     training_inputs
-    // }
 
     fn prepare_data(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> (DenseMatrix, DenseMatrix) {
         let mut training_inputs = inputs.clone();
@@ -838,62 +832,62 @@ pub fn clip_gradients(grads: &mut [&mut DenseMatrix], clip_threshold: f32) {
     }
 }
 
-pub fn calculate_metrics(targets: &DenseMatrix, predictions: &DenseMatrix) -> Metrics {
-    let (true_positives_map, false_positives_map, false_negatives_map) =
-        calculate_confusion_matrix(targets, predictions);
+// pub fn calculate_metrics(targets: &DenseMatrix, predictions: &DenseMatrix) -> Metrics {
+//     let (true_positives_map, false_positives_map, false_negatives_map) =
+//         calculate_confusion_matrix(targets, predictions);
 
-    // Initialize sums for micro-average calculations
-    let mut sum_tp = 0;
-    let mut sum_fp = 0;
-    let mut sum_fn = 0;
+//     // Initialize sums for micro-average calculations
+//     let mut sum_tp = 0;
+//     let mut sum_fp = 0;
+//     let mut sum_fn = 0;
 
-    // Initialize sums for macro-average calculations
-    let mut sum_f1_macro = 0.0;
+//     // Initialize sums for macro-average calculations
+//     let mut sum_f1_macro = 0.0;
 
-    // Calculate metrics for each class
-    let num_classes = true_positives_map.len();
-    let mut metrics_by_class = Vec::with_capacity(num_classes);
+//     // Calculate metrics for each class
+//     let num_classes = true_positives_map.len();
+//     let mut metrics_by_class = Vec::with_capacity(num_classes);
 
-    for class in 0..num_classes {
-        let tp = *true_positives_map.get(&class).unwrap_or(&0);
-        let f_pos = *false_positives_map.get(&class).unwrap_or(&0);
-        let f_neg = *false_negatives_map.get(&class).unwrap_or(&0);
+//     for class in 0..num_classes {
+//         let tp = *true_positives_map.get(&class).unwrap_or(&0);
+//         let f_pos = *false_positives_map.get(&class).unwrap_or(&0);
+//         let f_neg = *false_negatives_map.get(&class).unwrap_or(&0);
 
-        // Update sums for micro-average
-        sum_tp += tp;
-        sum_fp += f_pos;
-        sum_fn += f_neg;
+//         // Update sums for micro-average
+//         sum_tp += tp;
+//         sum_fp += f_pos;
+//         sum_fn += f_neg;
 
-        let precision = calculate_precision(tp, f_pos);
-        let recall = calculate_recall(tp, f_neg);
-        let f1_score = calculate_f1_score(precision, recall);
+//         let precision = calculate_precision(tp, f_pos);
+//         let recall = calculate_recall(tp, f_neg);
+//         let f1_score = calculate_f1_score(precision, recall);
 
-        let metric = Metric {
-            precision,
-            recall,
-            f1_score,
-        };
-        metrics_by_class.push(metric);
+//         let metric = Metric {
+//             precision,
+//             recall,
+//             f1_score,
+//         };
+//         metrics_by_class.push(metric);
 
-        sum_f1_macro += f1_score;
-    }
+//         sum_f1_macro += f1_score;
+//     }
 
-    // Calculate macro-average F1 score
-    let macro_f1 = sum_f1_macro / num_classes as f32;
+//     // Calculate macro-average F1 score
+//     let macro_f1 = sum_f1_macro / num_classes as f32;
 
-    // Calculate micro-average F1 score
-    let micro_precision = calculate_precision(sum_tp, sum_fp);
-    let micro_recall = calculate_recall(sum_tp, sum_fn);
-    let micro_f1 = calculate_f1_score(micro_precision, micro_recall);
+//     // Calculate micro-average F1 score
+//     let micro_precision = calculate_precision(sum_tp, sum_fp);
+//     let micro_recall = calculate_recall(sum_tp, sum_fn);
+//     let micro_f1 = calculate_f1_score(micro_precision, micro_recall);
 
-    Metrics {
-        micro_precision,
-        micro_recall,
-        macro_f1_score: macro_f1,
-        micro_f1_score: micro_f1,
-        metrics_by_class,
-    }
-}
+//     Metrics {
+//         micro_precision,
+//         micro_recall,
+//         macro_f1_score: macro_f1,
+//         micro_f1_score: micro_f1,
+//         metrics_by_class,
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

@@ -3,46 +3,39 @@ use env_logger::{Builder, Target};
 use log::info;
 use runn::{
     adam::Adam,
-    cross_entropy::CrossEntropy,
     layer::Dense,
+    linear::Linear,
     matrix::DenseMatrix,
+    mean_squared_error::MeanSquared,
     min_max::MinMax,
     network::network::{Network, NetworkBuilder},
     network_search::NetworkSearchBuilder,
     numbers::{Numbers, SequentialNumbers},
     relu::ReLU,
-    softmax::Softmax,
     util,
 };
 use std::env;
 use std::error::Error;
 use std::fs::File;
 
-// This example demonstrates how to train a neural network on the wine dataset using the runn library.
-// It includes functions for training, validation, and hyperparameter search.
-// The wine dataset is a classic dataset for classification tasks, and this example shows how to
-// use the runn library to build and train a neural network on this dataset.
+/// This example demonstrates how to use the runn library to train a neural network on the energy efficiency dataset.
+/// The dataset is used for predicting the energy efficiency of buildings based on various features.
+/// The goal is to classify the energy efficiency into different classes.
+/// In this dataset energy analysis using 12 different building shapes simulated in Ecotect is performed.
+/// The buildings differ with respect to the glazing area, the glazing area distribution, and the orientation, amongst other parameters.
+/// The dataset comprises 768 samples and 8 features, aiming to predict two real valued responses.
+/// It can also be used as a multi-class classification problem if the response is rounded to the nearest integer.
 fn main() {
     initialize_logger();
 
-    let (red_training_inputs, red_training_targets, red_validation_inputs, red_validation_targets) =
-        wine_inputs_targets("winequality-red", 12, 11).unwrap();
-    // let (white_training_inputs, white_training_targets, white_validation_inputs, white_validation_targets) =
-    //     wine_inputs_targets("winequality-white", 11, 1).unwrap();
-
-    let red_training_targets = util::one_hot_encode(&red_training_targets);
-    let red_validation_targets = util::one_hot_encode(&red_validation_targets);
+    let (training_inputs, training_targets, validation_inputs, validation_targets) =
+        energy_efficiency_inputs_targets("ENB2012_data", 10, 8).unwrap();
 
     let args: Vec<String> = env::args().collect();
     if args.contains(&"-search".to_string()) {
-        test_search(&red_training_inputs, &red_training_targets, &red_validation_inputs, &red_validation_targets);
+        test_search(&training_inputs, &training_targets, &validation_inputs, &validation_targets);
     } else {
-        train_and_validate(
-            &red_training_inputs,
-            &red_training_targets,
-            &red_validation_inputs,
-            &red_validation_targets,
-        );
+        train_and_validate(&training_inputs, &training_targets, &validation_inputs, &validation_targets);
     }
 }
 
@@ -50,9 +43,9 @@ fn train_and_validate(
     training_inputs: &DenseMatrix, training_targets: &DenseMatrix, validation_inputs: &DenseMatrix,
     validation_targets: &DenseMatrix,
 ) {
-    let filed = String::from("wine_network.json");
+    let filed = String::from("energy_efficiency_network.json");
 
-    let mut network = one_hot_encode_network(training_inputs.cols(), training_targets.cols());
+    let mut network = energy_efficiency_network(training_inputs.cols(), training_targets.cols());
 
     let training_result = network.train(&training_inputs, &training_targets);
     match training_result {
@@ -61,14 +54,7 @@ fn train_and_validate(
             network.save(&filed, runn::network_io::SerializationFormat::Json);
             let net_results = network.predict(&training_inputs, &training_targets);
             util::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
-            util::print_metrics(
-                net_results.accuracy,
-                net_results.loss,
-                net_results.metrics.macro_f1_score,
-                net_results.metrics.micro_f1_score,
-                net_results.metrics.micro_recall,
-                net_results.metrics.micro_precision,
-            );
+            info!("{}", net_results.display_metrics());
         }
         Err(e) => {
             eprintln!("Training failed: {}", e);
@@ -78,23 +64,16 @@ fn train_and_validate(
     network = Network::load(&filed, runn::network_io::SerializationFormat::Json);
     let net_results = network.predict(&validation_inputs, &validation_targets);
     util::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
-    util::print_metrics(
-        net_results.accuracy,
-        net_results.loss,
-        net_results.metrics.macro_f1_score,
-        net_results.metrics.micro_f1_score,
-        net_results.metrics.micro_recall,
-        net_results.metrics.micro_precision,
-    );
+    info!("{}", net_results.display_metrics());
 }
 
-fn one_hot_encode_network(inp_size: usize, targ_size: usize) -> Network {
+fn energy_efficiency_network(inp_size: usize, targ_size: usize) -> Network {
     let network = NetworkBuilder::new(inp_size, targ_size)
-        .layer(Dense::new().size(19).activation(ReLU::new()).build())
-        .layer(Dense::new().size(13).activation(ReLU::new()).build())
-        .layer(Dense::new().size(targ_size).activation(Softmax::new()).build())
+        .layer(Dense::new().size(7).activation(ReLU::new()).build())
+        .layer(Dense::new().size(7).activation(ReLU::new()).build())
+        .layer(Dense::new().size(targ_size).activation(Linear::new()).build())
         .optimizer(Adam::new().beta1(0.99).beta2(0.999).learning_rate(0.0025).build())
-        .loss_function(CrossEntropy::new().epsilon(1e-8).build())
+        .loss_function(MeanSquared::new())
         // .early_stopper(
         //     Flexible::new()
         //         .patience(100)
@@ -102,13 +81,13 @@ fn one_hot_encode_network(inp_size: usize, targ_size: usize) -> Network {
         //         .monitor_metric(MonitorMetric::Accuracy)
         //         .build(),
         // )
-        .batch_size(8)
+        .batch_size(6)
         .batch_group_size(2)
         .parallelize(2)
         .normalize_input(MinMax::new())
-        .epochs(7000)
+        .epochs(1000)
         .seed(55)
-        //.summary(TensorBoard::new().logdir("wine_summary").build())
+        //.summary(TensorBoard::new().logdir("energy_efficiency_summary").build())
         //.debug(true)
         .build();
 
@@ -125,7 +104,9 @@ fn test_search(
     training_inputs: &DenseMatrix, training_targets: &DenseMatrix, validation_inputs: &DenseMatrix,
     validation_targets: &DenseMatrix,
 ) {
-    let network = one_hot_encode_network(training_inputs.cols(), training_targets.cols());
+    let start_time = std::time::Instant::now();
+    info!("Energy Efficieny network search started.");
+    let network = energy_efficiency_network(training_inputs.cols(), training_targets.cols());
 
     let mut network_search = NetworkSearchBuilder::new()
         .network(network)
@@ -140,44 +121,45 @@ fn test_search(
         )
         .batch_sizes(
             SequentialNumbers::new()
-                .lower_limit(8.0)
-                .upper_limit(8.0)
+                .lower_limit(6.0)
+                .upper_limit(9.0)
                 .increment(1.0)
                 .ints(),
         )
         .hidden_layer(
             SequentialNumbers::new()
-                .lower_limit(10.0)
-                .upper_limit(19.0)
-                .increment(3.0)
+                .lower_limit(8.0)
+                .upper_limit(18.0)
+                .increment(2.0)
                 .ints(),
             ReLU::new(),
         )
         .hidden_layer(
             SequentialNumbers::new()
-                .lower_limit(13.0)
-                .upper_limit(16.0)
-                .increment(3.0)
+                .lower_limit(8.0)
+                .upper_limit(18.0)
+                .increment(2.0)
                 .ints(),
             ReLU::new(),
         )
-        .export("wine_search".to_string())
+        .export("energy_efficiency_search".to_string())
         .build();
 
     let search_res =
         network_search.search(&training_inputs, &training_targets, &validation_inputs, &validation_targets);
 
+    info!("Energy Efficieny network search finished in {} seconds.", start_time.elapsed().as_secs());
     info!("Num Results: {}", search_res.len());
 }
 
-pub fn wine_inputs_targets(
+pub fn energy_efficiency_inputs_targets(
     name: &str, fields_count: usize, input_count: usize,
 ) -> Result<(DenseMatrix, DenseMatrix, DenseMatrix, DenseMatrix), Box<dyn Error>> {
     let target_count = fields_count - input_count;
 
-    let file_path = format!("./examples/wine_quality/{}.csv", name);
+    let file_path = format!("./examples/energy_efficiency/{}.csv", name);
     let file = File::open(&file_path)?;
-    let mut reader = ReaderBuilder::new().delimiter(b';').has_headers(true).from_reader(file);
+    let mut reader = ReaderBuilder::new().has_headers(true).from_reader(file);
 
     let mut inputs_data = Vec::new();
     let mut targets_data = Vec::new();
@@ -210,20 +192,11 @@ pub fn wine_inputs_targets(
         }
     }
 
-    let data_length = inputs_data.len() / input_count;
+    let all_inputs = DenseMatrix::new(inputs_data.len() / input_count, input_count, &inputs_data);
+    let all_targets = DenseMatrix::new(targets_data.len() / target_count, target_count, &targets_data);
 
-    // set first 80 percent of the data for training
-    let training_data_length = (data_length as f32 * 0.8).round() as usize;
-    let training_inputs_data = &inputs_data[0..training_data_length * input_count];
-    let training_targets_data = &targets_data[0..training_data_length * target_count];
-    let training_inputs = DenseMatrix::new(training_data_length, input_count, &training_inputs_data);
-    let training_targets = DenseMatrix::new(training_data_length, target_count, &training_targets_data);
-    // set last 20 percent of the data for validation
-    let validation_data_length = data_length - training_data_length;
-    let validation_inputs_data = &inputs_data[training_data_length * input_count..];
-    let validation_targets_data = &targets_data[training_data_length * target_count..];
-    let validation_inputs = DenseMatrix::new(validation_data_length, input_count, &validation_inputs_data);
-    let validation_targets = DenseMatrix::new(validation_data_length, target_count, &validation_targets_data);
+    let (training_inputs, training_targets, validation_inputs, validation_targets) =
+        util::random_split(&all_inputs, &all_targets, 0.2, 55);
 
     Ok((training_inputs, training_targets, validation_inputs, validation_targets))
 }
@@ -234,7 +207,7 @@ pub fn wine_inputs_targets(
 /// If the LOG variable is not set, it defaults to info.
 fn initialize_logger() {
     // Attempt to create a log file
-    let log_file = match File::create("wine_quality.log") {
+    let log_file = match File::create("energy_efficiency.log") {
         Ok(file) => file,
         Err(e) => {
             eprintln!("Failed to create log file: {}", e);
