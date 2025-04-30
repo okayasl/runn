@@ -102,7 +102,7 @@ fn calculate_classification_metrics(targets: &DenseMatrix, predictions: &DenseMa
 
         sum_f1_macro += f1_score;
     }
-    let accuracy = util::calculate_accuracy(targets, predictions);
+    let accuracy = calculate_accuracy(targets, predictions);
 
     // Calculate macro-average F1 score
     let macro_f1 = sum_f1_macro / num_classes as f32;
@@ -122,7 +122,26 @@ fn calculate_classification_metrics(targets: &DenseMatrix, predictions: &DenseMa
     }
 }
 
-pub fn calculate_confusion_matrix(
+/// Calculate accuracy by comparing max values in each row
+fn calculate_accuracy(predictions: &DenseMatrix, targets: &DenseMatrix) -> f32 {
+    let rows = predictions.rows();
+    if rows == 0 || predictions.rows() != targets.rows() || predictions.cols() != targets.cols() {
+        return 0.0;
+    }
+
+    let mut correct = 0;
+    for i in 0..rows {
+        let pred_max_idx = util::find_max_index_in_row(predictions, i);
+        let target_max_idx = util::find_max_index_in_row(targets, i);
+        if pred_max_idx == target_max_idx {
+            correct += 1;
+        }
+    }
+
+    correct as f32 / rows as f32
+}
+
+fn calculate_confusion_matrix(
     targets: &DenseMatrix, predictions: &DenseMatrix,
 ) -> (HashMap<usize, usize>, HashMap<usize, usize>, HashMap<usize, usize>) {
     let mut true_positives: HashMap<usize, usize> = HashMap::new();
@@ -173,4 +192,18 @@ pub fn calculate_f1_score(precision: f32, recall: f32) -> f32 {
         return 0.0;
     }
     2.0 * (precision * recall) / (precision + recall)
+}
+
+// Tests for utility functions
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_accuracy() {
+        let predictions = DenseMatrix::new(2, 2, &[0.9f32, 0.1, 0.2, 0.8]);
+        let targets = DenseMatrix::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
+        let accuracy = calculate_accuracy(&predictions, &targets);
+        assert!((accuracy - 1.0).abs() < 1e-6);
+    }
 }

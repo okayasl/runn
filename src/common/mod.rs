@@ -1,3 +1,4 @@
+pub mod helper;
 pub mod matrix;
 pub mod numbers;
 pub mod parallel;

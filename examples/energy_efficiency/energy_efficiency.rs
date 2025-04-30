@@ -3,6 +3,7 @@ use env_logger::{Builder, Target};
 use log::info;
 use runn::{
     adam::Adam,
+    helper,
     layer::Dense,
     linear::Linear,
     matrix::DenseMatrix,
@@ -53,7 +54,7 @@ fn train_and_validate(
             println!("Training completed successfully");
             network.save(&filed, runn::network_io::SerializationFormat::Json);
             let net_results = network.predict(&training_inputs, &training_targets);
-            util::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
+            helper::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
             info!("Training: {}", net_results.display_metrics());
         }
         Err(e) => {
@@ -63,7 +64,7 @@ fn train_and_validate(
 
     network = Network::load(&filed, runn::network_io::SerializationFormat::Json);
     let net_results = network.predict(&validation_inputs, &validation_targets);
-    util::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
+    helper::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
     info!("Validation: {}", net_results.display_metrics());
 }
 
@@ -196,7 +197,7 @@ pub fn energy_efficiency_inputs_targets(
     let all_targets = DenseMatrix::new(targets_data.len() / target_count, target_count, &targets_data);
 
     let (training_inputs, training_targets, validation_inputs, validation_targets) =
-        util::random_split(&all_inputs, &all_targets, 0.2, 55);
+        helper::random_split(&all_inputs, &all_targets, 0.2, 55);
 
     Ok((training_inputs, training_targets, validation_inputs, validation_targets))
 }

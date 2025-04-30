@@ -1,5 +1,6 @@
 use log::{error, info};
 use serde::{Deserialize, Serialize};
+use std::fmt::Write;
 use typetag;
 
 use crate::{matrix::DenseMatrix, random::Randomizer, util, ActivationFunction, Optimizer, Regularization};
@@ -111,8 +112,8 @@ impl Layer for DenseLayer {
 
     fn visualize(&self) {
         info!("----- {} Layer (Dense) -----", self.name);
-        info!("Weights:\n{}", util::format_matrix(&self.weights));
-        info!("Biases:\n{}", util::format_matrix(&self.biases));
+        info!("\nWeights:\n{}", format_matrix(&self.weights));
+        info!("\nBiases:\n{}", format_matrix(&self.biases));
     }
 
     fn summarize(&self, epoch: usize, summary_writer: &mut dyn crate::summary::SummaryWriter) {
@@ -128,6 +129,29 @@ impl Layer for DenseLayer {
             error!("Failed to write biases histogram: {}", e);
         }
     }
+}
+
+/// Returns a pretty-printed single-matrix string with Unicode borders.
+fn format_matrix(matrix: &DenseMatrix) -> String {
+    let rows = matrix.rows();
+    let cols = matrix.cols();
+    let mut out = String::with_capacity(rows * (cols * 10 + 4));
+
+    for i in 0..rows {
+        let borders = match (i, rows) {
+            (0, 1) => ('[', ']'),
+            (0, _) => ('⎡', '⎤'),
+            (i, r) if i + 1 == r => ('⎣', '⎦'),
+            _ => ('⎢', '⎥'),
+        };
+        out.push(borders.0);
+        for j in 0..cols {
+            write!(out, " {:9.6}", matrix.at(i, j)).unwrap();
+        }
+        out.push(borders.1);
+        out.push('\n');
+    }
+    out
 }
 
 #[cfg(test)]

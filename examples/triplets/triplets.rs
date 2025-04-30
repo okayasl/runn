@@ -7,6 +7,7 @@ use log::info;
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
+    helper,
     network::network::{Network, NetworkBuilder},
     network_search::NetworkSearchBuilder,
     numbers::{Numbers, SequentialNumbers},
@@ -43,7 +44,7 @@ fn train_and_validate() {
             println!("Training completed successfully");
             network.save(&triplets_file, runn::network_io::SerializationFormat::Json);
             let net_results = network.predict(&training_inputs, &training_targets);
-            util::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
+            helper::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
             info!("Training: {}", net_results.display_metrics());
         }
         Err(e) => {
@@ -55,7 +56,7 @@ fn train_and_validate() {
     let validation_inputs = data::validation_inputs();
     let validation_targets = data::validation_targets();
     let net_results = network.predict(&validation_inputs, &validation_targets);
-    util::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
+    helper::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
     info!("Validation: {}", net_results.display_metrics());
 }
 

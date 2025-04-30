@@ -4,6 +4,7 @@ use log::info;
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
+    helper,
     layer::Dense,
     matrix::DenseMatrix,
     network::network::{Network, NetworkBuilder},
@@ -11,7 +12,6 @@ use runn::{
     numbers::{Numbers, SequentialNumbers},
     relu::ReLU,
     softmax::Softmax,
-    util,
 };
 use std::env;
 use std::error::Error;
@@ -43,7 +43,7 @@ fn train_and_validate() {
             println!("Training completed successfully");
             network.save(&filed, runn::network_io::SerializationFormat::Json);
             let net_results = network.predict(&training_inputs, &training_targets);
-            util::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
+            helper::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
             info!("Training: {}", net_results.display_metrics());
         }
         Err(e) => {
@@ -54,7 +54,7 @@ fn train_and_validate() {
     network = Network::load(&filed, runn::network_io::SerializationFormat::Json);
     let (validation_inputs, validation_targets) = iris_inputs_outputs("test", 7, 4).unwrap();
     let net_results = network.predict(&validation_inputs, &validation_targets);
-    util::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
+    helper::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
     info!("Validation: {}", net_results.display_metrics());
 }
 

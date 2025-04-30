@@ -4,6 +4,7 @@ use log::info;
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
+    helper,
     layer::Dense,
     matrix::DenseMatrix,
     min_max::MinMax,
@@ -12,7 +13,6 @@ use runn::{
     numbers::{Numbers, SequentialNumbers},
     relu::ReLU,
     softmax::Softmax,
-    util,
 };
 use std::env;
 use std::error::Error;
@@ -25,8 +25,8 @@ fn main() {
     let (training_inputs, training_targets, validation_inputs, validation_targets) =
         wine_inputs_targets("wine.data", 14, 13).unwrap();
 
-    let training_targets = util::one_hot_encode(&training_targets);
-    let validation_targets = util::one_hot_encode(&validation_targets);
+    let training_targets = helper::one_hot_encode(&training_targets);
+    let validation_targets = helper::one_hot_encode(&validation_targets);
 
     let args: Vec<String> = env::args().collect();
     if args.contains(&"-search".to_string()) {
@@ -50,7 +50,7 @@ fn train_and_validate(
             println!("Training completed successfully");
             network.save(&filed, runn::network_io::SerializationFormat::Json);
             let net_results = network.predict(&training_inputs, &training_targets);
-            util::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
+            helper::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
             info!("Training: {}", net_results.display_metrics());
         }
         Err(e) => {
@@ -60,7 +60,7 @@ fn train_and_validate(
 
     network = Network::load(&filed, runn::network_io::SerializationFormat::Json);
     let net_results = network.predict(&validation_inputs, &validation_targets);
-    util::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
+    helper::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
     info!("Validation: {}", net_results.display_metrics());
 }
 
@@ -179,7 +179,7 @@ pub fn wine_inputs_targets(
     let all_targets = DenseMatrix::new(targets_data.len() / target_count, target_count, &targets_data);
 
     let (training_inputs, training_targets, validation_inputs, validation_targets) =
-        util::stratified_split(&all_inputs, &all_targets, 0.2, 11);
+        helper::stratified_split(&all_inputs, &all_targets, 0.2, 11);
 
     Ok((training_inputs, training_targets, validation_inputs, validation_targets))
 }
