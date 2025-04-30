@@ -22,4 +22,18 @@ impl MetricResult {
             MetricResult::Regression(metrics) => metrics.display(),
         }
     }
+
+    pub(crate) fn headers(&self) -> Vec<&'static str> {
+        match self {
+            MetricResult::Classification(metrics) => metrics.headers(),
+            MetricResult::Regression(metrics) => metrics.headers(),
+        }
+    }
+
+    pub(crate) fn values(&self) -> Vec<String> {
+        match self {
+            MetricResult::Classification(metrics) => metrics.values(),
+            MetricResult::Regression(metrics) => metrics.values(),
+        }
+    }
 }

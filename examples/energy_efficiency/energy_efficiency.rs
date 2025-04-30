@@ -85,7 +85,7 @@ fn energy_efficiency_network(inp_size: usize, targ_size: usize) -> Network {
         .batch_group_size(2)
         .parallelize(2)
         .normalize_input(MinMax::new())
-        .epochs(1000)
+        .epochs(500)
         .seed(55)
         //.summary(TensorBoard::new().logdir("energy_efficiency_summary").build())
         //.debug(true)
@@ -134,14 +134,14 @@ fn test_search(
                 .ints(),
             ReLU::new(),
         )
-        .hidden_layer(
-            SequentialNumbers::new()
-                .lower_limit(8.0)
-                .upper_limit(18.0)
-                .increment(2.0)
-                .ints(),
-            ReLU::new(),
-        )
+        // .hidden_layer(
+        //     SequentialNumbers::new()
+        //         .lower_limit(8.0)
+        //         .upper_limit(18.0)
+        //         .increment(2.0)
+        //         .ints(),
+        //     ReLU::new(),
+        // )
         .export("energy_efficiency_search".to_string())
         .build();
 

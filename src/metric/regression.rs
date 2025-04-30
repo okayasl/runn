@@ -11,6 +11,14 @@ impl RegressionMetrics {
     pub fn display(&self) -> String {
         format!("Regression Metrics: RMSE:{:.4}, R-squared:{:.4}", self.rmse, self.r2)
     }
+
+    pub(crate) fn headers(&self) -> Vec<&'static str> {
+        vec!["R2"]
+    }
+
+    pub(crate) fn values(&self) -> Vec<String> {
+        vec![format!("{:.5}", self.r2)]
+    }
 }
 
 pub struct RegressionEvaluator;

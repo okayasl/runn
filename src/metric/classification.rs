@@ -40,6 +40,14 @@ impl ClassificationMetrics {
                 .collect::<String>()
         )
     }
+
+    pub(crate) fn headers(&self) -> Vec<&'static str> {
+        vec!["Accuracy"]
+    }
+
+    pub(crate) fn values(&self) -> Vec<String> {
+        vec![format!("{:.5}", self.accuracy * 100.0)]
+    }
 }
 
 pub struct ClassificationEvaluator;

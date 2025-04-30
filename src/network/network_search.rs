@@ -1,16 +1,16 @@
-use std::{sync::Arc, time::Instant};
+use std::{
+    fs::{self, File},
+    io,
+    sync::Arc,
+    time::Instant,
+};
 
+use csv::Writer;
 use log::info;
 
-use crate::{
-    matrix::DenseMatrix, network_search_io::write_search_results, parallel::ThreadPool, ActivationFunction, Dense,
-    Normalization,
-};
+use crate::{matrix::DenseMatrix, parallel::ThreadPool, ActivationFunction, Dense, MetricResult, Normalization};
 
-use super::{
-    network::{Network, NetworkBuilder},
-    network_search_io::NetworkResult,
-};
+use super::network::{Network, NetworkBuilder};
 
 pub struct NetworkSearchBuilder {
     network: Option<Network>,
@@ -190,121 +190,6 @@ pub struct NetworkSearch {
 }
 
 impl NetworkSearch {
-    // fn build_thread_pool(&self, worker_count: usize) {
-    //     ThreadPoolBuilder::new()
-    //         .num_threads(worker_count)
-    //         .build_global()
-    //         .expect("Failed to build global thread pool");
-    // }
-
-    // pub fn search(
-    //     &mut self, training_inputs: &DenseMatrix, training_targets: &DenseMatrix, validation_inputs: &DenseMatrix,
-    //     validation_targets: &DenseMatrix,
-    // ) -> Vec<SearchResult> {
-    //     let (training_inputs, validation_inputs) = self.prepare_inputs(training_inputs, validation_inputs);
-    //     //self.build_thread_pool(self.parallelize);
-    //     let number_of_networks = self.networks.len();
-    //     info!("Total number of network to train: {}", number_of_networks);
-
-    //     let (nc_jobs_tx, nc_jobs_rx) = mpsc::channel();
-    //     let (results_tx, results_rx) = mpsc::channel();
-    //     let network_count = Arc::new(AtomicI64::new(0));
-    //     let start_time = Instant::now();
-    //     let period = Arc::new(Mutex::new(start_time));
-
-    //     let nc_jobs_rx = Arc::new(Mutex::new(nc_jobs_rx)); // Wrap the Receiver in Arc<Mutex<>>
-    //     let mut handles = vec![];
-
-    //     let training_inputs = Arc::new(training_inputs.clone());
-    //     let training_targets = Arc::new(training_targets.clone());
-    //     let validation_inputs = Arc::new(validation_inputs.clone());
-    //     let validation_targets = Arc::new(validation_targets.clone());
-
-    //     for _ in 0..self.parallelize {
-    //         let nc_jobs_rx = Arc::clone(&nc_jobs_rx); // Clone the Arc<Mutex<Receiver>>
-    //         let results_tx = results_tx.clone();
-    //         let network_count = Arc::clone(&network_count);
-    //         let period = Arc::clone(&period);
-
-    //         // Clone the Arc-wrapped data for each thread
-    //         let training_inputs = Arc::clone(&training_inputs);
-    //         let training_targets = Arc::clone(&training_targets);
-    //         let validation_inputs = Arc::clone(&validation_inputs);
-    //         let validation_targets = Arc::clone(&validation_targets);
-
-    //         let handle = thread::spawn(move || {
-    //             while let Ok(job) = nc_jobs_rx.lock().unwrap().recv() {
-    //                 let result = run(job, &training_inputs, &training_targets, &validation_inputs, &validation_targets);
-    //                 results_tx.send(result).unwrap();
-
-    //                 let completed_jobs = network_count.fetch_add(1, Ordering::SeqCst) + 1;
-    //                 if completed_jobs % 100 == 0 {
-    //                     let current_period = period.lock().unwrap().elapsed().as_secs_f64() / 60.0;
-    //                     let time_passed = start_time.elapsed().as_secs_f64() / 60.0;
-    //                     let guessed_remaining_time =
-    //                         (time_passed / completed_jobs as f64) * (number_of_networks as f64 - completed_jobs as f64);
-    //                     info!(
-    //                         "[{}/{}] trained. Training period/total(m):[{:.2}/{:.2}]. Guessed remaining time(m):{:.2}",
-    //                         completed_jobs, number_of_networks, current_period, time_passed, guessed_remaining_time
-    //                     );
-    //                     *period.lock().unwrap() = Instant::now();
-    //                 }
-    //             }
-    //         });
-    //         handles.push(handle);
-    //     }
-
-    //     for network in self.networks.drain(..) {
-    //         nc_jobs_tx.send(network).unwrap(); // Move the `Network` into the channel
-    //     }
-
-    //     drop(nc_jobs_tx);
-    //     handles.into_iter().for_each(|handle| {
-    //         handle.join().unwrap();
-    //     });
-
-    //     drop(results_tx); // Close the results channel
-
-    //     let mut search_results = Vec::new();
-    //     while let Ok(res) = results_rx.recv() {
-    //         search_results.push(res);
-    //     }
-
-    //     if !search_results.is_empty() && !self.filename.is_empty() {
-    //         write_search_results(&self.filename, &convert_results(&search_results)).unwrap();
-    //     }
-
-    //     search_results
-    // }
-
-    // fn prepare_inputs(&mut self, t_inputs: &DenseMatrix, v_inputs: &DenseMatrix) -> (DenseMatrix, DenseMatrix) {
-    //     let mut training_inputs = t_inputs.clone();
-    //     let mut validation_inputs = v_inputs.clone();
-    //     if self.normalize {
-    //         let (mins, maxs) = util::find_min_max(&t_inputs);
-    //         util::normalize_in_place(&mut training_inputs, &mins, &maxs);
-    //         util::normalize_in_place(&mut validation_inputs, &mins, &maxs);
-    //     }
-    //     (training_inputs, validation_inputs)
-    // }
-
-    fn prepare_data(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> (DenseMatrix, DenseMatrix) {
-        let mut inputs = inputs.clone();
-
-        if self.normalize_input.is_some() {
-            let normalize_input = self.normalize_input.as_mut().unwrap();
-            normalize_input.normalize(&mut inputs).unwrap();
-        }
-
-        let mut targets = targets.clone();
-        if self.normalize_output.is_some() {
-            let normalize_output = self.normalize_output.as_mut().unwrap();
-            normalize_output.normalize(&mut targets).unwrap();
-        }
-
-        (inputs, targets)
-    }
-
     pub fn search(
         &mut self, training_inputs: &DenseMatrix, training_targets: &DenseMatrix, validation_inputs: &DenseMatrix,
         validation_targets: &DenseMatrix,
@@ -335,10 +220,27 @@ impl NetworkSearch {
         pool.join();
         let search_results: Vec<_> = receivers.into_iter().map(|r| r.recv().unwrap()).collect();
         if !search_results.is_empty() && !self.filename.is_empty() {
-            write_search_results(&self.filename, &convert_results(&search_results)).unwrap();
+            write_search_results(&self.filename, &search_results).unwrap();
         }
 
         search_results
+    }
+
+    fn prepare_data(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> (DenseMatrix, DenseMatrix) {
+        let mut inputs = inputs.clone();
+
+        if self.normalize_input.is_some() {
+            let normalize_input = self.normalize_input.as_mut().unwrap();
+            normalize_input.normalize(&mut inputs).unwrap();
+        }
+
+        let mut targets = targets.clone();
+        if self.normalize_output.is_some() {
+            let normalize_output = self.normalize_output.as_mut().unwrap();
+            normalize_output.normalize(&mut targets).unwrap();
+        }
+
+        (inputs, targets)
     }
 }
 
@@ -354,6 +256,8 @@ fn run(
 
     SearchResult {
         config: extract_config_from_network(&network),
+        training_metrics: train_res.metrics,
+        validation_metrics: validation_res.metrics,
         t_loss: train_res.loss,
         v_loss: validation_res.loss,
         elapsed_time: elapsed_time_in_sec,
@@ -363,22 +267,72 @@ fn run(
 pub struct SearchResult {
     elapsed_time: f32,
     config: NetworkConfig,
+    training_metrics: MetricResult,
+    validation_metrics: MetricResult,
     t_loss: f32,
     v_loss: f32,
 }
 
-fn convert_results(search_results: &[SearchResult]) -> Vec<NetworkResult> {
-    search_results
-        .iter()
-        .map(|sr| NetworkResult {
-            learning_rate: sr.config.learning_rate,
-            batch_size: sr.config.batch_size,
-            layer_sizes: sr.config.layer_sizes.clone(),
-            t_loss: sr.t_loss,
-            v_loss: sr.v_loss,
-            elapsed_time: sr.elapsed_time,
-        })
+impl SearchResult {
+    fn values(&self) -> Vec<String> {
+        let size_string: Vec<String> = self.config.layer_sizes.iter().map(|&size| size.to_string()).collect();
+        vec![
+            format!("{:.5}", self.config.learning_rate),
+            self.config.batch_size.to_string(),
+            size_string.join(","),
+            format!("{:.5}", self.t_loss),
+            self.training_metrics.values().join(", "),
+            format!("{:.5}", self.v_loss),
+            self.validation_metrics.values().join(", "),
+            format!("{:.3}", self.elapsed_time),
+        ]
+    }
+
+    fn default_headers(&self) -> Vec<String> {
+        vec![
+            "Learning_Rate",
+            "Batch_Size",
+            "Hidden_Layer_Sizes",
+            "Training_Loss",
+            &self
+                .training_metrics
+                .headers()
+                .into_iter()
+                .map(|header| format!("Training_{}", header))
+                .collect::<Vec<String>>()
+                .join(", "),
+            "Validation_Loss",
+            &self
+                .validation_metrics
+                .headers()
+                .into_iter()
+                .map(|header| format!("Validation_{}", header))
+                .collect::<Vec<String>>()
+                .join(", "),
+            "Elapsed_Time",
+        ]
+        .into_iter()
+        .map(String::from)
         .collect()
+    }
+}
+
+pub fn write_search_results(name: &str, results: &[SearchResult]) -> io::Result<()> {
+    if !std::path::Path::new(".out").exists() {
+        fs::create_dir(".out")?;
+    }
+    let file_path = format!(".out/{}-result.csv", name);
+    let file = File::create(file_path)?;
+    let mut writer = Writer::from_writer(file);
+
+    writer.write_record(results[0].default_headers())?;
+
+    for result in results {
+        writer.write_record(result.values())?;
+    }
+
+    writer.flush()?;
+    Ok(())
 }
 
 #[cfg(test)]
