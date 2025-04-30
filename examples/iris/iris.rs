@@ -44,7 +44,7 @@ fn train_and_validate() {
             network.save(&filed, runn::network_io::SerializationFormat::Json);
             let net_results = network.predict(&training_inputs, &training_targets);
             util::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
-            info!("{}", net_results.display_metrics());
+            info!("Training: {}", net_results.display_metrics());
         }
         Err(e) => {
             eprintln!("Training failed: {}", e);
@@ -55,7 +55,7 @@ fn train_and_validate() {
     let (validation_inputs, validation_targets) = iris_inputs_outputs("test", 7, 4).unwrap();
     let net_results = network.predict(&validation_inputs, &validation_targets);
     util::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
-    info!("{}", net_results.display_metrics());
+    info!("Validation: {}", net_results.display_metrics());
 }
 
 fn iris_network(inp_size: usize, targ_size: usize) -> Network {
@@ -75,7 +75,7 @@ fn iris_network(inp_size: usize, targ_size: usize) -> Network {
         .batch_size(9)
         // .batch_group_size(2)
         // .parallelize(2)
-        .epochs(2000)
+        .epochs(500)
         .seed(55)
         //.summary(TensorBoard::new().logdir("iris_summary").build())
         //.debug(true)

@@ -8,9 +8,7 @@ pub struct NetworkResult {
     pub(crate) learning_rate: f32,
     pub(crate) batch_size: usize,
     pub(crate) layer_sizes: Vec<usize>,
-    pub(crate) t_accuracy: f32,
     pub(crate) t_loss: f32,
-    pub(crate) v_accuracy: f32,
     pub(crate) v_loss: f32,
     pub(crate) elapsed_time: f32,
 }
@@ -23,9 +21,7 @@ impl NetworkResult {
             self.batch_size.to_string(),
             size_string.join(","),
             format!("{:.5}", self.t_loss),
-            format!("{:.3}", self.t_accuracy),
             format!("{:.5}", self.v_loss),
-            format!("{:.3}", self.v_accuracy),
             format!("{:.3}", self.elapsed_time),
         ]
     }
@@ -37,9 +33,7 @@ fn default_headers() -> Vec<&'static str> {
         "BatchSize",
         "HiddenLayerSizes",
         "TrainingLoss",
-        "TrainingAccuracy",
         "ValidationLoss",
-        "ValidationAccuracy",
         "ElapsedTime",
     ]
 }

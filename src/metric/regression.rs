@@ -9,7 +9,7 @@ pub struct RegressionMetrics {
 
 impl RegressionMetrics {
     pub fn display(&self) -> String {
-        format!("Regression Metrics: RMSE: {:.4},  R-squared: {:.4}", self.rmse, self.r2)
+        format!("Regression Metrics: RMSE:{:.4}, R-squared:{:.4}", self.rmse, self.r2)
     }
 }
 

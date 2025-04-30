@@ -33,10 +33,10 @@ impl FlexibleEarlyStopper {
 
 #[typetag::serde]
 impl EarlyStopper for FlexibleEarlyStopper {
-    fn update(&mut self, epoch: usize, loss: f32, accuracy: f32) {
+    fn update(&mut self, epoch: usize, loss: f32) {
         let current_value = match self.monitor_metric {
             MonitorMetric::Loss => loss,
-            MonitorMetric::Accuracy => accuracy,
+            MonitorMetric::Accuracy => 0.0,
         };
 
         if self
@@ -139,7 +139,7 @@ mod tests {
 
         let losses = vec![0.5, 0.4, 0.35, 0.36, 0.37, 0.38];
         for (epoch, &val_loss) in losses.iter().enumerate() {
-            early_stopper.update(epoch, val_loss, 0.0);
+            early_stopper.update(epoch, val_loss);
             if early_stopper.is_training_stopped() {
                 assert_eq!(epoch, 5);
                 break;
@@ -157,7 +157,7 @@ mod tests {
 
         let val_accuracies = vec![0.7, 0.75, 0.76, 0.75, 0.74, 0.73];
         for (epoch, &val_accuracy) in val_accuracies.iter().enumerate() {
-            early_stopper.update(epoch, 0.0, val_accuracy);
+            early_stopper.update(epoch, val_accuracy);
             if early_stopper.is_training_stopped() {
                 assert_eq!(epoch, 4);
                 break;
@@ -175,7 +175,7 @@ mod tests {
 
         let val_losses = vec![0.5, 0.4, 0.35, 0.34, 0.33, 0.32];
         for (epoch, &val_loss) in val_losses.iter().enumerate() {
-            early_stopper.update(epoch, val_loss, 0.0);
+            early_stopper.update(epoch, val_loss);
         }
         assert!(!early_stopper.is_training_stopped());
     }
@@ -191,7 +191,7 @@ mod tests {
         let val_losses = vec![0.5, 0.4, 0.35, 0.36, 0.37, 0.38];
 
         for (epoch, &val_loss) in val_losses.iter().enumerate() {
-            early_stopper.update(epoch, val_loss, 0.0);
+            early_stopper.update(epoch, val_loss);
 
             if early_stopper.is_training_stopped() {
                 assert_eq!(epoch, 5);

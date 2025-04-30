@@ -5,6 +5,7 @@ use crate::{matrix::DenseMatrix, util};
 use super::{MetricEvaluator, MetricResult};
 
 pub struct ClassificationMetrics {
+    pub accuracy: f32,
     pub micro_precision: f32,
     pub micro_recall: f32,
     pub macro_f1_score: f32,
@@ -21,7 +22,8 @@ pub struct Metric {
 impl ClassificationMetrics {
     pub fn display(&self) -> String {
         format!(
-            "Classification Metrics:  Micro Precision: {:.4},  Micro Recall: {:.4},  Macro F1 Score: {:.4},  Micro F1 Score: {:.4}\n  Metrics by Class:\n{}",
+            "Classification Metrics: Accuracy:{:.4}, Micro Precision:{:.4}, Micro Recall:{:.4}, Macro F1 Score:{:.4}, Micro F1 Score:{:.4}\n  Metrics by Class:\n{}",
+            self.accuracy * 100.0,
             self.micro_precision,
             self.micro_recall,
             self.macro_f1_score,
@@ -31,7 +33,7 @@ impl ClassificationMetrics {
                 .enumerate()
                 .map(|(i, metric)| {
                     format!(
-                        "    Class {}:      Precision: {:.4}      Recall: {:.4}      F1 Score: {:.4}\n",
+                        "    Class {}:    Precision:{:.4}    Recall:{:.4}    F1 Score:{:.4}\n",
                         i, metric.precision, metric.recall, metric.f1_score
                     )
                 })
@@ -88,6 +90,7 @@ fn calculate_classification_metrics(targets: &DenseMatrix, predictions: &DenseMa
 
         sum_f1_macro += f1_score;
     }
+    let accuracy = util::calculate_accuracy(targets, predictions);
 
     // Calculate macro-average F1 score
     let macro_f1 = sum_f1_macro / num_classes as f32;
@@ -98,6 +101,7 @@ fn calculate_classification_metrics(targets: &DenseMatrix, predictions: &DenseMa
     let micro_f1 = calculate_f1_score(micro_precision, micro_recall);
 
     ClassificationMetrics {
+        accuracy,
         micro_precision,
         micro_recall,
         macro_f1_score: macro_f1,

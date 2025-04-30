@@ -12,7 +12,6 @@ use crate::{
     parallel::ThreadPool,
     random::Randomizer,
     regularization::Regularization,
-    util::{self},
     EarlyStopper, LossFunction, MetricResult, Normalization, OptimizerConfig, SummaryWriter,
 };
 
@@ -238,30 +237,15 @@ impl NetworkBuilder {
 
 pub struct NetworkResult {
     pub predictions: DenseMatrix,
-    pub accuracy: f32,
     pub loss: f32,
     pub metrics: MetricResult,
 }
 
 impl NetworkResult {
     pub fn display_metrics(&self) -> String {
-        format!("Accuracy: {:.3}%, Loss: {:.4}\n{}", self.accuracy * 100.0, self.loss, self.metrics.display())
+        format!("Loss:{:.4}, {}", self.loss, self.metrics.display())
     }
 }
-
-// pub struct Metrics {
-//     pub micro_precision: f32,
-//     pub micro_recall: f32,
-//     pub macro_f1_score: f32,
-//     pub micro_f1_score: f32,
-//     pub metrics_by_class: Vec<Metric>,
-// }
-
-// pub struct Metric {
-//     pub f1_score: f32,
-//     pub recall: f32,
-//     pub precision: f32,
-// }
 
 pub struct Network {
     pub(crate) input_size: usize,
@@ -309,24 +293,16 @@ impl Network {
 
             for (grp_id, (grp_inputs, grp_targets)) in group_inputs.iter().zip(group_targets.iter()).enumerate() {
                 let (grp_predictions, mut grp_layer_params) = self.forward(grp_inputs);
-                self.log_group_training_info(
-                    epoch,
-                    group_inputs.len(),
-                    grp_id,
-                    grp_inputs,
-                    grp_targets,
-                    &grp_predictions,
-                );
+                self.log_group_training_info(epoch, group_inputs.len(), grp_id, grp_targets, &grp_predictions);
                 self.backward(&grp_predictions, grp_targets, &mut grp_layer_params, epoch);
             }
 
             if self.debug || self.summary_writer.is_some() || self.early_stopper.is_some() {
                 let epoch_result = self.predict_internal(&training_inputs, &training_targets);
-                let epoch_accuracy = epoch_result.accuracy;
                 let epoch_loss = epoch_result.loss;
-                self.log_epoch_training_info(epoch, epoch_accuracy, epoch_loss);
-                self.summarize(epoch, epoch_loss, epoch_accuracy);
-                if self.early_stopped(epoch, epoch_loss, epoch_accuracy) {
+                self.log_epoch_training_info(epoch, epoch_loss, &epoch_result.metrics);
+                self.summarize(epoch, epoch_loss);
+                if self.early_stopped(epoch, epoch_loss) {
                     break;
                 }
             }
@@ -427,13 +403,11 @@ impl Network {
             (output, _) = layer.read().unwrap().forward(&output);
         });
 
-        let accuracy = util::calculate_accuracy(&output, &training_targets);
         let loss = self.loss_function.forward(&output, &training_targets);
         let metrics = self.loss_function.calculate_metrics(&training_targets, &output);
 
         NetworkResult {
             predictions: output,
-            accuracy,
             loss,
             metrics,
         }
@@ -446,13 +420,11 @@ impl Network {
             (output, _) = layer.read().unwrap().forward(&output);
         });
 
-        let accuracy = util::calculate_accuracy(&output, &targets);
         let loss = self.loss_function.forward(&output, &targets);
         let metrics = self.loss_function.calculate_metrics(&targets, &output);
 
         NetworkResult {
             predictions: output,
-            accuracy,
             loss,
             metrics,
         }
@@ -519,30 +491,23 @@ impl Network {
         self.get_all_batch_inputs_targets(sample_size, batch_size, batch_count, inputs, targets)
     }
 
-    fn log_epoch_training_info(&mut self, epoch: usize, epoch_accuracy: f32, epoch_loss: f32) {
+    fn log_epoch_training_info(&mut self, epoch: usize, epoch_loss: f32, metric_result: &MetricResult) {
         if self.debug {
-            info!("Epoch [{}/{}], Loss:{:.4}, Accuracy:{:.3}%", epoch, self.epochs, epoch_loss, epoch_accuracy * 100.0);
+            info!("Epoch [{}/{}], Loss:{:.4}, {}%", epoch, self.epochs, epoch_loss, metric_result.display());
         }
     }
 
     fn log_group_training_info(
-        &mut self, epoch: usize, group_count: usize, group_id: usize, group_inputs: &&[DenseMatrix],
-        group_targets: &&[DenseMatrix], group_predictions: &Vec<DenseMatrix>,
+        &mut self, epoch: usize, group_count: usize, group_id: usize, group_targets: &&[DenseMatrix],
+        group_predictions: &Vec<DenseMatrix>,
     ) {
         if self.debug {
-            // Optionally compute the loss and accuracy for this group.
             let group_losses = self.forward_loss(group_predictions, group_targets);
             let ave_group_loss: f32 = group_losses.iter().sum::<f32>() / group_losses.len() as f32;
-            let ave_group_accuracy = calculate_group_accuracy(group_inputs, group_targets, group_predictions);
             if !self.search {
                 info!(
-                    "Epoch [{}/{}], Group [{}/{}], Avg Group Loss: {:.4}, Avg Group Accuracy: {:.2}%",
-                    epoch,
-                    self.epochs,
-                    group_id,
-                    group_count,
-                    ave_group_loss,
-                    ave_group_accuracy * 100.0
+                    "Epoch [{}/{}], Group [{}/{}], Avg Group Loss: {:.4}%",
+                    epoch, self.epochs, group_id, group_count, ave_group_loss,
                 );
             }
         }
@@ -550,12 +515,7 @@ impl Network {
 
     fn log_finish_info(&mut self, last_epoch: usize, final_result: &NetworkResult) {
         if !self.search {
-            info!(
-                "Network training finished: epoch:{}, Loss:{:.4}, Accuracy:{:.3}%",
-                last_epoch,
-                final_result.loss,
-                final_result.accuracy * 100.0
-            );
+            info!("Network training finished: epoch:{}, Loss:{:.4}", last_epoch, final_result.loss,);
         }
     }
 
@@ -620,10 +580,10 @@ impl Network {
         (all_batch_inputs, all_batch_targets)
     }
 
-    fn forward_loss(&mut self, batch_predictions: &[DenseMatrix], batch_targets: &[DenseMatrix]) -> Vec<f32> {
-        let mut all_losses = Vec::with_capacity(batch_predictions.len());
+    fn forward_loss(&mut self, group_predictions: &[DenseMatrix], group_targets: &[DenseMatrix]) -> Vec<f32> {
+        let mut all_losses = Vec::with_capacity(group_predictions.len());
 
-        for (predicted, target) in batch_predictions.iter().zip(batch_targets.iter()) {
+        for (predicted, target) in group_predictions.iter().zip(group_targets.iter()) {
             let loss = self.loss_function.forward(predicted, target);
             all_losses.push(loss);
         }
@@ -631,7 +591,7 @@ impl Network {
         all_losses
     }
 
-    fn summarize(&mut self, epoch: usize, epoch_loss: f32, epoch_accuracy: f32) {
+    fn summarize(&mut self, epoch: usize, epoch_loss: f32) {
         if self.search {
             return;
         }
@@ -639,18 +599,15 @@ impl Network {
             summary_writer
                 .write_scalar("Training/Loss", epoch, epoch_loss as f32)
                 .unwrap();
-            summary_writer
-                .write_scalar("Training/Accuracy", epoch, epoch_accuracy as f32)
-                .unwrap();
             self.layers.iter().for_each(|layer| {
                 layer.read().unwrap().summarize(epoch, &mut **summary_writer);
             });
         }
     }
 
-    fn early_stopped(&mut self, epoch: usize, val_loss: f32, val_accuracy: f32) -> bool {
+    fn early_stopped(&mut self, epoch: usize, val_loss: f32) -> bool {
         if let Some(early_stopper) = &mut self.early_stopper {
-            early_stopper.update(epoch, val_loss, val_accuracy);
+            early_stopper.update(epoch, val_loss);
             if early_stopper.is_training_stopped() {
                 if !self.search {
                     info!("Network training early stopped: epoch:{}", epoch,);
@@ -796,19 +753,6 @@ fn backward_job(
     Ok((batch_d_weights, batch_d_biases))
 }
 
-fn calculate_group_accuracy(
-    group_inputs: &&[DenseMatrix], group_targets: &&[DenseMatrix], group_predictions: &Vec<DenseMatrix>,
-) -> f32 {
-    let group_accuracy: f32 = group_inputs
-        .iter()
-        .zip(group_predictions.iter())
-        .zip(group_targets.iter())
-        .map(|((_, prediction), target)| util::calculate_accuracy(prediction, target))
-        .sum::<f32>()
-        / (group_targets.len() as f32);
-    group_accuracy
-}
-
 struct LayerParams {
     pub(crate) layer_input: DenseMatrix,
     pub(crate) pre_activated_output: DenseMatrix,
@@ -831,63 +775,6 @@ pub fn clip_gradients(grads: &mut [&mut DenseMatrix], clip_threshold: f32) {
         }
     }
 }
-
-// pub fn calculate_metrics(targets: &DenseMatrix, predictions: &DenseMatrix) -> Metrics {
-//     let (true_positives_map, false_positives_map, false_negatives_map) =
-//         calculate_confusion_matrix(targets, predictions);
-
-//     // Initialize sums for micro-average calculations
-//     let mut sum_tp = 0;
-//     let mut sum_fp = 0;
-//     let mut sum_fn = 0;
-
-//     // Initialize sums for macro-average calculations
-//     let mut sum_f1_macro = 0.0;
-
-//     // Calculate metrics for each class
-//     let num_classes = true_positives_map.len();
-//     let mut metrics_by_class = Vec::with_capacity(num_classes);
-
-//     for class in 0..num_classes {
-//         let tp = *true_positives_map.get(&class).unwrap_or(&0);
-//         let f_pos = *false_positives_map.get(&class).unwrap_or(&0);
-//         let f_neg = *false_negatives_map.get(&class).unwrap_or(&0);
-
-//         // Update sums for micro-average
-//         sum_tp += tp;
-//         sum_fp += f_pos;
-//         sum_fn += f_neg;
-
-//         let precision = calculate_precision(tp, f_pos);
-//         let recall = calculate_recall(tp, f_neg);
-//         let f1_score = calculate_f1_score(precision, recall);
-
-//         let metric = Metric {
-//             precision,
-//             recall,
-//             f1_score,
-//         };
-//         metrics_by_class.push(metric);
-
-//         sum_f1_macro += f1_score;
-//     }
-
-//     // Calculate macro-average F1 score
-//     let macro_f1 = sum_f1_macro / num_classes as f32;
-
-//     // Calculate micro-average F1 score
-//     let micro_precision = calculate_precision(sum_tp, sum_fp);
-//     let micro_recall = calculate_recall(sum_tp, sum_fn);
-//     let micro_f1 = calculate_f1_score(micro_precision, micro_recall);
-
-//     Metrics {
-//         micro_precision,
-//         micro_recall,
-//         macro_f1_score: macro_f1,
-//         micro_f1_score: micro_f1,
-//         metrics_by_class,
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
@@ -968,8 +855,8 @@ mod tests {
 
         let result = network.train(&inputs, &targets);
         assert!(result.is_ok(), "Training should complete without errors");
-        let accuracy = result.unwrap().accuracy;
-        assert!(accuracy > 0.9, "Network should achieve high accuracy on XOR problem");
+        let loss = result.unwrap().loss;
+        assert!(loss > 0.01, "Network should achieve low loss on XOR problem");
     }
 
     #[test]
@@ -1004,12 +891,8 @@ mod tests {
         let result = network.train(&inputs, &targets);
         assert!(result.is_ok(), "Training should complete without errors");
 
-        let accuracy = result.unwrap().accuracy;
-        assert!(
-            accuracy > 0.5,
-            "Network should achieve reasonable accuracy on random data.Test accuracy: {}",
-            accuracy
-        );
+        let loss = result.unwrap().loss;
+        assert!(loss > 0.01, "Network should achieve reasonable loss with dropout regularization.Test loss: {}", loss);
     }
 
     #[test]
@@ -1045,11 +928,7 @@ mod tests {
         let result = network.train(&inputs, &targets);
         assert!(result.is_ok(), "Training should complete without errors");
 
-        let accuracy = result.unwrap().accuracy;
-        assert!(
-            accuracy > 0.5,
-            "Network should achieve reasonable accuracy with dropout regularization.Test accuracy: {}",
-            accuracy
-        );
+        let loss = result.unwrap().loss;
+        assert!(loss > 0.01, "Network should achieve reasonable loss with dropout regularization.Test loss: {}", loss);
     }
 }

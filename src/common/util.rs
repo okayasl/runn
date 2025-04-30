@@ -174,7 +174,7 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
 
     let mut buf = String::new();
 
-    writeln!(buf, "\nInput    Target    Prediction").unwrap();
+    writeln!(buf, "\nInput                 Target        Prediction").unwrap();
 
     if r == 0 {
         info!("{}", buf);
@@ -212,7 +212,7 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
         prediction_str.push(']');
 
         // Append the line
-        writeln!(buf, "{}{}{}", input_str, target_str, prediction_str).unwrap();
+        writeln!(buf, "{}    {}{}", input_str, target_str, prediction_str).unwrap();
         info!("{}", buf);
         return;
     }
@@ -247,7 +247,7 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
     prediction_str.push('⎤');
 
     // Append the top border
-    writeln!(buf, "{}{}{}", input_str, target_str, prediction_str).unwrap();
+    writeln!(buf, "{}    {}{}", input_str, target_str, prediction_str).unwrap();
 
     // Append the middle rows
     for i in 1..r - 1 {
@@ -280,7 +280,7 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
         prediction_str.push('⎥');
 
         // Append the line
-        writeln!(buf, "{}{}{}", input_str, target_str, prediction_str).unwrap();
+        writeln!(buf, "{}    {}{}", input_str, target_str, prediction_str).unwrap();
     }
 
     // Prepare the bottom border
@@ -313,7 +313,7 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
     prediction_str.push('⎦');
 
     // Append the bottom border
-    writeln!(buf, "{}{}{}", input_str, target_str, prediction_str).unwrap();
+    writeln!(buf, "{}    {}{}", input_str, target_str, prediction_str).unwrap();
 
     // Log the entire output
     info!("{}", buf);

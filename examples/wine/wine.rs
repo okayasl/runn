@@ -51,7 +51,7 @@ fn train_and_validate(
             network.save(&filed, runn::network_io::SerializationFormat::Json);
             let net_results = network.predict(&training_inputs, &training_targets);
             util::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
-            info!("{}", net_results.display_metrics());
+            info!("Training: {}", net_results.display_metrics());
         }
         Err(e) => {
             eprintln!("Training failed: {}", e);
@@ -61,7 +61,7 @@ fn train_and_validate(
     network = Network::load(&filed, runn::network_io::SerializationFormat::Json);
     let net_results = network.predict(&validation_inputs, &validation_targets);
     util::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
-    info!("{}", net_results.display_metrics());
+    info!("Validation: {}", net_results.display_metrics());
 }
 
 fn one_hot_encode_network(inp_size: usize, targ_size: usize) -> Network {

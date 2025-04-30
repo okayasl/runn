@@ -354,9 +354,7 @@ fn run(
 
     SearchResult {
         config: extract_config_from_network(&network),
-        t_accuracy: train_res.accuracy * 100.0,
         t_loss: train_res.loss,
-        v_accuracy: validation_res.accuracy * 100.0,
         v_loss: validation_res.loss,
         elapsed_time: elapsed_time_in_sec,
     }
@@ -365,9 +363,7 @@ fn run(
 pub struct SearchResult {
     elapsed_time: f32,
     config: NetworkConfig,
-    t_accuracy: f32,
     t_loss: f32,
-    v_accuracy: f32,
     v_loss: f32,
 }
 
@@ -379,9 +375,7 @@ fn convert_results(search_results: &[SearchResult]) -> Vec<NetworkResult> {
             batch_size: sr.config.batch_size,
             layer_sizes: sr.config.layer_sizes.clone(),
             t_loss: sr.t_loss,
-            t_accuracy: sr.t_accuracy,
             v_loss: sr.v_loss,
-            v_accuracy: sr.v_accuracy,
             elapsed_time: sr.elapsed_time,
         })
         .collect()
