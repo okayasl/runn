@@ -45,8 +45,12 @@ impl ClassificationMetrics {
         vec!["Accuracy"]
     }
 
-    pub(crate) fn values(&self) -> Vec<String> {
+    pub(crate) fn values_str(&self) -> Vec<String> {
         vec![format!("{:.5}", self.accuracy * 100.0)]
+    }
+
+    pub(crate) fn values(&self) -> Vec<f32> {
+        vec![self.accuracy * 100.0]
     }
 }
 

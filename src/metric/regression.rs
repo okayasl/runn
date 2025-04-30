@@ -16,8 +16,12 @@ impl RegressionMetrics {
         vec!["R2"]
     }
 
-    pub(crate) fn values(&self) -> Vec<String> {
+    pub(crate) fn values_str(&self) -> Vec<String> {
         vec![format!("{:.5}", self.r2)]
+    }
+
+    pub(crate) fn values(&self) -> Vec<f32> {
+        vec![self.r2]
     }
 }
 

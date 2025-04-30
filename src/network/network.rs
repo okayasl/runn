@@ -301,7 +301,7 @@ impl Network {
                 let epoch_result = self.predict_internal(&training_inputs, &training_targets);
                 let epoch_loss = epoch_result.loss;
                 self.log_epoch_training_info(epoch, epoch_loss, &epoch_result.metrics);
-                self.summarize(epoch, epoch_loss);
+                self.summarize(epoch, epoch_loss, &epoch_result.metrics);
                 if self.early_stopped(epoch, epoch_loss) {
                     break;
                 }
@@ -591,7 +591,7 @@ impl Network {
         all_losses
     }
 
-    fn summarize(&mut self, epoch: usize, epoch_loss: f32) {
+    fn summarize(&mut self, epoch: usize, epoch_loss: f32, metric_result: &MetricResult) {
         if self.search {
             return;
         }
@@ -599,6 +599,15 @@ impl Network {
             summary_writer
                 .write_scalar("Training/Loss", epoch, epoch_loss as f32)
                 .unwrap();
+            metric_result
+                .headers()
+                .iter()
+                .zip(metric_result.values())
+                .for_each(|(header, value)| {
+                    summary_writer
+                        .write_scalar(&format!("Training/{}", header), epoch, value)
+                        .unwrap();
+                });
             self.layers.iter().for_each(|layer| {
                 layer.read().unwrap().summarize(epoch, &mut **summary_writer);
             });

@@ -30,7 +30,14 @@ impl MetricResult {
         }
     }
 
-    pub(crate) fn values(&self) -> Vec<String> {
+    pub(crate) fn values_str(&self) -> Vec<String> {
+        match self {
+            MetricResult::Classification(metrics) => metrics.values_str(),
+            MetricResult::Regression(metrics) => metrics.values_str(),
+        }
+    }
+
+    pub(crate) fn values(&self) -> Vec<f32> {
         match self {
             MetricResult::Classification(metrics) => metrics.values(),
             MetricResult::Regression(metrics) => metrics.values(),

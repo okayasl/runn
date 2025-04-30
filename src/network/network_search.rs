@@ -281,9 +281,9 @@ impl SearchResult {
             self.config.batch_size.to_string(),
             size_string.join(","),
             format!("{:.5}", self.t_loss),
-            self.training_metrics.values().join(", "),
+            self.training_metrics.values_str().join(", "),
             format!("{:.5}", self.v_loss),
-            self.validation_metrics.values().join(", "),
+            self.validation_metrics.values_str().join(", "),
             format!("{:.3}", self.elapsed_time),
         ]
     }
