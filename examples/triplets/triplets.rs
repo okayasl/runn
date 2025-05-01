@@ -13,7 +13,7 @@ use runn::{
     numbers::{Numbers, SequentialNumbers},
     relu::ReLU,
     softmax::Softmax,
-    util, Dense,
+    Dense,
 };
 
 // Triplets is a Multi-class classification problem.
@@ -44,7 +44,15 @@ fn train_and_validate() {
             println!("Training completed successfully");
             network.save(&triplets_file, runn::network_io::SerializationFormat::Json);
             let net_results = network.predict(&training_inputs, &training_targets);
-            helper::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
+            log::info!(
+                "{}",
+                helper::pretty_compare_matrices(
+                    &training_inputs,
+                    &training_targets,
+                    &net_results.predictions,
+                    helper::CompareMode::Classification
+                )
+            );
             info!("Training: {}", net_results.display_metrics());
         }
         Err(e) => {
@@ -56,7 +64,15 @@ fn train_and_validate() {
     let validation_inputs = data::validation_inputs();
     let validation_targets = data::validation_targets();
     let net_results = network.predict(&validation_inputs, &validation_targets);
-    helper::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
+    log::info!(
+        "{}",
+        helper::pretty_compare_matrices(
+            &validation_inputs,
+            &validation_targets,
+            &net_results.predictions,
+            helper::CompareMode::Classification
+        )
+    );
     info!("Validation: {}", net_results.display_metrics());
 }
 
@@ -119,7 +135,7 @@ fn triplets_network(inp_size: usize, targ_size: usize) -> Network {
         .batch_size(8)
         .batch_group_size(2)
         .parallelize(2)
-        .epochs(1500)
+        .epochs(150)
         .seed(55)
         //.regularization(L1::new().lambda(0.0001).build())
         //.summary(TensorBoard::new().logdir("summary").build())

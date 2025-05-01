@@ -13,7 +13,6 @@ use runn::{
     network_search::NetworkSearchBuilder,
     numbers::{Numbers, SequentialNumbers},
     relu::ReLU,
-    util,
 };
 use std::env;
 use std::error::Error;
@@ -44,7 +43,7 @@ fn train_and_validate(
     training_inputs: &DenseMatrix, training_targets: &DenseMatrix, validation_inputs: &DenseMatrix,
     validation_targets: &DenseMatrix,
 ) {
-    let filed = String::from("energy_efficiency_network.json");
+    let een_file = String::from("energy_efficiency_network.json");
 
     let mut network = energy_efficiency_network(training_inputs.cols(), training_targets.cols());
 
@@ -52,9 +51,17 @@ fn train_and_validate(
     match training_result {
         Ok(_) => {
             println!("Training completed successfully");
-            network.save(&filed, runn::network_io::SerializationFormat::Json);
+            network.save(&een_file, runn::network_io::SerializationFormat::Json);
             let net_results = network.predict(&training_inputs, &training_targets);
-            helper::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
+            log::info!(
+                "{}",
+                helper::pretty_compare_matrices(
+                    &training_inputs,
+                    &training_targets,
+                    &net_results.predictions,
+                    helper::CompareMode::Regression
+                )
+            );
             info!("Training: {}", net_results.display_metrics());
         }
         Err(e) => {
@@ -62,9 +69,17 @@ fn train_and_validate(
         }
     }
 
-    network = Network::load(&filed, runn::network_io::SerializationFormat::Json);
+    network = Network::load(&een_file, runn::network_io::SerializationFormat::Json);
     let net_results = network.predict(&validation_inputs, &validation_targets);
-    helper::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
+    log::info!(
+        "{}",
+        helper::pretty_compare_matrices(
+            &validation_inputs,
+            &validation_targets,
+            &net_results.predictions,
+            helper::CompareMode::Regression
+        )
+    );
     info!("Validation: {}", net_results.display_metrics());
 }
 

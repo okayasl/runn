@@ -43,7 +43,15 @@ fn train_and_validate() {
             println!("Training completed successfully");
             network.save(&filed, runn::network_io::SerializationFormat::Json);
             let net_results = network.predict(&training_inputs, &training_targets);
-            helper::print_matrices_comparison(&training_inputs, &training_targets, &net_results.predictions);
+            log::info!(
+                "{}",
+                helper::pretty_compare_matrices(
+                    &training_inputs,
+                    &training_targets,
+                    &net_results.predictions,
+                    helper::CompareMode::Classification
+                )
+            );
             info!("Training: {}", net_results.display_metrics());
         }
         Err(e) => {
@@ -54,7 +62,15 @@ fn train_and_validate() {
     network = Network::load(&filed, runn::network_io::SerializationFormat::Json);
     let (validation_inputs, validation_targets) = iris_inputs_outputs("test", 7, 4).unwrap();
     let net_results = network.predict(&validation_inputs, &validation_targets);
-    helper::print_matrices_comparison(&validation_inputs, &validation_targets, &net_results.predictions);
+    log::info!(
+        "{}",
+        helper::pretty_compare_matrices(
+            &validation_inputs,
+            &validation_targets,
+            &net_results.predictions,
+            helper::CompareMode::Classification
+        )
+    );
     info!("Validation: {}", net_results.display_metrics());
 }
 

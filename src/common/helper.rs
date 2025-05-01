@@ -1,13 +1,21 @@
 use std::fmt::Write;
 
-use log::info;
 use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 
 use crate::util::find_max_index_in_row;
 
 use super::matrix::DenseMatrix;
 
-pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, prediction: &DenseMatrix) {
+/// A mode flag so we know whether to do classification or regression
+pub enum CompareMode {
+    Classification,
+    Regression,
+}
+
+/// Pretty print three matrices side-by-side as an ASCII-art comparison and return as a String.
+pub fn pretty_compare_matrices(
+    input: &DenseMatrix, target: &DenseMatrix, prediction: &DenseMatrix, mode: CompareMode,
+) -> String {
     let rows = input.rows();
     let mut buf = String::new();
 
@@ -33,8 +41,7 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
     .unwrap();
 
     if rows == 0 {
-        info!("{}", buf);
-        return;
+        return buf;
     }
 
     // Helper to format one row of any matrix with given border chars
@@ -48,13 +55,13 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
         s
     };
 
-    // Helper to mark mismatch between target and prediction argmax
-    let marker = |i: usize| {
-        if find_max_index_in_row(target, i) != find_max_index_in_row(prediction, i) {
-            " <>"
-        } else {
-            "   "
+    // Helper to compute regression error
+    let row_error = |i: usize| {
+        let mut err = 0.0;
+        for j in 0..target.cols() {
+            err += (prediction.at(i, j) - target.at(i, j)).abs();
         }
+        format!(">{:7.2}", err)
     };
 
     // Iterate through rows, choosing border style per position
@@ -73,10 +80,27 @@ pub fn print_matrices_comparison(input: &DenseMatrix, target: &DenseMatrix, pred
         let tgt = format_row(target, i, l, r);
         let pred = format_row(prediction, i, l, r);
 
-        writeln!(buf, "{}  {}{}  {}", inp, tgt, marker(i), pred).unwrap();
+        // writeln!(buf, "{}  {}{}  {}", inp, tgt, marker(i), pred).unwrap();
+
+        match mode {
+            CompareMode::Classification => {
+                // classification marker between target and prediction
+                let mark = if find_max_index_in_row(target, i) != find_max_index_in_row(prediction, i) {
+                    " <>"
+                } else {
+                    "   "
+                };
+                writeln!(buf, "{}  {}{}  {}", inp, tgt, mark, pred).unwrap();
+            }
+            CompareMode::Regression => {
+                // regression error at far end
+                let err_str = row_error(i);
+                writeln!(buf, "{}  {}  {}  {}", inp, tgt, pred, err_str).unwrap();
+            }
+        }
     }
 
-    info!("{}", buf);
+    buf
 }
 
 pub fn one_hot_encode(targets: &DenseMatrix) -> DenseMatrix {
