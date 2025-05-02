@@ -1,5 +1,6 @@
 use std::{
     collections::BTreeMap,
+    error::Error,
     fs::{self, File},
     io,
     sync::Arc,
@@ -14,6 +15,10 @@ use crate::{matrix::DenseMatrix, parallel::ThreadPool, ActivationFunction, Dense
 
 use super::network::{Network, NetworkBuilder};
 
+/// A builder for configuring a hyperparameter search over neural network architectures and training settings.
+///
+/// Use this struct to define ranges of hyperparameters (e.g., layer sizes, learning rates) and a base network configuration.
+/// The search will evaluate all specified combinations, training each network and reporting performance metrics.
 pub struct NetworkSearchBuilder {
     network: Option<Network>,
     activation_functions: Vec<Box<dyn ActivationFunction>>,
@@ -27,6 +32,9 @@ pub struct NetworkSearchBuilder {
 }
 
 impl NetworkSearchBuilder {
+    /// Create a new `NetworkSearchBuilder` with default settings.
+    ///
+    /// Initialize an empty search configuration that must be populated with a network, hyperparameters, and optional settings.
     pub fn new() -> Self {
         Self {
             network: None,
@@ -40,65 +48,111 @@ impl NetworkSearchBuilder {
             parallelize: 1,
         }
     }
+
+    /// Set the base network configuration for the search.
+    ///
+    /// The provided network’s settings (e.g., loss function, optimizer) are used as a template, with search parameters overriding specific aspects.
+    /// # Parameters
+    /// - `network`: The base `Network` to modify during the search.
     pub fn network(mut self, network: Network) -> Self {
         self.network = Some(network);
         self
     }
 
+    /// Add a hidden layer configuration with its activation function.
+    ///
+    /// Specifies a set of possible neuron counts for a hidden layer and the activation function to use. Multiple calls add additional layers.
+    /// # Parameters
+    /// - `layer_sizes`: Vector of possible neuron counts for this layer (e.g., `[64, 128]`).
+    /// - `af`: Activation function for the layer (e.g., ReLU, Sigmoid).
     pub fn hidden_layer(mut self, layer_sizes: Vec<usize>, af: impl ActivationFunction + 'static) -> Self {
         self.hidden_layer_sizes.push(layer_sizes);
         self.activation_functions.push(Box::new(af));
         self
     }
 
+    /// Set the batch sizes to evaluate.
+    ///
+    /// Defines the range of batch sizes to test during the search. Smaller batch sizes may improve generalization but increase training time.
+    /// # Parameters
+    /// - `bs`: Vector of batch sizes to try (e.g., `[32, 64, 128]`).
     pub fn batch_sizes(mut self, bs: Vec<usize>) -> Self {
         self.batch_sizes = bs;
         self
     }
 
+    /// Set the learning rates to evaluate.
+    ///
+    /// Defines the range of learning rates to test during the search. Lower rates may lead to slower but more stable convergence.
+    /// # Parameters
+    /// - `lrs`: Vector of learning rates to try (e.g., `[0.001, 0.01, 0.1]`).
     pub fn learning_rates(mut self, lrs: Vec<f32>) -> Self {
         self.learning_rates = lrs;
         self
     }
 
+    /// Set the filename for exporting search results.
+    ///
+    /// If specified, search results (e.g., losses, metrics) are saved to a CSV file in the `.out` directory.
+    /// # Parameters
+    /// - `filename`: Name of the output CSV file (without path or extension).
     pub fn export(mut self, filename: String) -> Self {
         self.filename = filename;
         self
     }
 
+    /// Set input data normalization.
+    ///
+    /// Normalizes input data (e.g., min-max scaling, standardization) before feeding it to networks during the search.
+    /// # Parameters
+    /// - `normalization`: Normalization method to apply to inputs(e.g., `MinMax`, 'ZScore' ).
     pub fn normalize_input(mut self, normalization: impl Normalization + 'static) -> Self {
         self.normalize_input = Some(Box::new(normalization));
         self
     }
 
+    /// Set output data normalization.
+    ///
+    /// Normalizes target data (e.g., min-max scaling, standardization) before computing losses during the search.
+    /// # Parameters
+    /// - `normalization`: Normalization method to apply to outputs(e.g., `MinMax`, 'ZScore' ).
     pub fn normalize_output(mut self, normalization: impl Normalization + 'static) -> Self {
         self.normalize_output = Some(Box::new(normalization));
         self
     }
 
+    /// Set the number of threads for parallel processing.
+    ///
+    /// Controls the degree of parallelism for training multiple networks concurrently. Must be greater than 0. Default is 1 (single-threaded).
+    /// # Parameters
+    /// - `parallelize`: Number of threads to use.
     pub fn parallelize(mut self, parallelize: usize) -> Self {
         self.parallelize = parallelize;
         self
     }
 
-    fn validate(&self) {
+    fn validate(&self) -> Result<(), Box<dyn Error>> {
         if self.activation_functions.is_empty() {
-            panic!("No activation functions provided");
+            return Err("No activation functions provided".into());
         }
         if self.hidden_layer_sizes.is_empty() {
-            panic!("No hidden layer sizes provided");
+            return Err("No hidden layer sizes provided".into());
         }
         if self.batch_sizes.is_empty() {
-            panic!("No batch sizes provided");
+            return Err("No batch sizes provided".into());
         }
         if self.learning_rates.is_empty() {
-            panic!("No learning rates provided");
+            return Err("No learning rates provided".into());
         }
         if self.network.is_none() {
-            panic!("No network provided");
+            return Err("No network provided".into());
         }
+        Ok(())
     }
 
+    /// Build the hyperparameter search.
+    ///
+    /// Validates the configuration and creates a `NetworkSearch` instance that will evaluate all specified hyperparameter combinations.
     fn generate_network_combinations(&self) -> Vec<Network> {
         let mut networks = Vec::new();
         let nw = self.network.as_ref().unwrap();
@@ -137,15 +191,15 @@ impl NetworkSearchBuilder {
         networks
     }
 
-    pub fn build(self) -> NetworkSearch {
-        self.validate();
-        NetworkSearch {
+    pub fn build(self) -> Result<NetworkSearch, Box<dyn Error>> {
+        self.validate()?;
+        Ok(NetworkSearch {
             networks: self.generate_network_combinations(),
             filename: self.filename,
             normalize_input: self.normalize_input,
             normalize_output: self.normalize_output,
             parallelize: self.parallelize,
-        }
+        })
     }
 }
 
@@ -467,7 +521,7 @@ mod tests {
             .network(get_network().unwrap())
             .hidden_layer(vec![10], ReLU::new())
             .learning_rates(vec![0.01]);
-        builder.build();
+        builder.build().unwrap();
     }
 
     #[test]
@@ -477,7 +531,7 @@ mod tests {
             .network(get_network().unwrap())
             .hidden_layer(vec![10], ReLU::new())
             .batch_sizes(vec![32]);
-        builder.build();
+        builder.build().unwrap();
     }
 
     #[test]
@@ -487,7 +541,7 @@ mod tests {
             .hidden_layer(vec![10], ReLU::new())
             .batch_sizes(vec![32])
             .learning_rates(vec![0.01]);
-        builder.build();
+        builder.build().unwrap();
     }
 
     #[test]
@@ -501,7 +555,7 @@ mod tests {
             .normalize_input(MinMax::new())
             .parallelize(4);
 
-        let network_search = builder.build();
+        let network_search = builder.build().unwrap();
 
         assert_eq!(network_search.filename, "test_file");
         assert!(network_search.normalize_input.is_some());

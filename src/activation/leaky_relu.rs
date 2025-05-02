@@ -5,19 +5,26 @@ use typetag;
 
 use super::he_initialization;
 
-// LeakyReLU (Leaky Rectified Linear Unit) Activation Function
-//
-// LeakyReLU is a variation of ReLU that allows a small, non-zero gradient when the input is less than zero.
-// This helps to mitigate the "dying ReLU" problem, where neurons can get stuck in a permanently inactive state.
-//
-// Range: (-∞, +∞)
-// Best for: Improving learning in networks where the "dying ReLU" problem is a concern.
+/// LeakyReLU (Leaky Rectified Linear Unit) Activation Function
+///
+/// LeakyReLU is a variation of ReLU that allows a small, non-zero gradient when the input is less than zero.
+/// This helps to mitigate the "dying ReLU" problem, where neurons can get stuck in a permanently inactive state.
+///
+/// Range: (-∞, +∞)
+/// Best for: Improving learning in networks where the "dying ReLU" problem is a concern.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct LeakyReLUActivation {
     alpha: f32,
 }
 
-// LeakyReLU Builder for a user-friendly interface
+/// LeakyReLU Builder for a user-friendly interface
+/// LeakyReLU (Leaky Rectified Linear Unit) Activation Function
+///
+/// LeakyReLU is a variation of ReLU that allows a small, non-zero gradient when the input is less than zero.
+/// This helps to mitigate the "dying ReLU" problem, where neurons can get stuck in a permanently inactive state.
+///
+/// Range: (-∞, +∞)
+/// Best for: Improving learning in networks where the "dying ReLU" problem is a concern.
 pub struct LeakyReLU {
     alpha: f32,
 }
@@ -26,7 +33,7 @@ impl LeakyReLU {
         LeakyReLU { alpha: 0.01 } // Default alpha = 0.01
     }
 
-    // Method to set the alpha value
+    /// Method to set the alpha value
     pub fn alpha(mut self, alpha: f32) -> Self {
         self.alpha = alpha;
         self

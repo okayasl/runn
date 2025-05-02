@@ -17,6 +17,9 @@ use crate::{
 
 use super::network_io::{load_network, save_network, NetworkIO, SerializationFormat};
 
+/// A builder for constructing a neural network with customizable layers, loss functions, optimizers, and training parameters.
+///
+/// Use this struct to configure the architecture and training settings of a neural network, then call `build()` to create a `Network` instance.
 pub struct NetworkBuilder {
     input_size: usize,
     output_size: usize,
@@ -38,6 +41,11 @@ pub struct NetworkBuilder {
 }
 
 impl NetworkBuilder {
+    /// Create a new `NetworkBuilder` with the specified input and output sizes.
+    ///
+    /// # Parameters
+    /// - `input_size`: Number of features in the input data.
+    /// - `output_size`: Number of outputs (e.g., classes for classification).
     pub fn new(input_size: usize, output_size: usize) -> Self {
         Self {
             input_size,
@@ -60,76 +68,153 @@ impl NetworkBuilder {
         }
     }
 
+    /// Add a layer to the neural network.
+    ///
+    /// Layers are added in the order they are specified and will be executed sequentially during forward and backward passes.
+    /// # Parameters
+    /// - `layer_config`: Configuration for the layer (e.g., Dense with specific size and activation).
     pub fn layer(mut self, layer_config: impl LayerConfig + 'static) -> Self {
         self.layer_configs.push(Box::new(layer_config));
         self
     }
 
+    /// Add a regularization method to the network.
+    ///
+    /// Regularization (e.g., L1, L2, dropout) is applied during training to prevent overfitting.
+    /// Multiple regularizations can be added and will be applied in order.
+    /// # Parameters
+    /// - `reg`: Regularization method to apply (e.g., `Dropout`).
     pub fn regularization(mut self, reg: impl Regularization + 'static) -> Self {
         self.regularization.push(Box::new(reg));
         self
     }
 
+    /// Set the loss function for training.
+    ///
+    /// The loss function measures the error between predictions and targets. It must be set before building the network.
+    /// # Parameters
+    /// - `loss_function`: Loss function to use (e.g., mean squared error, cross-entropy).
     pub fn loss_function(mut self, loss_function: impl LossFunction + 'static) -> Self {
         self.loss_function = Some(Box::new(loss_function));
         self
     }
 
+    /// Set the optimizer for training.
+    ///
+    /// The optimizer defines how weights are updated during backpropagation. It must be set before building the network.
+    /// # Parameters
+    /// - `optimizer_config`: Optimizer configuration (e.g., SGD, Adam).
     pub fn optimizer(mut self, optimizer_config: impl OptimizerConfig + 'static) -> Self {
         self.optimizer_config = Some(Box::new(optimizer_config));
         self
     }
 
+    /// Set an early stopping mechanism.
+    ///
+    /// Early stopping halts training when performance stops improving, based on the provided stopper's criteria.
+    /// # Parameters
+    /// - `early_stopper`: Early stopping strategy (e.g., `Loss`).
     pub fn early_stopper(mut self, early_stopper: impl EarlyStopper + 'static) -> Self {
         self.early_stopper = Some(Box::new(early_stopper));
         self
     }
 
+    /// Set the batch group size for training.
+    ///
+    /// Batches are grouped to balance memory usage and parallelism. A larger group size may improve throughput but requires more memory.
+    /// Default is 1 (no grouping).
+    /// # Parameters
+    /// - `batch_group_size`: Number of batches to process together.
     pub fn batch_group_size(mut self, batch_group_size: usize) -> Self {
         self.batch_group_size = batch_group_size;
         self
     }
 
+    /// Set the batch size for training.
+    ///
+    /// Smaller batch sizes may improve generalization but increase training time. Default is `usize::MAX` (full dataset).
+    /// # Parameters
+    /// - `batch_size`: Number of samples per batch.
     pub fn batch_size(mut self, batch_size: usize) -> Self {
         self.batch_size = batch_size;
         self
     }
 
+    /// Set the number of training epochs.
+    ///
+    /// An epoch is one full pass through the training data. Must be greater than 0.
+    /// # Parameters
+    /// - `epochs`: Number of epochs to train.
     pub fn epochs(mut self, epochs: usize) -> Self {
         self.epochs = epochs;
         self
     }
 
+    /// Set the gradient clipping threshold.
+    ///
+    /// Clips gradients to prevent exploding gradients during training.
+    /// # Parameters
+    /// - `clip_threshold`: Maximum allowed gradient magnitude.
     pub fn clip_threshold(mut self, clip_threshold: f32) -> Self {
         self.clip_threshold = clip_threshold;
         self
     }
 
+    /// Set the random seed for reproducibility.
+    ///
+    /// Controls weight initialization and data shuffling. Default is 0.
+    /// # Parameters
+    /// - `seed`: Random seed value.
     pub fn seed(mut self, seed: u64) -> Self {
         self.seed = seed;
         self
     }
 
+    /// Enable or disable debug logging.
+    ///
+    /// When enabled, detailed training information (e.g., epoch losses, layer visualizations) is logged. Default is false.
+    /// # Parameters
+    /// - `debug`: Whether to enable debug logging.
     pub fn debug(mut self, debug: bool) -> Self {
         self.debug = debug;
         self
     }
 
+    /// Set input data normalization.
+    ///
+    /// Normalizes input data (e.g., min-max scaling, zscore) before feeding it to the network.
+    /// # Parameters
+    /// - `normalization`: Normalization method to apply to inputs(e.g., `MinMax`, 'ZScore' ).
     pub fn normalize_input(mut self, normalization: impl Normalization + 'static) -> Self {
         self.normalize_input = Some(Box::new(normalization));
         self
     }
 
+    /// Set output data normalization.
+    ///
+    /// Normalizes target data (e.g., min-max scaling, standardization) before computing the loss.
+    /// # Parameters
+    /// - `normalization`: Normalization method to apply to outputs(e.g., `MinMax`, 'ZScore' ).
     pub fn normalize_output(mut self, normalization: impl Normalization + 'static) -> Self {
         self.normalize_output = Some(Box::new(normalization));
         self
     }
 
+    /// Set a summary writer for logging training metrics.
+    ///
+    /// Writes training statistics (e.g., loss, metrics) to a specified output (e.g., TensorBoard).
+    /// # Parameters
+    /// - `summary_writer`: Summary writer for logging metrics.
     pub fn summary(mut self, summary_writer: Box<dyn SummaryWriter>) -> Self {
         self.summary_writer = Some(summary_writer);
         self
     }
 
+    /// Set the number of threads for parallel processing.
+    ///
+    /// Controls the degree of parallelism for forward and backward passes. Must be greater than 0. Default is 1 (single-threaded).
+    /// # Parameters
+    /// - `parallelize`: Number of threads to use.
     pub fn parallelize(mut self, paralelize: usize) -> Self {
         self.parallelize = paralelize;
         self
@@ -185,6 +270,9 @@ impl NetworkBuilder {
         Ok(())
     }
 
+    /// Build the neural network.
+    ///
+    /// Validates the configuration and creates a `Network` instance ready for training or inference.
     pub fn build(self) -> Result<Network, Box<dyn Error>> {
         self.validate()?;
 
@@ -795,7 +883,6 @@ mod tests {
         dropout::Dropout,
         l1::L1,
         l2::L2,
-        leaky_relu::LeakyReLU,
         matrix::DenseMatrix,
         mean_squared_error::MeanSquared,
         numbers::{Numbers, RandomNumbers},
@@ -803,7 +890,6 @@ mod tests {
         sgd::SGD,
         sigmoid::Sigmoid,
         softmax::Softmax,
-        tanh::{self, Tanh},
         Dense,
     };
 

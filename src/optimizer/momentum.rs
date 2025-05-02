@@ -3,12 +3,12 @@ use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
-// MomentumOptimizer is an implementation of the Momentum optimization algorithm.
-// Momentum is an optimization algorithm that accelerates gradients in the direction
-// of previous gradients, helping to overcome local minima and speed up convergence.
-// velocity = momentum * velocity + learning_rate * gradient
-// weight = weight - velocity
-// bias = bias - velocity
+/// MomentumOptimizer is an implementation of the Momentum optimization algorithm.
+/// Momentum is an optimization algorithm that accelerates gradients in the direction
+/// of previous gradients, helping to overcome local minima and speed up convergence.
+/// velocity = momentum * velocity + learning_rate * gradient
+/// weight = weight - velocity
+/// bias = bias - velocity
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MomentumOptimizer {
     config: MomentumConfig,
@@ -87,6 +87,13 @@ impl Optimizer for MomentumOptimizer {
     }
 }
 
+///Builder for Momentum optimizer
+/// MomentumOptimizer is an implementation of the Momentum optimization algorithm.
+/// Momentum is an optimization algorithm that accelerates gradients in the direction
+/// of previous gradients, helping to overcome local minima and speed up convergence.
+/// velocity = momentum * velocity + learning_rate * gradient
+/// weight = weight - velocity
+/// bias = bias - velocity
 pub struct Momentum {
     learning_rate: f32,
     momentum: f32,
@@ -102,16 +109,31 @@ impl Momentum {
         }
     }
 
+    /// Set the learning rate.
+    ///
+    /// Controls the step size for parameter updates. Smaller values lead to slower but more stable convergence.
+    /// # Parameters
+    /// - `lr`: The learning rate value (e.g., 0.01).
     pub fn learning_rate(mut self, lr: f32) -> Self {
         self.learning_rate = lr;
         self
     }
 
+    /// Set the momentum factor.
+    ///
+    /// Determines how much past gradients influence the current update. Higher values increase the effect of momentum.
+    /// # Parameters
+    /// - `momentum`: Momentum factor, typically in [0.0, 1.0] (e.g., 0.9).
     pub fn momentum(mut self, momentum: f32) -> Self {
         self.momentum = momentum;
         self
     }
 
+    /// Set a learning rate scheduler.
+    ///
+    /// Optionally applies a scheduler to adjust the learning rate during training (e.g., exponential, step).
+    /// # Parameters
+    /// - `scheduler`: Learning rate scheduler to use.
     pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
         self.scheduler = Some(scheduler);
         self

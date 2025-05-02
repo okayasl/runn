@@ -4,24 +4,24 @@ use typetag;
 
 use super::{Optimizer, OptimizerConfig};
 
-// AdamW (Adam with Weight Decay) is an optimization algorithm that extends the Adam optimizer
-// by incorporating weight decay directly into the parameter update rule. This modification
-// improves generalization by penalizing large weights, which helps prevent overfitting.
-// Similar to Adam, AdamW maintains two moments:
-// - moment1 (m_t): The first moment, which captures the exponentially decaying average of past gradients,
-//   acting as a momentum term to accelerate optimization in the direction of historical gradients.
-// - moment2 (v_t): The second moment, which tracks the exponentially decaying average of squared gradients,
-//   providing an adaptive learning rate that scales based on the magnitude of recent gradients.
-// AdamW introduces an additional term:
-// - weight_decay: A regularization term that penalizes large weights by scaling them down during updates.
-// This modification ensures that weight decay is applied independently of the adaptive learning rate,
-// addressing issues with traditional L2 regularization in Adam.
-// Update rules:
-// momentum = beta1 * momentum + (1 - beta1) * gradient
-// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
-// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
-// weight = weight - weight_decay * weight // Weight decay
-// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
+/// AdamW (Adam with Weight Decay) is an optimization algorithm that extends the Adam optimizer
+/// by incorporating weight decay directly into the parameter update rule. This modification
+/// improves generalization by penalizing large weights, which helps prevent overfitting.
+/// Similar to Adam, AdamW maintains two moments:
+/// - moment1 (m_t): The first moment, which captures the exponentially decaying average of past gradients,
+///   acting as a momentum term to accelerate optimization in the direction of historical gradients.
+/// - moment2 (v_t): The second moment, which tracks the exponentially decaying average of squared gradients,
+///   providing an adaptive learning rate that scales based on the magnitude of recent gradients.
+/// AdamW introduces an additional term:
+/// - weight_decay: A regularization term that penalizes large weights by scaling them down during updates.
+/// This modification ensures that weight decay is applied independently of the adaptive learning rate,
+/// addressing issues with traditional L2 regularization in Adam.
+/// Update rules:
+/// momentum = beta1 * momentum + (1 - beta1) * gradient
+/// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
+/// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
+/// weight = weight - weight_decay * weight /// Weight decay
+/// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AdamWOptimizer {
     config: AdamWConfig,
@@ -138,6 +138,25 @@ impl OptimizerConfig for AdamWConfig {
     }
 }
 
+/// Builder for AdamW optimizer
+/// AdamW (Adam with Weight Decay) is an optimization algorithm that extends the Adam optimizer
+/// by incorporating weight decay directly into the parameter update rule. This modification
+/// improves generalization by penalizing large weights, which helps prevent overfitting.
+/// Similar to Adam, AdamW maintains two moments:
+/// - moment1 (m_t): The first moment, which captures the exponentially decaying average of past gradients,
+///   acting as a momentum term to accelerate optimization in the direction of historical gradients.
+/// - moment2 (v_t): The second moment, which tracks the exponentially decaying average of squared gradients,
+///   providing an adaptive learning rate that scales based on the magnitude of recent gradients.
+/// AdamW introduces an additional term:
+/// - weight_decay: A regularization term that penalizes large weights by scaling them down during updates.
+/// This modification ensures that weight decay is applied independently of the adaptive learning rate,
+/// addressing issues with traditional L2 regularization in Adam.
+/// Update rules:
+/// momentum = beta1 * momentum + (1 - beta1) * gradient
+/// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
+/// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
+/// weight = weight - weight_decay * weight /// Weight decay
+/// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
 pub struct AdamW {
     learning_rate: f32,
     beta1: f32,
@@ -161,31 +180,61 @@ impl AdamW {
 }
 
 impl AdamW {
+    /// Set the learning rate.
+    ///
+    /// Controls the step size for parameter updates. Smaller values lead to slower but more stable convergence.
+    /// # Parameters
+    /// - `learning_rate`: The learning rate value (e.g., 0.001).
     pub fn learning_rate(mut self, learning_rate: f32) -> Self {
         self.learning_rate = learning_rate;
         self
     }
 
+    /// Set the first moment decay rate (beta1).
+    ///
+    /// Controls the exponential decay rate for the moving average of gradients. Typically close to 1.0 (e.g., 0.9).
+    /// # Parameters
+    /// - `beta1`: First moment decay rate, in [0.0, 1.0].
     pub fn beta1(mut self, beta1: f32) -> Self {
         self.beta1 = beta1;
         self
     }
 
+    /// Set the second moment decay rate (beta2).
+    ///
+    /// Controls the exponential decay rate for the moving average of squared gradients. Typically very close to 1.0 (e.g., 0.999).
+    /// # Parameters
+    /// - `beta2`: Second moment decay rate, in [0.0, 1.0].
     pub fn beta2(mut self, beta2: f32) -> Self {
         self.beta2 = beta2;
         self
     }
 
+    /// Set the epsilon value for numerical stability.
+    ///
+    /// Prevents division by zero in the update rule. Typically a very small value (e.g., 1e-8).
+    /// # Parameters
+    /// - `epsilon`: Small constant for numerical stability.
     pub fn epsilon(mut self, epsilon: f32) -> Self {
         self.epsilon = epsilon;
         self
     }
 
+    /// Set the weight decay strength.
+    ///
+    /// Controls the L2 regularization penalty applied to weights, encouraging smaller weights to prevent overfitting.
+    /// # Parameters
+    /// - `weight_decay`: Weight decay coefficient (e.g., 0.01).
     pub fn weight_decay(mut self, weight_decay: f32) -> Self {
         self.weight_decay = weight_decay;
         self
     }
 
+    /// Set a learning rate scheduler.
+    ///
+    /// Optionally applies a scheduler to adjust the learning rate during training (e.g., exponential, step).
+    /// # Parameters
+    /// - `scheduler`: Learning rate scheduler to use.
     pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
         self.scheduler = Some(scheduler);
         self

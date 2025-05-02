@@ -6,21 +6,30 @@ use typetag;
 
 use super::he_initialization;
 
-// ELU (Exponential Linear Unit) Activation Function
-//
-// ELU is similar to ReLU but adds a small curve when the input is less than zero,
-// which helps to keep the mean activations closer to zero and improve the learning dynamics.
-// This curve is defined as α(exp(x) - 1) for negative values of x.
-//
-// Range: (-α, +∞) where typically α = 1
-// Best for: Improving learning in networks where vanishing gradients are an issue;
-// it tends to converge faster and produces more accurate results than ReLU in some cases.
+/// ELU (Exponential Linear Unit) Activation Function
+///
+/// ELU is similar to ReLU but adds a small curve when the input is less than zero,
+/// which helps to keep the mean activations closer to zero and improve the learning dynamics.
+/// This curve is defined as α(exp(x) - 1) for negative values of x.
+///
+/// Range: (-α, +∞) where typically α = 1
+/// Best for: Improving learning in networks where vanishing gradients are an issue;
+/// it tends to converge faster and produces more accurate results than ReLU in some cases.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ELUActivation {
     alpha: f32,
 }
 
-//ELU Builder for a user-friendly interface
+/// ELU Builder for a user-friendly interface
+/// ELU (Exponential Linear Unit) Activation Function
+///
+/// ELU is similar to ReLU but adds a small curve when the input is less than zero,
+/// which helps to keep the mean activations closer to zero and improve the learning dynamics.
+/// This curve is defined as α(exp(x) - 1) for negative values of x.
+///
+/// Range: (-α, +∞) where typically α = 1
+/// Best for: Improving learning in networks where vanishing gradients are an issue;
+/// it tends to converge faster and produces more accurate results than ReLU in some cases.
 pub struct ELU {
     alpha: f32,
 }
@@ -30,13 +39,13 @@ impl ELU {
         ELU { alpha: 1.0 } // Default alpha = 1.0
     }
 
-    // Method to set the alpha value
+    /// Method to set the alpha value
     pub fn alpha(mut self, alpha: f32) -> Self {
         self.alpha = alpha;
         self
     }
 
-    // Method to build the ELU instance
+    /// Method to build the ELU instance
     pub fn build(self) -> ELUActivation {
         ELUActivation { alpha: self.alpha }
     }

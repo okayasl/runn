@@ -4,19 +4,19 @@ use typetag;
 
 use super::{Optimizer, OptimizerConfig};
 
-// Adam(Adaptive Moment Estimation) is an optimization algorithm that
-// adapts learning rates for each parameter based on the magnitude of the gradient.
-// moment1 (often referred to as m or v_t in literature) acts as the Momentum,
-// capturing the direction of the gradients over time and
-// accelerating the optimization in the direction of the combined historical gradients.
-// moment2 (typically denoted as v or s_t) represents the RMS component,
-// tracking the magnitude (or scale) of the gradients,
-// allowing for an adaptive learning rate that scales according to the recent gradient history,
-// helping in managing oscillations and stabilizing learning.
-// momentum = beta1 * momentum + (1 - beta1) * gradient
-// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
-// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
-// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
+/// Adam(Adaptive Moment Estimation) is an optimization algorithm that
+/// adapts learning rates for each parameter based on the magnitude of the gradient.
+/// moment1 (often referred to as m or v_t in literature) acts as the Momentum,
+/// capturing the direction of the gradients over time and
+/// accelerating the optimization in the direction of the combined historical gradients.
+/// moment2 (typically denoted as v or s_t) represents the RMS component,
+/// tracking the magnitude (or scale) of the gradients,
+/// allowing for an adaptive learning rate that scales according to the recent gradient history,
+/// helping in managing oscillations and stabilizing learning.
+/// momentum = beta1 * momentum + (1 - beta1) * gradient
+/// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
+/// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
+/// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AdamOptimizer {
     config: AdamConfig,
@@ -144,6 +144,20 @@ impl OptimizerConfig for AdamConfig {
     }
 }
 
+/// Builder for Adam optimizer
+/// Adam(Adaptive Moment Estimation) is an optimization algorithm that
+/// adapts learning rates for each parameter based on the magnitude of the gradient.
+/// moment1 (often referred to as m or v_t in literature) acts as the Momentum,
+/// capturing the direction of the gradients over time and
+/// accelerating the optimization in the direction of the combined historical gradients.
+/// moment2 (typically denoted as v or s_t) represents the RMS component,
+/// tracking the magnitude (or scale) of the gradients,
+/// allowing for an adaptive learning rate that scales according to the recent gradient history,
+/// helping in managing oscillations and stabilizing learning.
+/// momentum = beta1 * momentum + (1 - beta1) * gradient
+/// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
+/// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
+/// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
 pub struct Adam {
     learning_rate: f32,
     beta1: f32,
@@ -165,26 +179,51 @@ impl Adam {
 }
 
 impl Adam {
+    /// Set the learning rate.
+    ///
+    /// Controls the step size for parameter updates. Smaller values lead to slower but more stable convergence.
+    /// # Parameters
+    /// - `learning_rate`: The learning rate value (e.g., 0.001).
     pub fn learning_rate(mut self, learning_rate: f32) -> Self {
         self.learning_rate = learning_rate;
         self
     }
 
+    /// Set the first moment decay rate (beta1).
+    ///
+    /// Controls the exponential decay rate for the moving average of gradients. Typically close to 1.0 (e.g., 0.9).
+    /// # Parameters
+    /// - `beta1`: First moment decay rate, in [0.0, 1.0].
     pub fn beta1(mut self, beta1: f32) -> Self {
         self.beta1 = beta1;
         self
     }
 
+    /// Set the second moment decay rate (beta2).
+    ///
+    /// Controls the exponential decay rate for the moving average of squared gradients. Typically very close to 1.0 (e.g., 0.999).
+    /// # Parameters
+    /// - `beta2`: Second moment decay rate, in [0.0, 1.0].
     pub fn beta2(mut self, beta2: f32) -> Self {
         self.beta2 = beta2;
         self
     }
 
+    /// Set the epsilon value for numerical stability.
+    ///
+    /// Prevents division by zero in the update rule. Typically a very small value (e.g., 1e-8).
+    /// # Parameters
+    /// - `epsilon`: Small constant for numerical stability.
     pub fn epsilon(mut self, epsilon: f32) -> Self {
         self.epsilon = epsilon;
         self
     }
 
+    /// Set a learning rate scheduler.
+    ///
+    /// Optionally applies a scheduler to adjust the learning rate during training (e.g., exponential, step).
+    /// # Parameters
+    /// - `scheduler`: Learning rate scheduler to use.
     pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
         self.scheduler = Some(scheduler);
         self

@@ -31,6 +31,11 @@ impl ExponentialLRScheduler {
 }
 
 /// Builder for `ExponentialLRScheduler` to allow for more flexible and readable construction.
+/// ExponentialLRScheduler implements an exponential decay learning rate scheduler which continuously
+/// decreases the learning rate after each epoch. This scheduler is useful for smoothing the training process
+/// by gradually decreasing the step size of updates to the model's parameters,
+/// allowing for more precise convergence as training progresses. The rate of decay per epoch is
+/// controlled by `decay_rate` raised to the power of the product of the epoch number and `decay_factor`.
 pub struct Exponential {
     initial_lr: f32,
     decay_rate: f32,

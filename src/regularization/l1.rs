@@ -4,22 +4,22 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-// L1 regularization(also known as Lasso regularization) adds a penalty term
-// to the loss function that is proportional to the absolute value of the weights.
-// This encourages the weights to be sparse, meaning that some weights will be driven
-// to exactly zero, effectively removing some connections from the network.
-//
-// L1 regularization can help to prevent overfitting and improve the interpretability
-// of the model by identifying and removing irrelevant features. It is particularly
-// useful when the input data has many features, and some of them are redundant or
-// not relevant to the problem.
-//
-// The lambda parameter controls the strength of the regularization. A higher lambda
-// value will result in more weights being driven to zero, potentially leading to a
-// sparser model but also increasing the risk of underfitting.
-//
-// L1 regularization is commonly used in linear models and sparse models, where
-// feature selection and interpretability are important.
+/// L1 regularization(also known as Lasso regularization) adds a penalty term
+/// to the loss function that is proportional to the absolute value of the weights.
+/// This encourages the weights to be sparse, meaning that some weights will be driven
+/// to exactly zero, effectively removing some connections from the network.
+///
+/// L1 regularization can help to prevent overfitting and improve the interpretability
+/// of the model by identifying and removing irrelevant features. It is particularly
+/// useful when the input data has many features, and some of them are redundant or
+/// not relevant to the problem.
+///
+/// The lambda parameter controls the strength of the regularization. A higher lambda
+/// value will result in more weights being driven to zero, potentially leading to a
+/// sparser model but also increasing the risk of underfitting.
+///
+/// L1 regularization is commonly used in linear models and sparse models, where
+/// feature selection and interpretability are important.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct L1Regularization {
     lambda: f32,
@@ -41,6 +41,23 @@ impl Regularization for L1Regularization {
     }
 }
 
+/// Builder for L1 regularization
+/// L1 regularization(also known as Lasso regularization) adds a penalty term
+/// to the loss function that is proportional to the absolute value of the weights.
+/// This encourages the weights to be sparse, meaning that some weights will be driven
+/// to exactly zero, effectively removing some connections from the network.
+///
+/// L1 regularization can help to prevent overfitting and improve the interpretability
+/// of the model by identifying and removing irrelevant features. It is particularly
+/// useful when the input data has many features, and some of them are redundant or
+/// not relevant to the problem.
+///
+/// The lambda parameter controls the strength of the regularization. A higher lambda
+/// value will result in more weights being driven to zero, potentially leading to a
+/// sparser model but also increasing the risk of underfitting.
+///
+/// L1 regularization is commonly used in linear models and sparse models, where
+/// feature selection and interpretability are important.
 pub struct L1 {
     lambda: Option<f32>,
 }
@@ -51,6 +68,11 @@ impl L1 {
         Self { lambda: None }
     }
 
+    /// Set the L1 regularization strength (lambda).
+    ///
+    /// Controls the penalty applied to the absolute value of weights. Higher values increase sparsity but may reduce model accuracy.
+    /// # Parameters
+    /// - `lambda`: Regularization strength (e.g., 0.01).
     /// Sets the lambda value for L1 regularization
     pub fn lambda(mut self, lambda: f32) -> Self {
         self.lambda = Some(lambda);

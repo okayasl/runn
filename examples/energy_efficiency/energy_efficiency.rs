@@ -3,6 +3,7 @@ use env_logger::{Builder, Target};
 use log::{error, info};
 use runn::{
     adam::Adam,
+    earlystop::loss::Loss,
     helper,
     layer::Dense,
     linear::Linear,
@@ -85,22 +86,17 @@ fn train_and_validate(
 
 fn energy_efficiency_network(inp_size: usize, targ_size: usize) -> Network {
     let network = NetworkBuilder::new(inp_size, targ_size)
-        .layer(Dense::new().size(16).activation(ReLU::new()).build())
         .layer(Dense::new().size(18).activation(ReLU::new()).build())
+        .layer(Dense::new().size(14).activation(ReLU::new()).build())
         .layer(Dense::new().size(targ_size).activation(Linear::new()).build())
-        .optimizer(Adam::new().beta1(0.99).beta2(0.999).learning_rate(0.0035).build())
+        .optimizer(Adam::new().beta1(0.99).beta2(0.999).learning_rate(0.0030).build())
         .loss_function(MeanSquared::new())
-        // .early_stopper(
-        //     Loss::new()
-        //         .patience(100)
-        //         .min_delta(0.00001)
-        //         .build(),
-        // )
-        .batch_size(6)
+        .early_stopper(Loss::new().patience(500).min_delta(0.1).smoothing_factor(0.5).build())
+        .batch_size(7)
         .batch_group_size(2)
         .parallelize(2)
         .normalize_input(MinMax::new())
-        .epochs(500)
+        .epochs(1500)
         .seed(55)
         //.summary(TensorBoard::new().logdir("energy_efficiency_summary").build())
         //.debug(true)
@@ -123,27 +119,27 @@ fn test_search(
     info!("Energy Efficieny network search started.");
     let network = energy_efficiency_network(training_inputs.cols(), training_targets.cols());
 
-    let mut network_search = NetworkSearchBuilder::new()
+    let network_search = NetworkSearchBuilder::new()
         .network(network)
         .parallelize(4)
         .normalize_input(MinMax::new())
         .learning_rates(
             SequentialNumbers::new()
-                .lower_limit(0.0015)
+                .lower_limit(0.0025)
                 .upper_limit(0.0035)
                 .increment(0.0005)
                 .floats(),
         )
         .batch_sizes(
             SequentialNumbers::new()
-                .lower_limit(5.0)
+                .lower_limit(6.0)
                 .upper_limit(9.0)
                 .increment(1.0)
                 .ints(),
         )
         .hidden_layer(
             SequentialNumbers::new()
-                .lower_limit(8.0)
+                .lower_limit(14.0)
                 .upper_limit(18.0)
                 .increment(2.0)
                 .ints(),
@@ -151,7 +147,7 @@ fn test_search(
         )
         .hidden_layer(
             SequentialNumbers::new()
-                .lower_limit(8.0)
+                .lower_limit(14.0)
                 .upper_limit(18.0)
                 .increment(2.0)
                 .ints(),
@@ -159,6 +155,13 @@ fn test_search(
         )
         .export("energy_efficiency_search".to_string())
         .build();
+    let mut network_search = match network_search {
+        Ok(ns) => ns,
+        Err(e) => {
+            error!("Failed to build network_search: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     let search_res =
         network_search.search(&training_inputs, &training_targets, &validation_inputs, &validation_targets);

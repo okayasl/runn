@@ -3,16 +3,23 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-// Linear Activation Function
-//
-// Linear (or Identity) activation function does not transform the input at all. It is typically used in the output layer
-// of a regression model, where we want to predict a numeric value.
-//
-// Range: (-∞, +∞)
-// Best for: Output layers where prediction of continuous values is required.
+/// Linear Activation Function
+///
+/// Linear (or Identity) activation function does not transform the input at all. It is typically used in the output layer
+/// of a regression model, where we want to predict a numeric value.
+///
+/// Range: (-∞, +∞)
+/// Best for: Output layers where prediction of continuous values is required.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct LinearActivation;
 
+/// Linear Activation Function
+///
+/// Linear (or Identity) activation function does not transform the input at all. It is typically used in the output layer
+/// of a regression model, where we want to predict a numeric value.
+///
+/// Range: (-∞, +∞)
+/// Best for: Output layers where prediction of continuous values is required.
 pub struct Linear;
 
 impl Linear {

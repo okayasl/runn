@@ -1,6 +1,6 @@
 use csv::ReaderBuilder;
 use env_logger::{Builder, Target};
-use log::info;
+use log::{error, info};
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
@@ -96,7 +96,7 @@ fn one_hot_encode_network(inp_size: usize, targ_size: usize) -> Network {
     match network {
         Ok(net) => net,
         Err(e) => {
-            eprintln!("Failed to build network: {}", e);
+            error!("Failed to build network: {}", e);
             std::process::exit(1);
         }
     }
@@ -108,7 +108,7 @@ fn test_search(
 ) {
     let network = one_hot_encode_network(training_inputs.cols(), training_targets.cols());
 
-    let mut network_search = NetworkSearchBuilder::new()
+    let network_search = NetworkSearchBuilder::new()
         .network(network)
         .parallelize(4)
         .normalize_input(MinMax::new())
@@ -145,10 +145,18 @@ fn test_search(
         .export("wine_search".to_string())
         .build();
 
+    let mut network_search = match network_search {
+        Ok(ns) => ns,
+        Err(e) => {
+            error!("Failed to build network_search: {}", e);
+            std::process::exit(1);
+        }
+    };
+
     let search_res =
         network_search.search(&training_inputs, &training_targets, &validation_inputs, &validation_targets);
 
-    info!("Num Results: {}", search_res.len());
+    info!("Search Result Count: {}", search_res.len());
 }
 
 pub fn wine_inputs_targets(

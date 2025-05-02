@@ -3,7 +3,7 @@ mod data;
 use std::{env, fs::File};
 
 use env_logger::{Builder, Target};
-use log::info;
+use log::{error, info};
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
@@ -85,7 +85,7 @@ fn search() {
 
     let network = triplets_network(training_inputs.cols(), training_targets.cols());
 
-    let mut network_search = NetworkSearchBuilder::new()
+    let network_search = NetworkSearchBuilder::new()
         .network(network)
         .parallelize(4)
         .learning_rates(
@@ -112,6 +112,14 @@ fn search() {
         )
         .export("triplets_search".to_string())
         .build();
+
+    let mut network_search = match network_search {
+        Ok(ns) => ns,
+        Err(e) => {
+            error!("Failed to build network_search: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     let search_res =
         network_search.search(&training_inputs, &training_targets, &validation_inputs, &validation_targets);

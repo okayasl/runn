@@ -3,12 +3,12 @@ use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
-// RmsPropOptimizer is an implementation of the RMSProp(Root Mean Squared Propagation) optimization algorithm.
-// RMSProp is an adaptive learning rate optimization algorithm that divides the
-// learning rate by a running average of the magnitudes of recent gradients.
-// accumulated_gradient = (decay_rate * accumulated_gradient) + ((1 - decay_rate) * gradient * gradien)
-// weight = weight - (learning_rate * gradient) / sqrt(accumulated_gradient + epsilon)
-// bias = bias - (learning_rate * gradient) / sqrt(accumulated_gradient + epsilon)
+/// RmsPropOptimizer is an implementation of the RMSProp(Root Mean Squared Propagation) optimization algorithm.
+/// RMSProp is an adaptive learning rate optimization algorithm that divides the
+/// learning rate by a running average of the magnitudes of recent gradients.
+/// accumulated_gradient = (decay_rate * accumulated_gradient) + ((1 - decay_rate) * gradient * gradien)
+/// weight = weight - (learning_rate * gradient) / sqrt(accumulated_gradient + epsilon)
+/// bias = bias - (learning_rate * gradient) / sqrt(accumulated_gradient + epsilon)
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RMSPropOptimizer {
     config: RMSPropConfig,
@@ -88,6 +88,13 @@ impl OptimizerConfig for RMSPropConfig {
     }
 }
 
+/// builder for RmsProp optimizer
+/// RmsPropOptimizer is an implementation of the RMSProp(Root Mean Squared Propagation) optimization algorithm.
+/// RMSProp is an adaptive learning rate optimization algorithm that divides the
+/// learning rate by a running average of the magnitudes of recent gradients.
+/// accumulated_gradient = (decay_rate * accumulated_gradient) + ((1 - decay_rate) * gradient * gradien)
+/// weight = weight - (learning_rate * gradient) / sqrt(accumulated_gradient + epsilon)
+/// bias = bias - (learning_rate * gradient) / sqrt(accumulated_gradient + epsilon)
 pub struct RMSProp {
     learning_rate: f32,
     decay_rate: f32,
@@ -105,21 +112,41 @@ impl RMSProp {
         }
     }
 
+    /// Set the learning rate.
+    ///
+    /// Controls the step size for parameter updates. Smaller values lead to slower but more stable convergence.
+    /// # Parameters
+    /// - `lr`: The learning rate value (e.g., 0.001).
     pub fn learning_rate(mut self, lr: f32) -> Self {
         self.learning_rate = lr;
         self
     }
 
+    /// Set the decay rate for squared gradients.
+    ///
+    /// Controls the exponential decay rate for the moving average of squared gradients. Typically close to 1.0 (e.g., 0.9).
+    /// # Parameters
+    /// - `rate`: Decay rate, in [0.0, 1.0].
     pub fn decay_rate(mut self, rate: f32) -> Self {
         self.decay_rate = rate;
         self
     }
 
+    /// Set the epsilon value for numerical stability.
+    ///
+    /// Prevents division by zero in the update rule. Typically a very small value (e.g., 1e-8).
+    /// # Parameters
+    /// - `eps`: Small constant for numerical stability.
     pub fn epsilon(mut self, eps: f32) -> Self {
         self.epsilon = eps;
         self
     }
 
+    /// Set a learning rate scheduler.
+    ///
+    /// Optionally applies a scheduler to adjust the learning rate during training (e.g., exponential, step).
+    /// # Parameters
+    /// - `scheduler`: Learning rate scheduler to use.
     pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
         self.scheduler = Some(scheduler);
         self

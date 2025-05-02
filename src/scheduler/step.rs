@@ -32,6 +32,13 @@ impl StepLRScheduler {
 }
 
 /// Builder for StepLRScheduler to allow step-by-step construction.
+/// StepLRScheduler implements a step decay learning rate scheduler which periodically
+/// reduces the learning rate by a fixed factor.
+/// This is useful for training neural networks where you might want to
+/// decrease the learning rate as the model converges,
+/// helping to refine the weights with smaller updates as training progresses.
+/// The decay occurs every `step_size` number of epochs,
+/// and the amount by which the learning rate decreases is controlled by `decay_rate`.
 pub struct Step {
     decay_rate: f32,
     step_size: usize,

@@ -5,12 +5,12 @@ use typetag;
 
 use super::{Optimizer, OptimizerConfig};
 
-// Stochastic Gradient Descent (SGD) optimizer is a simple and popular optimization algorithm
-// that updates model parameters in the direction of the negative gradient of the loss function.
-// It is widely used due to its simplicity and effectiveness, especially when the dataset is large.
-// However, it can be slow to converge, especially for complex models or noisy data.
-// weight = weight - learning_rate * gradient_of_weight
-// bias = bias - learning_rate * gradient_of_bias
+/// Stochastic Gradient Descent (SGD) optimizer is a simple and popular optimization algorithm
+/// that updates model parameters in the direction of the negative gradient of the loss function.
+/// It is widely used due to its simplicity and effectiveness, especially when the dataset is large.
+/// However, it can be slow to converge, especially for complex models or noisy data.
+/// weight = weight - learning_rate * gradient_of_weight
+/// bias = bias - learning_rate * gradient_of_bias
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SGDOptimizer {
     config: SGDConfig,
@@ -68,6 +68,13 @@ impl OptimizerConfig for SGDConfig {
     }
 }
 
+/// Builder for SGD optimizer
+/// Stochastic Gradient Descent (SGD) optimizer is a simple and popular optimization algorithm
+/// that updates model parameters in the direction of the negative gradient of the loss function.
+/// It is widely used due to its simplicity and effectiveness, especially when the dataset is large.
+/// However, it can be slow to converge, especially for complex models or noisy data.
+/// weight = weight - learning_rate * gradient_of_weight
+/// bias = bias - learning_rate * gradient_of_bias
 pub struct SGD {
     learning_rate: f32,
     scheduler: Option<Box<dyn LearningRateScheduler>>,
@@ -81,10 +88,21 @@ impl SGD {
         }
     }
 
+    /// Set the learning rate.
+    ///
+    /// Controls the step size for parameter updates. Smaller values lead to slower but more stable convergence.
+    /// # Parameters
+    /// - `lr`: The learning rate value (e.g., 0.01).
     pub fn learning_rate(mut self, learning_rate: f32) -> Self {
         self.learning_rate = learning_rate;
         self
     }
+
+    /// Set a learning rate scheduler.
+    ///
+    /// Optionally applies a scheduler to adjust the learning rate during training (e.g., exponential, step).
+    /// # Parameters
+    /// - `scheduler`: Learning rate scheduler to use.
     pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
         self.scheduler = Some(scheduler);
         self

@@ -68,6 +68,12 @@ pub struct Dense {
     activation_function: Option<Box<dyn ActivationFunction>>,
 }
 
+/// A builder for configuring a dense (fully connected) neural network layer.
+///
+/// This struct sets up a dense layer with a specified number of neurons and an activation function.
+/// Default settings:
+/// - size: None (must be set)
+/// - activation_function: None (must be set)
 impl Dense {
     pub fn new() -> Self {
         Self {
@@ -76,11 +82,21 @@ impl Dense {
         }
     }
 
+    /// Set the number of neurons in the dense layer.
+    ///
+    /// Defines the output size of the layer (i.e., the number of neurons).
+    /// # Parameters
+    /// - `size`: Number of neurons in the layer (e.g., 64).
     pub fn size(mut self, size: usize) -> Self {
         self.size = Some(size);
         self
     }
 
+    /// Set the activation function for the dense layer.
+    ///
+    /// Specifies the non-linear function applied to the layer’s output (e.g., ReLU, Sigmoid).
+    /// # Parameters
+    /// - `activation_function`: Activation function to apply (e.g., `ReLU`, `Sigmoid`).
     pub fn activation(mut self, activation_function: impl ActivationFunction + 'static) -> Self {
         self.activation_function = Some(Box::new(activation_function));
         self

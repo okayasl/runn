@@ -5,20 +5,20 @@ use crate::common::random::Randomizer;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-// Dropout regularization is a technique that randomly sets a fraction of the weights
-// to zero during training, effectively "dropping out" some neurons. This helps to
-// prevent overfitting by introducing noise and forcing the network to learn more
-// robust features.
-//
-// Dropout is typically applied after the activation function in each layer during
-// the forward propagation step.
-//
-// The dropoutRate parameter determines the fraction of weights to be set to zero.
-// A higher dropout rate means more weights will be dropped, which can help reduce
-// overfitting but may also make the training process slower and more difficult.
-//
-// Dropout is commonly used in deep neural networks with many layers and parameters,
-// as these networks are more prone to overfitting.
+//// Dropout regularization is a technique that randomly sets a fraction of the weights
+/// to zero during training, effectively "dropping out" some neurons. This helps to
+/// prevent overfitting by introducing noise and forcing the network to learn more
+/// robust features.
+///
+/// Dropout is typically applied after the activation function in each layer during
+/// the forward propagation step.
+///
+/// The dropoutRate parameter determines the fraction of weights to be set to zero.
+/// A higher dropout rate means more weights will be dropped, which can help reduce
+/// overfitting but may also make the training process slower and more difficult.
+///
+/// Dropout is commonly used in deep neural networks with many layers and parameters,
+/// as these networks are more prone to overfitting.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DropoutRegularization {
     dropout_rate: f32,
@@ -42,6 +42,21 @@ impl Regularization for DropoutRegularization {
     }
 }
 
+/// Builder for Dropout regularization
+/// Dropout regularization is a technique that randomly sets a fraction of the weights
+/// to zero during training, effectively "dropping out" some neurons. This helps to
+/// prevent overfitting by introducing noise and forcing the network to learn more
+/// robust features.
+///
+/// Dropout is typically applied after the activation function in each layer during
+/// the forward propagation step.
+///
+/// The dropoutRate parameter determines the fraction of weights to be set to zero.
+/// A higher dropout rate means more weights will be dropped, which can help reduce
+/// overfitting but may also make the training process slower and more difficult.
+///
+/// Dropout is commonly used in deep neural networks with many layers and parameters,
+/// as these networks are more prone to overfitting.
 pub struct Dropout {
     dropout_rate: f32,
     seed: Option<u64>,
@@ -56,11 +71,21 @@ impl Dropout {
         }
     }
 
+    /// Set the dropout rate.
+    ///
+    /// Specifies the fraction of input units to randomly set to zero during training. A higher rate increases regularization strength.
+    /// # Parameters
+    /// - `dropout_rate`: Fraction of units to drop, in [0.0, 1.0] (e.g., 0.3 for 30%).
     pub fn dropout_rate(mut self, dropout_rate: f32) -> Self {
         self.dropout_rate = dropout_rate;
         self
     }
 
+    /// Set the random seed for reproducibility.
+    ///
+    /// Fixes the random number generator used for dropout to ensure consistent results across runs.
+    /// # Parameters
+    /// - `seed`: Random seed value.
     pub fn seed(mut self, seed: u64) -> Self {
         self.seed = Some(seed);
         self

@@ -138,7 +138,7 @@ impl Loss {
     /// before comparing to `best`.  
     /// This filters out noisy spikes (tiny batch‑to‑batch jitter)
     /// so that patience measures a genuine plateau rather than
-    /// momentary blips :contentReference[oaicite:3]{index=3}.  
+    /// momentary blips.
     /// # Parameters
     /// - `factor` ∈ [0.0, 1.0]:  
     ///   - Closer to 1.0 → heavy smoothing (slow to react).  

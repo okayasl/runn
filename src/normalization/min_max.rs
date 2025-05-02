@@ -4,6 +4,10 @@ use crate::matrix::DenseMatrix;
 
 use super::Normalization;
 
+/// A builder for min-max normalization, scaling input data to a specified range (typically [0, 1]).
+///
+/// Min-max normalization transforms each feature by subtracting its minimum value and dividing by the range (max - min).
+/// The minimum and maximum values are computed from the input data when `compute_min_max` is called.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MinMax {
     mins: Option<Vec<f32>>,

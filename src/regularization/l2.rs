@@ -5,28 +5,28 @@ use typetag;
 
 use super::Regularization;
 
-// L2 regularization(also known as Ridge regularization) adds a penalty term to
-// the loss function that is proportional to the square of the weights.
-// This encourages the weights to be small but non-zero, effectively shrinking the weights
-// towards zero but not driving them to exactly zero.
-//
-// L2 regularization can help to prevent overfitting by reducing the complexity of
-// the model and forcing it to learn simpler patterns. It works by adding a term
-// to the loss function that penalizes large weights, which can lead to overly
-// complex models that fit the training data too closely.
-//
-// The lambda parameter controls the strength of the regularization. A higher lambda
-// value will result in smaller weights and a simpler model, potentially reducing
-// overfitting but also increasing the risk of underfitting if the value is too high.
-//
-// L2 regularization is commonly used in neural networks and other machine learning
-// models, especially when dealing with high-dimensional data or when there is a risk
-// of overfitting due to the complexity of the model.
-//
-// Unlike L1 regularization, which can drive some weights to exactly zero (leading
-// to sparse models), L2 regularization tends to keep all weights non-zero but small.
-// This can be advantageous when all features are potentially relevant and feature
-// selection is not a primary concern.
+/// L2 regularization(also known as Ridge regularization) adds a penalty term to
+/// the loss function that is proportional to the square of the weights.
+/// This encourages the weights to be small but non-zero, effectively shrinking the weights
+/// towards zero but not driving them to exactly zero.
+///
+/// L2 regularization can help to prevent overfitting by reducing the complexity of
+/// the model and forcing it to learn simpler patterns. It works by adding a term
+/// to the loss function that penalizes large weights, which can lead to overly
+/// complex models that fit the training data too closely.
+///
+/// The lambda parameter controls the strength of the regularization. A higher lambda
+/// value will result in smaller weights and a simpler model, potentially reducing
+/// overfitting but also increasing the risk of underfitting if the value is too high.
+///
+/// L2 regularization is commonly used in neural networks and other machine learning
+/// models, especially when dealing with high-dimensional data or when there is a risk
+/// of overfitting due to the complexity of the model.
+///
+/// Unlike L1 regularization, which can drive some weights to exactly zero (leading
+/// to sparse models), L2 regularization tends to keep all weights non-zero but small.
+/// This can be advantageous when all features are potentially relevant and feature
+/// selection is not a primary concern.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct L2Regularization {
     lambda: f32,
@@ -48,6 +48,29 @@ impl Regularization for L2Regularization {
     }
 }
 
+/// Builder for L2 regularization
+/// L2 regularization(also known as Ridge regularization) adds a penalty term to
+/// the loss function that is proportional to the square of the weights.
+/// This encourages the weights to be small but non-zero, effectively shrinking the weights
+/// towards zero but not driving them to exactly zero.
+///
+/// L2 regularization can help to prevent overfitting by reducing the complexity of
+/// the model and forcing it to learn simpler patterns. It works by adding a term
+/// to the loss function that penalizes large weights, which can lead to overly
+/// complex models that fit the training data too closely.
+///
+/// The lambda parameter controls the strength of the regularization. A higher lambda
+/// value will result in smaller weights and a simpler model, potentially reducing
+/// overfitting but also increasing the risk of underfitting if the value is too high.
+///
+/// L2 regularization is commonly used in neural networks and other machine learning
+/// models, especially when dealing with high-dimensional data or when there is a risk
+/// of overfitting due to the complexity of the model.
+///
+/// Unlike L1 regularization, which can drive some weights to exactly zero (leading
+/// to sparse models), L2 regularization tends to keep all weights non-zero but small.
+/// This can be advantageous when all features are potentially relevant and feature
+/// selection is not a primary concern.
 pub struct L2 {
     lambda: Option<f32>,
 }
@@ -58,7 +81,11 @@ impl L2 {
         Self { lambda: None }
     }
 
-    /// Sets the lambda value for L2 regularization
+    /// Set the L2 regularization strength (lambda).
+    ///
+    /// Controls the penalty applied to the square of weights. Higher values reduce weight magnitudes but may affect model accuracy.
+    /// # Parameters
+    /// - `lambda`: Regularization strength (e.g., 0.01).
     pub fn lambda(mut self, lambda: f32) -> Self {
         self.lambda = Some(lambda);
         self

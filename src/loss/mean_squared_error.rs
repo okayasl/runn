@@ -4,20 +4,31 @@ use typetag;
 
 use super::LossFunction;
 
-// MeanSquaredErrorLoss is a commonly used loss function for regression tasks,
-// measuring the average squared difference between the predicted values and the true target values.
-// It penalizes larger errors more heavily than smaller ones, making it sensitive to outliers.
-// The loss is computed as the mean of the squared differences between the predicted and target values.
-// Forward pass:
-// loss = (1 / N) * Σ((predicted - target) ** 2)
-// where N is the number of samples, and the summation is over all elements in the matrices.
-// Backward pass:
-// gradient = (2 / N) * (predicted - target)
-// The gradient represents the scaled difference between the predicted and target values,
-// which can be used to update the model parameters during optimization.
+/// MeanSquaredErrorLoss is a commonly used loss function for regression tasks,
+/// measuring the average squared difference between the predicted values and the true target values.
+/// It penalizes larger errors more heavily than smaller ones, making it sensitive to outliers.
+/// The loss is computed as the mean of the squared differences between the predicted and target values.
+/// Forward pass:
+/// loss = (1 / N) * Σ((predicted - target) ** 2)
+/// where N is the number of samples, and the summation is over all elements in the matrices.
+/// Backward pass:
+/// gradient = (2 / N) * (predicted - target)
+/// The gradient represents the scaled difference between the predicted and target values,
+/// which can be used to update the model parameters during optimization.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MeanSquaredErrorLoss;
 
+/// MeanSquaredErrorLoss is a commonly used loss function for regression tasks,
+/// measuring the average squared difference between the predicted values and the true target values.
+/// It penalizes larger errors more heavily than smaller ones, making it sensitive to outliers.
+/// The loss is computed as the mean of the squared differences between the predicted and target values.
+/// Forward pass:
+/// loss = (1 / N) * Σ((predicted - target) ** 2)
+/// where N is the number of samples, and the summation is over all elements in the matrices.
+/// Backward pass:
+/// gradient = (2 / N) * (predicted - target)
+/// The gradient represents the scaled difference between the predicted and target values,
+/// which can be used to update the model parameters during optimization.
 pub struct MeanSquared;
 
 impl MeanSquared {

@@ -5,18 +5,27 @@ use typetag;
 
 use super::he_initialization;
 
-// GeLU (Gaussian Error Linear Unit) Activation Function
-//
-// GeLU is a smooth activation function that approximates the behavior of a gate,
-// using the input's magnitude to decide the neuron's output.
-// It uses the standard Gaussian cumulative distribution function.
-//
-// Range: (0, +∞)
-// Best for: Transformer models (such as BERT) where it has been shown to improve performance
-// and convergence over standard ReLU.
+/// GeLU (Gaussian Error Linear Unit) Activation Function
+///
+/// GeLU is a smooth activation function that approximates the behavior of a gate,
+/// using the input's magnitude to decide the neuron's output.
+/// It uses the standard Gaussian cumulative distribution function.
+///
+/// Range: (0, +∞)
+/// Best for: Transformer models (such as BERT) where it has been shown to improve performance
+/// and convergence over standard ReLU.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct GELUActivation;
 
+/// GeLU (Gaussian Error Linear Unit) Activation Function
+///
+/// GeLU is a smooth activation function that approximates the behavior of a gate,
+/// using the input's magnitude to decide the neuron's output.
+/// It uses the standard Gaussian cumulative distribution function.
+///
+/// Range: (0, +∞)
+/// Best for: Transformer models (such as BERT) where it has been shown to improve performance
+/// and convergence over standard ReLU.
 pub struct GELU;
 
 impl GELU {

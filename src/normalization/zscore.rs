@@ -4,6 +4,9 @@ use crate::matrix::DenseMatrix;
 
 use super::Normalization;
 
+/// A builder for z-score normalization, standardizing input data to have zero mean and unit variance.
+///
+/// Z-score normalization transforms each feature by subtracting its mean and dividing by its standard deviation.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ZScore {
     means: Option<Vec<f32>>,
