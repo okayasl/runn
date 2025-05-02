@@ -302,6 +302,7 @@ impl Network {
                 let epoch_loss = epoch_result.loss;
                 self.log_epoch_training_info(epoch, epoch_loss, &epoch_result.metrics);
                 self.summarize(epoch, epoch_loss, &epoch_result.metrics);
+                // info!("{}",epoch_loss);
                 if self.early_stopped(epoch, epoch_loss) {
                     break;
                 }
@@ -789,9 +790,12 @@ pub fn clip_gradients(grads: &mut [&mut DenseMatrix], clip_threshold: f32) {
 mod tests {
     use super::*;
     use crate::{
+        adam::Adam,
+        cross_entropy::CrossEntropy,
         dropout::Dropout,
         l1::L1,
         l2::L2,
+        leaky_relu::LeakyReLU,
         matrix::DenseMatrix,
         mean_squared_error::MeanSquared,
         numbers::{Numbers, RandomNumbers},
@@ -799,6 +803,7 @@ mod tests {
         sgd::SGD,
         sigmoid::Sigmoid,
         softmax::Softmax,
+        tanh::{self, Tanh},
         Dense,
     };
 
@@ -809,6 +814,7 @@ mod tests {
             .layer(Dense::new().size(3).activation(Softmax::new()).build())
             .loss_function(MeanSquared::new())
             .optimizer(SGD::new().learning_rate(0.01).build())
+            .seed(42)
             .epochs(10)
             .batch_size(2);
 
@@ -825,6 +831,7 @@ mod tests {
             .optimizer(SGD::new().learning_rate(0.01).build())
             .regularization(L1::new().lambda(0.01).build())
             .regularization(L2::new().lambda(0.01).build())
+            .seed(42)
             .epochs(10)
             .batch_size(2);
 
@@ -840,6 +847,7 @@ mod tests {
             .loss_function(MeanSquared::new())
             .optimizer(SGD::new().learning_rate(0.01).build())
             .regularization(Dropout::new().dropout_rate(0.5).seed(42).build())
+            .seed(42)
             .epochs(10)
             .batch_size(2);
 
@@ -850,11 +858,12 @@ mod tests {
     #[test]
     fn test_network_training_with_simple_data() {
         let mut network = NetworkBuilder::new(2, 1)
-            .layer(Dense::new().size(3).activation(ReLU::new()).build())
+            .layer(Dense::new().size(4).activation(ReLU::new()).build())
             .layer(Dense::new().size(1).activation(Sigmoid::new()).build())
-            .loss_function(MeanSquared::new())
-            .optimizer(SGD::new().learning_rate(0.01).build())
-            .epochs(100)
+            .loss_function(CrossEntropy::new().build())
+            .optimizer(Adam::new().build())
+            .seed(42)
+            .epochs(5)
             .batch_size(1)
             .build()
             .unwrap();
@@ -865,7 +874,7 @@ mod tests {
         let result = network.train(&inputs, &targets);
         assert!(result.is_ok(), "Training should complete without errors");
         let loss = result.unwrap().loss;
-        assert!(loss > 0.01, "Network should achieve low loss on XOR problem");
+        assert!(loss < 0.01, "Network should achieve low loss on XOR problem. Loss({}) in not lower than 0.01", loss);
     }
 
     #[test]
@@ -876,6 +885,7 @@ mod tests {
             .layer(Dense::new().size(3).activation(Softmax::new()).build())
             .loss_function(MeanSquared::new())
             .optimizer(SGD::new().learning_rate(0.01).build())
+            .seed(42)
             .regularization(L2::new().lambda(0.01).build())
             .epochs(1000)
             .batch_size(2)
@@ -913,6 +923,7 @@ mod tests {
             .loss_function(MeanSquared::new())
             .optimizer(SGD::new().learning_rate(0.01).build())
             .regularization(Dropout::new().dropout_rate(0.01).seed(42).build())
+            .seed(42)
             .epochs(800)
             .batch_size(2)
             .build()

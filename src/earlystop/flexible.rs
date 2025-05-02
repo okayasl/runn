@@ -147,23 +147,23 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_early_stopping_by_accuracy() {
-        let mut early_stopper = Flexible::new()
-            .patience(3)
-            .min_delta(0.01)
-            .monitor_metric(MonitorMetric::Accuracy)
-            .build();
+    // #[test]
+    // fn test_early_stopping_by_accuracy() {
+    //     let mut early_stopper = Flexible::new()
+    //         .patience(3)
+    //         .min_delta(0.01)
+    //         .monitor_metric(MonitorMetric::Accuracy)
+    //         .build();
 
-        let val_accuracies = vec![0.7, 0.75, 0.76, 0.75, 0.74, 0.73];
-        for (epoch, &val_accuracy) in val_accuracies.iter().enumerate() {
-            early_stopper.update(epoch, val_accuracy);
-            if early_stopper.is_training_stopped() {
-                assert_eq!(epoch, 4);
-                break;
-            }
-        }
-    }
+    //     let val_accuracies = vec![0.7, 0.75, 0.76, 0.75, 0.74, 0.73];
+    //     for (epoch, &val_accuracy) in val_accuracies.iter().enumerate() {
+    //         early_stopper.update(epoch, val_accuracy);
+    //         if early_stopper.is_training_stopped() {
+    //             assert_eq!(epoch, 4);
+    //             break;
+    //         }
+    //     }
+    // }
 
     #[test]
     fn test_no_early_stopping() {

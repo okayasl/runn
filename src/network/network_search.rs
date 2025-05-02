@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     fs::{self, File},
     io,
     sync::Arc,
@@ -7,6 +8,7 @@ use std::{
 
 use csv::Writer;
 use log::info;
+use rand::{seq::SliceRandom, thread_rng};
 
 use crate::{matrix::DenseMatrix, parallel::ThreadPool, ActivationFunction, Dense, MetricResult, Normalization};
 
@@ -100,30 +102,38 @@ impl NetworkSearchBuilder {
     fn generate_network_combinations(&self) -> Vec<Network> {
         let mut networks = Vec::new();
         let nw = self.network.as_ref().unwrap();
+        let nw_is = nw.input_size;
+        let nw_os = nw.output_size;
         let output_layer = nw.layers.last().unwrap().read().unwrap();
         let (_, output_layer_size) = output_layer.input_output_size();
         let hidden_layer_sizes_groups = generate_layer_size_combinations(&self.hidden_layer_sizes);
-        for hlsg in &hidden_layer_sizes_groups {
-            for lr in &self.learning_rates {
-                for bs in &self.batch_sizes {
-                    let mut new_nwb: NetworkBuilder = NetworkBuilder::new(nw.input_size, nw.output_size)
-                        .from_network(nw)
-                        .batch_size(*bs)
-                        .update_learning_rate(*lr);
-                    for (i, &size) in hlsg.iter().enumerate() {
-                        new_nwb = new_nwb.layer(Dense::new().from(size, self.activation_functions[i].clone()).build());
-                    }
-                    new_nwb = new_nwb.layer(
-                        Dense::new()
-                            .from(output_layer_size, output_layer.activation_function().clone_box())
-                            .build(),
-                    );
-                    let mut network = new_nwb.build().unwrap();
-                    network.search = true;
-                    networks.push(network);
-                }
+        let balanced_configs =
+            balance_network_configs(&hidden_layer_sizes_groups, &self.batch_sizes, &self.learning_rates);
+
+        // for hlsg in &hidden_layer_sizes_groups {
+        //     for lr in &self.learning_rates {
+        //         for bs in &self.batch_sizes {
+
+        for (hlsg, bs, lr) in balanced_configs {
+            let mut new_nwb: NetworkBuilder = NetworkBuilder::new(nw_is, nw_os)
+                .from_network(nw)
+                .batch_size(bs)
+                .update_learning_rate(lr);
+            for (i, &size) in hlsg.iter().enumerate() {
+                new_nwb = new_nwb.layer(Dense::new().from(size, self.activation_functions[i].clone()).build());
             }
+            new_nwb = new_nwb.layer(
+                Dense::new()
+                    .from(output_layer_size, output_layer.activation_function().clone_box())
+                    .build(),
+            );
+            let mut network = new_nwb.build().unwrap();
+            network.search = true;
+            networks.push(network);
         }
+        //         }
+        //     }
+        // }
         networks
     }
 
@@ -156,6 +166,48 @@ fn generate_layer_size_combinations(layer_sizes: &Vec<Vec<usize>>) -> Vec<Vec<us
         }
     }
     combinations
+}
+
+/// Each combination of (hidden_layers, batch_size, learning_rate)
+/// is grouped and interleaved based on a simple cost metric.
+pub fn balance_network_configs(
+    hidden_layer_groups: &[Vec<usize>], batch_sizes: &[usize], learning_rates: &[f32],
+) -> Vec<(Vec<usize>, usize, f32)> {
+    let mut rng = thread_rng();
+    let mut map: BTreeMap<usize, Vec<(Vec<usize>, usize, f32)>> = BTreeMap::new();
+
+    for hlg in hidden_layer_groups {
+        let total_neurons = hlg.iter().sum::<usize>();
+        for &bs in batch_sizes {
+            for &lr in learning_rates {
+                // Estimated cost: total_neurons × batch_size
+                let cost = total_neurons * (10_000 / bs);
+                map.entry(cost).or_default().push((hlg.clone(), bs, lr));
+            }
+        }
+    }
+
+    // Shuffle within each cost group
+    for group in map.values_mut() {
+        group.shuffle(&mut rng);
+    }
+
+    // Interleave across cost groups
+    let mut balanced = Vec::new();
+    loop {
+        let mut added = false;
+        for group in map.values_mut() {
+            if let Some(config) = group.pop() {
+                balanced.push(config);
+                added = true;
+            }
+        }
+        if !added {
+            break;
+        }
+    }
+
+    balanced
 }
 
 pub struct NetworkConfig {
@@ -217,7 +269,10 @@ impl NetworkSearch {
                 run(network, &training_inputs, &training_targets, &validation_inputs, &validation_targets)
             }));
         }
+        let tracker = track_progress(number_of_networks, pool.progress());
+
         pool.join();
+        tracker.join().unwrap();
         let search_results: Vec<_> = receivers.into_iter().map(|r| r.recv().unwrap()).collect();
         if !search_results.is_empty() && !self.filename.is_empty() {
             write_search_results(&self.filename, &search_results).unwrap();
@@ -242,6 +297,68 @@ impl NetworkSearch {
 
         (inputs, targets)
     }
+}
+
+fn track_progress(
+    number_of_networks: usize, progress_rx: crossbeam_channel::Receiver<()>,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        let start = Instant::now();
+        let mut last_update = start;
+        let mut last_completed = 0;
+        let mut completed = 0;
+        let mut next_milestone = 10;
+
+        for _ in 0..number_of_networks {
+            progress_rx.recv().unwrap();
+            completed += 1;
+
+            let percentage = (completed * 100) / number_of_networks;
+            if percentage >= next_milestone {
+                let now = Instant::now();
+                let jobs_since_last = completed - last_completed;
+                let seconds_since_last = now.duration_since(last_update).as_secs();
+                let total_elapsed = now.duration_since(start).as_secs();
+
+                // Estimate remaining time
+                let eta = if completed > 0 {
+                    let avg_time_per_job = total_elapsed as f64 / completed as f64;
+                    let remaining_jobs = number_of_networks - completed;
+                    Some((avg_time_per_job * remaining_jobs as f64).round() as u64)
+                } else {
+                    None
+                };
+
+                info!(
+                    "Progress: {:>3}% | Total: {:>3}/{:<3} | +{:>2} jobs in {:>3}s | {:>3}s elapsed | ETA: {:>3}s",
+                    percentage,
+                    completed,
+                    number_of_networks,
+                    jobs_since_last,
+                    seconds_since_last,
+                    total_elapsed,
+                    eta.unwrap_or(0)
+                );
+
+                last_update = now;
+                last_completed = completed;
+                next_milestone += 10;
+            }
+        }
+
+        // Final 100% update if not already printed
+        if completed == number_of_networks && (next_milestone - 10) < 100 {
+            let now = Instant::now();
+            let jobs_since_last = completed - last_completed;
+            let seconds_since_last = now.duration_since(last_update).as_secs();
+            let total_elapsed = now.duration_since(start).as_secs();
+
+            info!(
+                "Progress: 100% | Total: {:>3}/{:<3} | +{:>2} jobs in {:>3}s | {:>3}s elapsed | ETA:   0s",
+                completed, number_of_networks, jobs_since_last, seconds_since_last, total_elapsed,
+            );
+        }
+    })
 }
 
 fn run(
