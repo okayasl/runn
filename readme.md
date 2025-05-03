@@ -17,7 +17,6 @@
 - [Quickstart](#-quickstart)
 - [Features](#-features)
 - [Examples](#-examples)
-- [Usage](#-usage)
 - [Documentation](#-documentation)
 - [Contributing](#-contributing)
 - [License](#-license)
@@ -74,7 +73,7 @@ use runn::{
 ```
 
 
-✨ Features
+## ✨ Features
 |Category	|Options|
 | ------------- | ------------- |
 Activations |	ELU, GeLU, ReLU, LeakyReLU, Linear, Sigmoid, Softmax, Softplus, Swish, Tanh
@@ -90,7 +89,7 @@ Hyperparameter Search | Grid search
 
 
 
-📂 Examples
+## 📂 Examples
 
 See the examples/ directory for end‑to‑end demos:
 
@@ -105,12 +104,12 @@ Run an example:
 cargo run --example iris
 ```
 
-📖 Documentation
+## 📖 Documentation
 
 Full API docs on docs.rs/runn. Run cargo doc --open for local docs.
 
 
-🤝 Contributing
+## 🤝 Contributing
 
 We welcome all contributions! Please see CONTRIBUTING.md for:
 
@@ -120,11 +119,11 @@ We welcome all contributions! Please see CONTRIBUTING.md for:
 
     Code of Conduct
 
-📜 License
+## 📜 License
 
 Dual‑licensed under MIT OR Apache‑2.0. See LICENSE-MIT and LICENSE-APACHE.    
 
-👤 Authors & Acknowledgments
+## 👤 Authors & Acknowledgments
 
     Okay Aslan (okayasl) – Creator & maintainer
 
