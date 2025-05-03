@@ -4,10 +4,11 @@
 [![Build Status](https://img.shields.io/github/actions/workflow/status/okayasl/runn/ci.yml?branch=main)](https://github.com/okayasl/runn/actions)
 [![License](https://img.shields.io/badge/license-MIT%20%7C%20Apache--2.0-blue)](LICENSE-MIT)
 
-# 📦 runn
+# 📦 RUNN
 
-**A Pure-Rust Neural Network Library**  
-`runn` is a feature-rich library for building, training, and evaluating neural networks in Rust. It supports a wide range of activation functions, optimizers, regularization techniques, and more.
+**A Compact Rust Neural Network Library**
+
+`runn` is a feature-rich, easy to use library for building, training, and evaluating feed forward neural networks in Rust. It supports a wide range of activation functions, optimizers, regularization techniques, hyperparameter search and more, with a user friendly api.
 
 ---
 
@@ -41,40 +42,75 @@ runn = "0.1"
 ```
 
 ⚙️ Quickstart
+
 Here’s how to build and train a simple neural network:
 
 ```rust
 
 use runn::{
-    adam::Adam,
-    cross_entropy::CrossEntropy,
-    helper,
-    network::network::{Network, NetworkBuilder},
-    network_search::NetworkSearchBuilder,
-    numbers::{Numbers, SequentialNumbers},
-    relu::ReLU,
-    softmax::Softmax,
-    Dense,
+    adam::Adam, cross_entropy::CrossEntropy, matrix::DenseMatrix, network::network::NetworkBuilder, relu::ReLU,
+    softmax::Softmax, Dense,
 };
 
-    let network = NetworkBuilder::new(3, 3)
-        .layer(Dense::new().size(12).activation(ReLU::new()).build())
-        .layer(Dense::new().size(8).activation(ReLU::new()).build())
-        .layer(Dense::new().size(3).activation(Softmax::new()).build())
-        .loss_function(CrossEntropy::new().epsilon(1e-8).build())
-        .optimizer(Adam::new().beta1(0.99).beta2(0.999).learning_rate(0.0035).build())
-        .batch_size(8)
-        .epochs(150)
-        .seed(55)
+fn main() {
+    let mut network = NetworkBuilder::new(2, 1)
+        .layer(Dense::new().size(4).activation(ReLU::new()).build())
+        .layer(Dense::new().size(1).activation(Softmax::new()).build())
+        .loss_function(CrossEntropy::new().build())
+        .optimizer(Adam::new().build())
+        .seed(42)
+        .epochs(5)
+        .batch_size(2)
         .build()
         .unwrap();
 
-    let train_result = network.train(&training_inputs, &training_targets);
+    let inputs = DenseMatrix::new(4, 2, &[0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]);
+    let targets = DenseMatrix::new(4, 1, &[0.0, 1.0, 1.0, 0.0]);
+
+    let result = network.train(&inputs, &targets);
+
+    match result {
+        Ok(_) => println!("Training completed successfully.\nResults: {}", result.unwrap().display_metrics()),
+        Err(e) => eprintln!("Training failed: {}", e),
+    }
+}
+```
+and you would see something like that:
+
+```bash
+Training completed successfully.
+Results: Loss:0.0000, Classification Metrics: Accuracy:100.0000, Micro Precision:1.0000, Micro Recall:1.0000, Macro F1 Score:1.0000, Micro F1 Score:1.0000
+  Metrics by Class:
+    Class 0:    Precision:1.0000    Recall:1.0000    F1 Score:1.0000
 ```
 
+You can save & load networks like
+
+```rust
+    network.save("model.json", SerializationFormat::Json);
+    let mut loaded_network = Network::load("model.json", SerializationFormat::Json);
+    let results = loaded_network.predict(&validation_inputs, &validation_targets);
+```
+
+You can simply search for parameters(learning rate, batch size, layer size) like:
+
+```rust
+    let network_search = NetworkSearchBuilder::new()
+        .network(network)
+        .parallelize(4) // run for 4 thread
+        .learning_rates(vec![0.0025,0.0035]) 
+        .batch_sizes(vec![1,2,4,7])
+        .hidden_layer(vec![1,3,4,7],ReLU::new())
+        .hidden_layer(vec![1,3,7,9],ReLU::new())
+        .export("hp_search".to_string()) // export results
+        .build();
+
+    // search takes validation inputs outpus as well to make predictions as well   
+    let ns = network_search.unwrap().search(training_inputs, training_targets, validation_inputs, validation_targets);
+```
 
 ## ✨ Features
-|Category	|Options|
+| Feature	|Built in Support|
 | ------------- | ------------- |
 Activations |	ELU, GeLU, ReLU, LeakyReLU, Linear, Sigmoid, Softmax, Softplus, Swish, Tanh
 Optimizers |	SGD, Momentum, RMSProp, Adam, AdamW, AMSGrad
@@ -84,9 +120,8 @@ Schedulers|	Exponential, Step
 Early Stopping|	Loss
 Save&load network | JSON & MessagePack
 Logging Summary | TensorBoard
-Hyperparameter Search | Grid search
-
-
+Hyperparameter Search | Layer size, batch size, learning rate
+Normalization | Minmax, Zscore
 
 
 ## 📂 Examples
@@ -106,8 +141,12 @@ cargo run --example iris
 
 ## 📖 Documentation
 
-Full API docs on docs.rs/runn. Run cargo doc --open for local docs.
+Full API docs on docs.rs/runn.
 
+For local docs
+```bash
+cargo doc --open
+```
 
 ## 🤝 Contributing
 
