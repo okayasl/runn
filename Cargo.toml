@@ -1,29 +1,43 @@
 [package]
-name = "runn"
-version = "0.1.0"
-edition = "2021"
+name            = "runn"
+version         = "0.1.0"
+edition         = "2021"
 
+# ── CRATE METADATA ───────────────────────────────────────────────────────────────
+authors         = ["Okay Aslan <you@example.com>"]       # Your name & email :contentReference[oaicite:12]{index=12}
+description     = "Pure‑Rust neural‑network library backed by nalgebra, with activations, optimizers, regularization, schedulers, and TensorBoard support."  # One‑line summary :contentReference[oaicite:13]{index=13}
+license         = "MIT OR Apache-2.0"                    # SPDX‑compatible dual license :contentReference[oaicite:14]{index=14}
+repository      = "https://github.com/okayasl/runn"      # GitHub repo URL :contentReference[oaicite:15]{index=15}
+readme          = "README.md"                            # Points to README for crates.io rendering :contentReference[oaicite:16]{index=16}
+homepage        = "https://smartier.io/runn"              # (Optional) project homepage :contentReference[oaicite:17]{index=17}
+documentation   = "https://docs.rs/runn"                 # (Optional) docs.rs API docs :contentReference[oaicite:18]{index=18}
+keywords        = ["neural-network", "machine-learning", "rust", "deep-learning", "nalgebra"]  # Improve discoverability :contentReference[oaicite:19]{index=19}
+categories      = ["machine-learning", "algorithms", "data-structures"]  # crates.io categories :contentReference[oaicite:20]{index=20}
+
+# ── DEPENDENCIES ───────────────────────────────────────────────────────────────────
 [dependencies]
-nalgebra = { version = "0.33", features = ["serde-serialize"] }
-log = "0.4"
-env_logger = "0.10"
-rand = "0.8"
-rand_distr = "0.4"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"                                              # Or any other format you want to use
-rmp-serde = "1.3.0"
-typetag = "0.2"
-special = "0.11.3"
-csv = "1.1"
-tensorboard-rs = "0.5.9"                                        # Use the latest version available
-tempfile = "3.19.1"
-crossbeam-channel = "0.5.15"
+nalgebra             = { version = "0.33", features = ["serde-serialize"] }
+log                  = "0.4"
+env_logger           = "0.10"
+rand                 = "0.8"
+rand_distr           = "0.4"
+serde                = { version = "1.0", features = ["derive"] }
+serde_json           = "1.0"
+rmp-serde            = "1.3.0"
+typetag              = "0.2"
+special              = "0.11.3"
+csv                  = "1.1"
+tensorboard-rs       = "0.5.9"
+tempfile             = "3.19.1"
+crossbeam-channel    = "0.5.15"
 
+# ── COMPILATION PROFILES ─────────────────────────────────────────────────────────
 [profile.release]
-opt-level = 3 # Optimization level (0-3, s, z)
-lto = true    # Enable Link Time Optimization
-debug = false # Disable debug information
+opt-level = 3   # Maximum optimization :contentReference[oaicite:21]{index=21}
+lto       = true
+debug     = false
 
+# ── EXAMPLES ─────────────────────────────────────────────────────────────────────
 [[example]]
 name = "triplets"
 path = "examples/triplets/triplets.rs"
