@@ -1,9 +1,29 @@
-/target
-/.vscode
-/.out
-/summary
+# === Rust/Cargo build artifacts ===
+# compiled output, incremental compilation cache
+/target/                                    # :contentReference[oaicite:3]{index=3}
+**/*.rs.bk                                  # Rust file backups (e.g., from rustfmt) :contentReference[oaicite:4]{index=4}
 
-*.log
-*.json
+# === Editor & IDE files ===
+# VS Code settings folder
+/.vscode/                                   # user-specific VS Code config :contentReference[oaicite:5]{index=5}
+# IntelliJ IDEA / CLion
+/.idea/                                    # JetBrains IDEs :contentReference[oaicite:6]{index=6}
+# Vim temporary files
+*.swp                                       # swapfiles :contentReference[oaicite:7]{index=7}
+*~                                          # backup files :contentReference[oaicite:8]{index=8}
 
-.DS_Store
+# === OS generated files ===
+.DS_Store                                  # macOS Finder metadata :contentReference[oaicite:9]{index=9}
+Thumbs.db                                  # Windows image cache :contentReference[oaicite:10]{index=10}
+
+# === Logs and runtime files ===
+*.log                                      # log files :contentReference[oaicite:11]{index=11}
+npm-debug.log*                            # if ever using npm/testing front‑end :contentReference[oaicite:12]{index=12}
+
+# === Project‑specific output ===
+/.out/                                     # custom build or report directory (verify if needed)  
+/summary/                                  # generated summaries (e.g., TensorBoard logs)  
+
+# === Optional: dependency directories ===
+# If you vendor dependencies or use third‑party code, ignore their build outputs
+/node_modules/                             # Node.js deps, if any front‑end included :contentReference[oaicite:13]{index=13}
