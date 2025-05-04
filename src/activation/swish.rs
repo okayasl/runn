@@ -3,7 +3,7 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::he_initialization;
+use super::{he_initialization, ActivationFunctionClone};
 
 /// Swish Activation Function
 ///
@@ -13,7 +13,7 @@ use super::he_initialization;
 /// Range: (-∞, +∞)
 /// Best for: Deeper networks where traditional functions like ReLU tend to underperform.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct SwishActivation {
+struct SwishActivation {
     beta: f32,
 }
 
@@ -40,8 +40,8 @@ impl Swish {
     }
 
     // Method to build the Swish instance
-    pub fn build(self) -> SwishActivation {
-        SwishActivation { beta: self.beta }
+    pub fn build(self) -> Box<dyn ActivationFunction> {
+        Box::new(SwishActivation { beta: self.beta })
     }
 }
 
@@ -61,6 +61,12 @@ impl ActivationFunction for SwishActivation {
 
     fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {
         he_initialization
+    }
+}
+
+impl ActivationFunctionClone for SwishActivation {
+    fn clone_box(&self) -> Box<dyn ActivationFunction> {
+        Box::new(self.clone())
     }
 }
 

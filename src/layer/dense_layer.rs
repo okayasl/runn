@@ -74,11 +74,6 @@ impl Layer for DenseLayer {
 
         let d_weights = DenseMatrix::mul_new(&act_grad.transpose(), input);
 
-        // The gradient of the weights (dWeights) calculated in the previous step is added to the weights' gradient accumulator (DWeights).
-        // This addition is performed to accumulate gradients when dealing with minibatches.
-        // Once all the minibatches are processed, the gradients will be used to update the weights.
-        //self.d_weights.add(&d_weights);
-
         // The gradient of the biases (dB) is computed by summing the gradients over the batch dimension,
         // resulting in the gradient of the loss with respect to
         // each bias being the sum of the corresponding gradient across the entire batch.
@@ -167,7 +162,7 @@ mod tests {
     #[test]
     fn test_dense_layer_forward() {
         let randomizer = Randomizer::new(Some(42));
-        let activation = Box::new(ReLU::new());
+        let activation = ReLU::new();
         let optimizer_config = Adam::new()
             .learning_rate(0.001)
             .beta1(0.9)
@@ -196,7 +191,7 @@ mod tests {
     #[test]
     fn test_dense_layer_backward() {
         let randomizer = Randomizer::new(Some(42));
-        let activation = Box::new(Sigmoid::new());
+        let activation = Sigmoid::new();
         let optimizer_config = Adam::new()
             .learning_rate(0.001)
             .beta1(0.9)
@@ -230,7 +225,7 @@ mod tests {
     #[test]
     fn test_dense_layer_update() {
         let randomizer = Randomizer::new(Some(42));
-        let activation = Box::new(ReLU::new());
+        let activation = ReLU::new();
         let optimizer_config = Adam::new()
             .learning_rate(0.001)
             .beta1(0.9)

@@ -3,7 +3,7 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::he_initialization;
+use super::{he_initialization, ActivationFunctionClone};
 
 /// LeakyReLU (Leaky Rectified Linear Unit) Activation Function
 ///
@@ -13,7 +13,7 @@ use super::he_initialization;
 /// Range: (-∞, +∞)
 /// Best for: Improving learning in networks where the "dying ReLU" problem is a concern.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct LeakyReLUActivation {
+struct LeakyReLUActivation {
     alpha: f32,
 }
 
@@ -28,6 +28,7 @@ pub struct LeakyReLUActivation {
 pub struct LeakyReLU {
     alpha: f32,
 }
+
 impl LeakyReLU {
     pub fn new() -> Self {
         LeakyReLU { alpha: 0.01 } // Default alpha = 0.01
@@ -39,9 +40,9 @@ impl LeakyReLU {
         self
     }
 
-    // Method to build the ELU instance
-    pub fn build(self) -> LeakyReLUActivation {
-        LeakyReLUActivation { alpha: self.alpha }
+    // Method to build the LeakyReLU instanc
+    pub fn build(self) -> Box<dyn ActivationFunction> {
+        Box::new(LeakyReLUActivation { alpha: self.alpha })
     }
 }
 
@@ -58,6 +59,12 @@ impl ActivationFunction for LeakyReLUActivation {
 
     fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {
         he_initialization
+    }
+}
+
+impl ActivationFunctionClone for LeakyReLUActivation {
+    fn clone_box(&self) -> Box<dyn ActivationFunction> {
+        Box::new(self.clone())
     }
 }
 

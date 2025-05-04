@@ -5,6 +5,10 @@ pub trait Numbers {
     fn ints(&self) -> Vec<usize>;
 }
 
+/// Generates a sequence of numbers in a given range with a specified increment.
+/// The sequence starts from the lower limit and goes up to the upper limit.
+/// The increment must be greater than 0.
+/// The generated numbers are rounded to 6 decimal places.
 pub struct SequentialNumbers {
     lower_limit: f32,
     upper_limit: f32,
@@ -79,6 +83,10 @@ impl Numbers for SequentialNumbers {
     }
 }
 
+/// Generates a sequence of random numbers in a given range.
+/// The sequence starts from the lower limit and goes up to the upper limit.
+/// The size of the sequence must be greater than 0.
+/// The generated numbers are unique and randomly ordered.
 pub struct RandomNumbers {
     lower_limit: f32,
     upper_limit: f32,

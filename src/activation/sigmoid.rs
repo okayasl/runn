@@ -4,7 +4,7 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::xavier_initialization;
+use super::{xavier_initialization, ActivationFunctionClone};
 
 /// Sigmoid Activation Function
 ///
@@ -14,7 +14,7 @@ use super::xavier_initialization;
 /// Range: (0, 1)
 /// Best for: Binary classification tasks in the output layer of a network.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct SigmoidActivation;
+struct SigmoidActivation;
 
 /// Sigmoid Activation Function
 ///
@@ -26,8 +26,8 @@ pub struct SigmoidActivation;
 pub struct Sigmoid;
 
 impl Sigmoid {
-    pub fn new() -> SigmoidActivation {
-        SigmoidActivation {}
+    pub fn new() -> Box<dyn ActivationFunction> {
+        Box::new(SigmoidActivation {})
     }
 }
 
@@ -46,6 +46,12 @@ impl ActivationFunction for SigmoidActivation {
 
     fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {
         xavier_initialization
+    }
+}
+
+impl ActivationFunctionClone for SigmoidActivation {
+    fn clone_box(&self) -> Box<dyn ActivationFunction> {
+        Box::new(self.clone())
     }
 }
 

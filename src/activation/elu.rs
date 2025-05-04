@@ -4,7 +4,7 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::he_initialization;
+use super::{he_initialization, ActivationFunctionClone};
 
 /// ELU (Exponential Linear Unit) Activation Function
 ///
@@ -16,7 +16,7 @@ use super::he_initialization;
 /// Best for: Improving learning in networks where vanishing gradients are an issue;
 /// it tends to converge faster and produces more accurate results than ReLU in some cases.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct ELUActivation {
+struct ELUActivation {
     alpha: f32,
 }
 
@@ -45,9 +45,8 @@ impl ELU {
         self
     }
 
-    /// Method to build the ELU instance
-    pub fn build(self) -> ELUActivation {
-        ELUActivation { alpha: self.alpha }
+    pub fn build(self) -> Box<dyn ActivationFunction> {
+        Box::new(ELUActivation { alpha: self.alpha })
     }
 }
 
@@ -79,6 +78,12 @@ impl ActivationFunction for ELUActivation {
     }
 }
 
+impl ActivationFunctionClone for ELUActivation {
+    fn clone_box(&self) -> Box<dyn ActivationFunction> {
+        Box::new(self.clone())
+    }
+}
+
 #[cfg(test)]
 mod elu_tests {
     use super::*;
@@ -101,7 +106,7 @@ mod elu_tests {
     #[test]
     fn test_elu_forward_mixed_values() {
         // Create an ELU with default alpha (typically 1.0)
-        let elu = ELU::new().alpha(1.0).build();
+        let elu: Box<dyn ActivationFunction> = ELU::new().alpha(1.0).build();
 
         // Create a matrix with mixed positive and negative values
         let mut input = DenseMatrix::new(2, 3, &[-1.0, 0.0, 2.0, -3.5, 4.2, 0.0]);
@@ -115,10 +120,10 @@ mod elu_tests {
             2,
             3,
             &[
-                elu.alpha * ((-1.0_f32).exp() - 1.0),
+                1.0 * ((-1.0_f32).exp() - 1.0),
                 0.0,
                 2.0,
-                elu.alpha * ((-3.5_f32).exp() - 1.0),
+                1.0 * ((-3.5_f32).exp() - 1.0),
                 4.2,
                 0.0,
             ],
@@ -166,10 +171,10 @@ mod elu_tests {
             2,
             3,
             &[
-                elu.alpha * (-1.0_f32).exp() * 0.5,
+                1.0 * (-1.0_f32).exp() * 0.5,
                 1.0,
                 0.7,
-                elu.alpha * (-3.5_f32).exp() * 0.2,
+                1.0 * (-3.5_f32).exp() * 0.2,
                 0.3,
                 0.1,
             ],

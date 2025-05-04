@@ -4,7 +4,7 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::xavier_initialization;
+use super::{xavier_initialization, ActivationFunctionClone};
 
 /// Softmax Activation Function converts a vector of values into a normalized probability distribution,
 /// where each element is in the range (0, 1) and all elements sum to 1.
@@ -14,7 +14,7 @@ use super::xavier_initialization;
 /// Range: (0, 1) for each output element
 /// Best for: Output layers of multi-class classification models.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct SoftmaxActivation {}
+struct SoftmaxActivation {}
 
 /// Softmax Activation Function converts a vector of values into a normalized probability distribution,
 /// where each element is in the range (0, 1) and all elements sum to 1.
@@ -26,8 +26,8 @@ pub struct SoftmaxActivation {}
 pub struct Softmax;
 
 impl Softmax {
-    pub fn new() -> SoftmaxActivation {
-        SoftmaxActivation {}
+    pub fn new() -> Box<dyn ActivationFunction> {
+        Box::new(SoftmaxActivation {})
     }
 }
 
@@ -81,6 +81,12 @@ impl ActivationFunction for SoftmaxActivation {
 
     fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {
         xavier_initialization
+    }
+}
+
+impl ActivationFunctionClone for SoftmaxActivation {
+    fn clone_box(&self) -> Box<dyn ActivationFunction> {
+        Box::new(self.clone())
     }
 }
 

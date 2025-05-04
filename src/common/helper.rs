@@ -135,7 +135,7 @@ pub fn one_hot_encode(targets: &DenseMatrix) -> DenseMatrix {
     one_hot_targets
 }
 
-/// Random split for matrix inputs and targets.
+/// Random split for matrix inputs and multi-columbn targets
 ///
 /// # Arguments
 /// * `inputs` - DenseMatrix of shape (n_samples, n_features)
@@ -185,7 +185,7 @@ pub fn random_split(
     (train_inputs, train_targets, val_inputs, val_targets)
 }
 
-/// Stratified split for matrix inputs and single-column targets without external dependencies.
+/// Stratified split for matrix inputs and single-column targets
 ///
 /// # Arguments
 /// * `inputs` - DenseMatrix of shape (n_samples, n_features)

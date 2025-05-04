@@ -4,7 +4,7 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::he_initialization;
+use super::{he_initialization, ActivationFunctionClone};
 
 /// ReLU (Rectified Linear Unit) Activation Function
 ///
@@ -15,7 +15,7 @@ use super::he_initialization;
 /// Best for: General use in most neural networks, especially in hidden layers,
 /// as it helps to alleviate the vanishing gradient problem.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct ReLUActivation;
+struct ReLUActivation;
 
 /// ReLU (Rectified Linear Unit) Activation Function
 ///
@@ -28,8 +28,8 @@ pub struct ReLUActivation;
 pub struct ReLU;
 
 impl ReLU {
-    pub fn new() -> ReLUActivation {
-        ReLUActivation {}
+    pub fn new() -> Box<dyn ActivationFunction> {
+        Box::new(ReLUActivation {})
     }
 }
 
@@ -48,6 +48,12 @@ impl ActivationFunction for ReLUActivation {
 
     fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {
         he_initialization
+    }
+}
+
+impl ActivationFunctionClone for ReLUActivation {
+    fn clone_box(&self) -> Box<dyn ActivationFunction> {
+        Box::new(self.clone())
     }
 }
 

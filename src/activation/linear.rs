@@ -3,6 +3,8 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
+use super::ActivationFunctionClone;
+
 /// Linear Activation Function
 ///
 /// Linear (or Identity) activation function does not transform the input at all. It is typically used in the output layer
@@ -11,7 +13,7 @@ use typetag;
 /// Range: (-∞, +∞)
 /// Best for: Output layers where prediction of continuous values is required.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct LinearActivation;
+struct LinearActivation;
 
 /// Linear Activation Function
 ///
@@ -23,8 +25,8 @@ pub struct LinearActivation;
 pub struct Linear;
 
 impl Linear {
-    pub fn new() -> LinearActivation {
-        LinearActivation {}
+    pub fn new() -> Box<dyn ActivationFunction> {
+        Box::new(LinearActivation {})
     }
 }
 
@@ -40,6 +42,12 @@ impl ActivationFunction for LinearActivation {
 
     fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {
         |_, _| 1.0f32
+    }
+}
+
+impl ActivationFunctionClone for LinearActivation {
+    fn clone_box(&self) -> Box<dyn ActivationFunction> {
+        Box::new(self.clone())
     }
 }
 

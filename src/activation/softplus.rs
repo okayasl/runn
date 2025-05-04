@@ -3,6 +3,8 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
+use super::ActivationFunctionClone;
+
 /// Softplus Activation Function
 ///
 /// Softplus is a smooth approximation to the ReLU function, returning a positive output for any input.
@@ -11,7 +13,7 @@ use typetag;
 /// Range: (0, +∞)
 /// Best for: Situations where a non-zero gradient is beneficial, providing a smooth approximation to ReLU.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct SoftplusActivation;
+struct SoftplusActivation;
 
 /// Softplus Activation Function
 ///
@@ -22,8 +24,8 @@ pub struct SoftplusActivation;
 /// Best for: Situations where a non-zero gradient is beneficial, providing a smooth approximation to ReLU.
 pub struct Softplus;
 impl Softplus {
-    pub fn new() -> SoftplusActivation {
-        SoftplusActivation {}
+    pub fn new() -> Box<dyn ActivationFunction> {
+        Box::new(SoftplusActivation {})
     }
 }
 
@@ -36,6 +38,12 @@ impl ActivationFunction for SoftplusActivation {
     fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, _output: &DenseMatrix) {
         input.apply(|x| 1.0 / (1.0 + (-x).exp()));
         input.mul_elem(d_output);
+    }
+}
+
+impl ActivationFunctionClone for SoftplusActivation {
+    fn clone_box(&self) -> Box<dyn ActivationFunction> {
+        Box::new(self.clone())
     }
 }
 

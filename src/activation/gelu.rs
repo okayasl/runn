@@ -3,7 +3,7 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::he_initialization;
+use super::{he_initialization, ActivationFunctionClone};
 
 /// GeLU (Gaussian Error Linear Unit) Activation Function
 ///
@@ -15,7 +15,7 @@ use super::he_initialization;
 /// Best for: Transformer models (such as BERT) where it has been shown to improve performance
 /// and convergence over standard ReLU.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct GELUActivation;
+struct GELUActivation;
 
 /// GeLU (Gaussian Error Linear Unit) Activation Function
 ///
@@ -29,8 +29,8 @@ pub struct GELUActivation;
 pub struct GELU;
 
 impl GELU {
-    pub fn new() -> GELUActivation {
-        GELUActivation {}
+    pub fn new() -> Box<dyn ActivationFunction> {
+        Box::new(GELUActivation {})
     }
 }
 
@@ -51,6 +51,12 @@ impl ActivationFunction for GELUActivation {
 
     fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {
         he_initialization
+    }
+}
+
+impl ActivationFunctionClone for GELUActivation {
+    fn clone_box(&self) -> Box<dyn ActivationFunction> {
+        Box::new(self.clone())
     }
 }
 

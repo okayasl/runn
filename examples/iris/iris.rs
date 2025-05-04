@@ -89,9 +89,9 @@ fn iris_network(inp_size: usize, targ_size: usize) -> Network {
         //         .build(),
         // )
         .batch_size(9)
-        // .batch_group_size(2)
-        // .parallelize(2)
-        .epochs(500)
+        .batch_group_size(2)
+        .parallelize(2)
+        .epochs(3000)
         .seed(55)
         //.summary(TensorBoard::new().logdir("iris_summary").build())
         //.debug(true)

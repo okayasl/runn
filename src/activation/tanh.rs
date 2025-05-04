@@ -3,7 +3,7 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::xavier_initialization;
+use super::{xavier_initialization, ActivationFunctionClone};
 
 /// Tanh (Hyperbolic Tangent) Activation Function
 ///
@@ -13,7 +13,7 @@ use super::xavier_initialization;
 /// Range: (-1, 1)
 /// Best for: Hidden layers in a network where data normalization is beneficial, such as in certain types of autoencoders.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct TanhActivation;
+struct TanhActivation;
 
 /// Tanh (Hyperbolic Tangent) Activation Function
 ///
@@ -25,8 +25,8 @@ pub struct TanhActivation;
 pub struct Tanh;
 
 impl Tanh {
-    pub fn new() -> TanhActivation {
-        TanhActivation
+    pub fn new() -> Box<dyn ActivationFunction> {
+        Box::new(TanhActivation {})
     }
 }
 
@@ -48,6 +48,12 @@ impl ActivationFunction for TanhActivation {
 
     fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {
         xavier_initialization
+    }
+}
+
+impl ActivationFunctionClone for TanhActivation {
+    fn clone_box(&self) -> Box<dyn ActivationFunction> {
+        Box::new(self.clone())
     }
 }
 

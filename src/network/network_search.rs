@@ -174,7 +174,7 @@ impl NetworkSearchBuilder {
                 .batch_size(bs)
                 .update_learning_rate(lr);
             for (i, &size) in hlsg.iter().enumerate() {
-                new_nwb = new_nwb.layer(Dense::new().from(size, self.activation_functions[i].clone()).build());
+                new_nwb = new_nwb.layer(Dense::new().from(size, self.activation_functions[i].clone_box()).build());
             }
             new_nwb = new_nwb.layer(
                 Dense::new()

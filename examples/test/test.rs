@@ -1,21 +1,5 @@
 use runn::{
-    adam::Adam,
-    cross_entropy::CrossEntropy,
-    earlystop::loss::Loss,
-    elu::ELU,
-    exponential::Exponential,
-    matrix::DenseMatrix,
-    min_max::MinMax,
-    network::network::{Network, NetworkBuilder},
-    network_io::SerializationFormat,
-    network_search::NetworkSearchBuilder,
-    normalization,
-    relu::ReLU,
-    softmax::Softmax,
-    swish::Swish,
-    tanh::Tanh,
-    tensor_board::TensorBoard,
-    Dense, Normalization,
+    adam::Adam, cross_entropy::CrossEntropy, dropout::Dropout, earlystop::loss::Loss, elu::ELU, exponential::Exponential, l2::L2, matrix::DenseMatrix, min_max::MinMax, network::network::{Network, NetworkBuilder}, network_io::SerializationFormat, network_search::NetworkSearchBuilder, normalization, relu::ReLU, softmax::Softmax, swish::Swish, tanh::Tanh, tensor_board::TensorBoard, Dense, Normalization
 };
 use serde::ser;
 use tensorboard_rs::summary_writer;
@@ -79,6 +63,8 @@ fn main() {
                 .smoothing_factor(0.5) // factor to smooth the loss
                 .build(),
         )
+        .regularization(L2::new().lambda(0.01).build()) // L2 regularization
+        .regularization(Dropout::new().dropout_rate(0.2).seed(42).build()) // Dropout regularization
         .epochs(5000)
         .batch_size(4)
         .batch_group_size(4) // number of batches to process in groups

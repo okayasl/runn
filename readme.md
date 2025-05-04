@@ -125,7 +125,7 @@ Normalization | Minmax, Zscore
 
 ## 📂 Examples
 
-With runn, you can write fairly complex networks according to your needs:
+With `runn`, you can write fairly complex networks according to your needs:
 
 ```rust
 
@@ -150,6 +150,8 @@ With runn, you can write fairly complex networks according to your needs:
                 .smoothing_factor(0.5) // factor to smooth the loss
                 .build(),
         )
+        .regularization(L2::new().lambda(0.01).build()) // L2 regularization
+        .regularization(Dropout::new().dropout_rate(0.2).seed(42).build()) // Dropout regularization with seed for reproducibility
         .epochs(5000) // number of epoch to run
         .batch_size(4) // number of batches 
         .batch_group_size(4) // number of batches to process in groups
@@ -160,6 +162,17 @@ With runn, you can write fairly complex networks according to your needs:
         .unwrap();
 
 ```
+
+Bonus:
+`runn` provides some handy utility methods:
+
+| method	|description| usage|
+| ------------- | ------------- | ------------- |
+helper::one_hot_encode |	Provides one hot encoding for target.  |   ```let training_targets = helper::one_hot_encode(&training_targets);```
+helper::stratified_split |	Provides stratified split for matrix inputs and single-column targets  |   ```let (training_inputs, training_targets, validation_inputs, validation_targets) = helper::stratified_split(&all_inputs, &all_targets, 0.2, 11);```
+helper::random_split |	Provides random split for matrix inputs and multi-columbn targets  |   ```let (training_inputs, training_targets, validation_inputs, validation_targets) = helper::random(&all_inputs, &all_targets, 0.2, 11);```
+helper::pretty_compare_matrices |	 Pretty prints three matrices side-by-side as an ASCII-art comparison  |   ```helper::pretty_compare_matrices(&training_inputs, &training_targets, &predictions, helper::CompareMode::Regression)```
+
 
 
 See the examples/ directory for end‑to‑end demos:

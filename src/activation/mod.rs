@@ -22,17 +22,29 @@ pub trait ActivationFunction: ActivationFunctionClone + Send + Sync {
     }
 }
 
-pub trait ActivationFunctionClone {
-    fn clone_box(&self) -> Box<dyn ActivationFunction>;
+#[typetag::serde]
+impl ActivationFunction for Box<dyn ActivationFunction> {
+    fn forward(&self, input: &mut DenseMatrix) {
+        (**self).forward(input); // Dereference the Box to call the method
+    }
+
+    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, output: &DenseMatrix) {
+        (**self).backward(d_output, input, output); // Dereference the Box to call the method
+    }
+
+    fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {
+        (**self).weight_initialization_factor() // Dereference the Box to call the method
+    }
 }
 
-impl<T> ActivationFunctionClone for T
-where
-    T: 'static + ActivationFunction + Clone,
-{
+impl ActivationFunctionClone for Box<dyn ActivationFunction> {
     fn clone_box(&self) -> Box<dyn ActivationFunction> {
-        Box::new(self.clone())
+        (**self).clone_box() // Call clone_box on the inner concrete type
     }
+}
+
+pub trait ActivationFunctionClone {
+    fn clone_box(&self) -> Box<dyn ActivationFunction>;
 }
 
 impl Clone for Box<dyn ActivationFunction> {
