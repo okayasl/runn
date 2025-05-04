@@ -3,9 +3,9 @@ use env_logger::{Builder, Target};
 use log::{error, info};
 use runn::{
     adam::Adam,
+    dense_layer::Dense,
     earlystop::loss::Loss,
     helper,
-    layer::Dense,
     linear::Linear,
     matrix::DenseMatrix,
     mean_squared_error::MeanSquared,

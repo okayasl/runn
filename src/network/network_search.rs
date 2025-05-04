@@ -11,7 +11,9 @@ use csv::Writer;
 use log::info;
 use rand::{seq::SliceRandom, thread_rng};
 
-use crate::{matrix::DenseMatrix, parallel::ThreadPool, ActivationFunction, Dense, MetricResult, Normalization};
+use crate::{
+    dense_layer::Dense, matrix::DenseMatrix, parallel::ThreadPool, ActivationFunction, MetricResult, Normalization,
+};
 
 use super::network::{Network, NetworkBuilder};
 
@@ -174,7 +176,11 @@ impl NetworkSearchBuilder {
                 .batch_size(bs)
                 .update_learning_rate(lr);
             for (i, &size) in hlsg.iter().enumerate() {
-                new_nwb = new_nwb.layer(Dense::new().from(size, self.activation_functions[i].clone_box()).build());
+                new_nwb = new_nwb.layer(
+                    Dense::new()
+                        .from(size, self.activation_functions[i].clone_box())
+                        .build(),
+                );
             }
             new_nwb = new_nwb.layer(
                 Dense::new()

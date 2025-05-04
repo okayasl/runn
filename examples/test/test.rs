@@ -1,8 +1,8 @@
 use runn::{
-    adam::Adam, cross_entropy::CrossEntropy, dropout::Dropout, earlystop::loss::Loss, elu::ELU, exponential::Exponential, l2::L2, matrix::DenseMatrix, min_max::MinMax, network::network::{Network, NetworkBuilder}, network_io::SerializationFormat, network_search::NetworkSearchBuilder, normalization, relu::ReLU, softmax::Softmax, swish::Swish, tanh::Tanh, tensor_board::TensorBoard, Dense, Normalization
+    adam::Adam, cross_entropy::CrossEntropy, dense_layer::Dense, dropout::Dropout, earlystop::loss::Loss, elu::ELU,
+    exponential::Exponential, l2::L2, matrix::DenseMatrix, min_max::MinMax, network::network::NetworkBuilder,
+    network_search::NetworkSearchBuilder, relu::ReLU, softmax::Softmax, swish::Swish, tensor_board::TensorBoard,
 };
-use serde::ser;
-use tensorboard_rs::summary_writer;
 
 fn main() {
     let mut network = NetworkBuilder::new(2, 1)
@@ -42,7 +42,7 @@ fn main() {
 
     // let ns=     network_search.unwrap().search(training_inputs, training_targets, validation_inputs, validation_targets);
 
-    let mut network = NetworkBuilder::new(5, 3)
+    let network = NetworkBuilder::new(5, 3)
         .layer(Dense::new().size(12).activation(ELU::new().alpha(0.9).build()).build())
         .layer(Dense::new().size(24).activation(Swish::new().beta(1.0).build()).build())
         .layer(Dense::new().size(3).activation(Softmax::new()).build())

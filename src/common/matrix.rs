@@ -15,26 +15,26 @@ impl DenseMatrix {
         }
     }
 
-    pub fn mul_new(other: &DenseMatrix, another: &DenseMatrix) -> DenseMatrix {
+    pub(crate) fn mul_new(other: &DenseMatrix, another: &DenseMatrix) -> DenseMatrix {
         DenseMatrix {
             data: &other.data * &another.data,
         }
     }
 
     /// Creates a new dense matrix with given rows and columns, initialized with zeros.
-    pub fn zeros(rows: usize, cols: usize) -> Self {
+    pub(crate) fn zeros(rows: usize, cols: usize) -> Self {
         Self {
             data: DMatrix::zeros(rows, cols),
         }
     }
 
-    /// Fills the matrix with zeros.
-    pub fn zero(&mut self) {
-        self.data.fill(0.0);
-    }
+    // /// Fills the matrix with zeros.
+    // pub(crate) fn zero(&mut self) {
+    //     self.data.fill(0.0);
+    // }
 
     /// Returns a transposed version of the matrix.
-    pub fn transpose(&self) -> DenseMatrix {
+    pub(crate) fn transpose(&self) -> DenseMatrix {
         Self {
             data: self.data.transpose(),
         }
@@ -54,47 +54,47 @@ impl DenseMatrix {
 
     /// Gets the value at position (i, j).
     #[inline]
-    pub fn at(&self, i: usize, j: usize) -> f32 {
+    pub(crate) fn at(&self, i: usize, j: usize) -> f32 {
         self.data[(i, j)]
     }
 
     /// Sets the value at position (i, j).
     #[inline]
-    pub fn set(&mut self, i: usize, j: usize, value: f32) {
+    pub(crate) fn set(&mut self, i: usize, j: usize, value: f32) {
         self.data[(i, j)] = value;
     }
 
     /// Adds another matrix to the current matrix.
     #[inline]
-    pub fn add(&mut self, other: &DenseMatrix) {
+    pub(crate) fn add(&mut self, other: &DenseMatrix) {
         self.data += &other.data;
     }
 
     /// Subtracts another matrix from the current matrix.
-    #[inline]
-    pub fn sub(&mut self, other: &DenseMatrix) {
-        self.data -= &other.data;
-    }
+    // #[inline]
+    // pub(crate) fn sub(&mut self, other: &DenseMatrix) {
+    //     self.data -= &other.data;
+    // }
 
     /// Scales the matrix by a scalar factor.
     #[inline]
-    pub fn scale(&mut self, factor: f32) {
+    pub(crate) fn scale(&mut self, factor: f32) {
         self.data *= factor;
     }
 
     /// Element-wise multiplication with another matrix.
     #[inline]
-    pub fn mul_elem(&mut self, other: &DenseMatrix) {
+    pub(crate) fn mul_elem(&mut self, other: &DenseMatrix) {
         self.data.component_mul_assign(&other.data);
     }
 
-    /// Multiplies the current matrix with another matrix.
-    pub fn matrix_multiply_in_place(&mut self, other: &DenseMatrix) {
-        self.data = &self.data * &other.data;
-    }
+    // // Multiplies the current matrix with another matrix.
+    // pub(crate) fn matrix_multiply_in_place(&mut self, other: &DenseMatrix) {
+    //     self.data = &self.data * &other.data;
+    // }
 
-    /// Extracts a submatrix as a new DenseMatrix.
-    pub fn slice(&self, i: usize, k: usize, j: usize, l: usize) -> DenseMatrix {
+    // Extracts a submatrix as a new DenseMatrix.
+    pub(crate) fn slice(&self, i: usize, k: usize, j: usize, l: usize) -> DenseMatrix {
         let rows = k - i;
         let cols = l - j;
         DenseMatrix {
@@ -102,19 +102,19 @@ impl DenseMatrix {
         }
     }
 
-    pub fn get_row(&self, i: usize) -> Vec<f32> {
+    pub(crate) fn get_row(&self, i: usize) -> Vec<f32> {
         self.data.row(i).iter().cloned().collect()
     }
 
-    /// Sets the values of a specific row.
-    pub fn set_row(&mut self, i: usize, src: &[f32]) {
+    // Sets the values of a specific row.
+    pub(crate) fn set_row(&mut self, i: usize, src: &[f32]) {
         for (j, &value) in src.iter().enumerate() {
             self.set(i, j, value);
         }
     }
 
-    /// Clips the norm of the matrix to a given threshold, by scaling the matrix down if needed.
-    pub fn clip(&mut self, threshold: f32) {
+    // Clips the norm of the matrix to a given threshold, by scaling the matrix down if needed.
+    pub(crate) fn clip(&mut self, threshold: f32) {
         if threshold > 0.0 {
             let norm = self.norm(2.0);
             if norm > threshold {
@@ -124,8 +124,8 @@ impl DenseMatrix {
         }
     }
 
-    /// Calculates the norm of the matrix (L1 or L2 supported).
-    pub fn norm(&self, norm_type: f32) -> f32 {
+    // Calculates the norm of the matrix (L1 or L2 supported).
+    pub(crate) fn norm(&self, norm_type: f32) -> f32 {
         if norm_type == 1.0 {
             self.data.iter().map(|x| x.abs()).sum::<f32>()
         } else if norm_type == 2.0 {
@@ -135,22 +135,22 @@ impl DenseMatrix {
         }
     }
 
-    pub fn set_column_sum(&mut self, other: &DenseMatrix) {
+    pub(crate) fn set_column_sum(&mut self, other: &DenseMatrix) {
         for i in 0..self.rows() {
             self.data[(i, 0)] = other.data.column(i).iter().sum();
         }
     }
 
-    /// Applies a function to each element of the matrix in place.
-    pub fn apply<F>(&mut self, func: F)
+    // Applies a function to each element of the matrix in place.
+    pub(crate) fn apply<F>(&mut self, func: F)
     where
         F: Fn(f32) -> f32,
     {
         self.data.apply(|x| *x = func(*x));
     }
 
-    /// Applies a function to each element of the matrix, with access to the element's indices.
-    pub fn apply_with_indices<F>(&mut self, mut f: F)
+    // Applies a function to each element of the matrix, with access to the element's indices.
+    pub(crate) fn apply_with_indices<F>(&mut self, mut f: F)
     where
         F: FnMut(usize, usize, &mut f32),
     {
@@ -206,12 +206,12 @@ mod tests {
         assert_eq!(matrix.at(1, 1), 4.0);
     }
 
-    #[test]
-    fn test_zero() {
-        let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        matrix.zero();
-        assert_eq!(util::flatten(&matrix), &[0.0, 0.0, 0.0, 0.0]);
-    }
+    // #[test]
+    // fn test_zero() {
+    //     let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+    //     matrix.zero();
+    //     assert_eq!(util::flatten(&matrix), &[0.0, 0.0, 0.0, 0.0]);
+    // }
 
     #[test]
     fn test_add() {
@@ -221,13 +221,13 @@ mod tests {
         assert_eq!(util::flatten(&matrix), &[5.0, 5.0, 5.0, 5.0]);
     }
 
-    #[test]
-    fn test_sub() {
-        let mut matrix = DenseMatrix::new(2, 2, &[5.0, 5.0, 5.0, 5.0]);
-        let other = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        matrix.sub(&other);
-        assert_eq!(util::flatten(&matrix), &[4.0, 3.0, 2.0, 1.0]);
-    }
+    // #[test]
+    // fn test_sub() {
+    //     let mut matrix = DenseMatrix::new(2, 2, &[5.0, 5.0, 5.0, 5.0]);
+    //     let other = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+    //     matrix.sub(&other);
+    //     assert_eq!(util::flatten(&matrix), &[4.0, 3.0, 2.0, 1.0]);
+    // }
 
     #[test]
     fn test_scale() {
@@ -258,47 +258,47 @@ mod tests {
         assert_eq!(util::flatten(&submatrix), &[5.0]);
     }
 
-    #[test]
-    fn test_mul() {
-        // Case 1: Square Matrix Multiplication (2x2 * 2x2)
-        let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        let identity = DenseMatrix::new(2, 2, &[1.0, 0.0, 0.0, 1.0]); // Identity matrix
-        matrix.matrix_multiply_in_place(&identity);
-        assert_eq!(util::flatten(&matrix), &[1.0, 2.0, 3.0, 4.0]);
+    // #[test]
+    // fn test_mul() {
+    //     // Case 1: Square Matrix Multiplication (2x2 * 2x2)
+    //     let mut matrix = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+    //     let identity = DenseMatrix::new(2, 2, &[1.0, 0.0, 0.0, 1.0]); // Identity matrix
+    //     matrix.matrix_multiply_in_place(&identity);
+    //     assert_eq!(util::flatten(&matrix), &[1.0, 2.0, 3.0, 4.0]);
 
-        // Case 2: Rectangular Matrix Multiplication (2x3 * 3x2)
-        let mut matrix_a = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        let matrix_b = DenseMatrix::new(3, 2, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        matrix_a.matrix_multiply_in_place(&matrix_b);
-        assert_eq!(
-            util::flatten(&matrix_a),
-            &[22.0, 28.0, 49.0, 64.0] // Result of 2x3 * 3x2 multiplication
-        );
+    //     // Case 2: Rectangular Matrix Multiplication (2x3 * 3x2)
+    //     let mut matrix_a = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    //     let matrix_b = DenseMatrix::new(3, 2, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    //     matrix_a.matrix_multiply_in_place(&matrix_b);
+    //     assert_eq!(
+    //         util::flatten(&matrix_a),
+    //         &[22.0, 28.0, 49.0, 64.0] // Result of 2x3 * 3x2 multiplication
+    //     );
 
-        // Case 3: Multiplying with a Zero Matrix (3x2 * 2x3)
-        let mut matrix_c = DenseMatrix::new(3, 2, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        let zero_matrix = DenseMatrix::zeros(2, 3);
-        matrix_c.matrix_multiply_in_place(&zero_matrix);
-        assert_eq!(
-            util::flatten(&matrix_c),
-            &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] // Result is a 3x3 zero matrix
-        );
+    //     // Case 3: Multiplying with a Zero Matrix (3x2 * 2x3)
+    //     let mut matrix_c = DenseMatrix::new(3, 2, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    //     let zero_matrix = DenseMatrix::zeros(2, 3);
+    //     matrix_c.matrix_multiply_in_place(&zero_matrix);
+    //     assert_eq!(
+    //         util::flatten(&matrix_c),
+    //         &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] // Result is a 3x3 zero matrix
+    //     );
 
-        // Case 4: Rectangular Identity Matrix Multiplication (3x3 * 3x3)
-        let mut matrix_d = DenseMatrix::new(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
-        let identity_3x3 = DenseMatrix::new(3, 3, &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
-        matrix_d.matrix_multiply_in_place(&identity_3x3);
-        assert_eq!(
-            util::flatten(&matrix_d),
-            &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0] // Result is the same matrix
-        );
+    //     // Case 4: Rectangular Identity Matrix Multiplication (3x3 * 3x3)
+    //     let mut matrix_d = DenseMatrix::new(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
+    //     let identity_3x3 = DenseMatrix::new(3, 3, &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+    //     matrix_d.matrix_multiply_in_place(&identity_3x3);
+    //     assert_eq!(
+    //         util::flatten(&matrix_d),
+    //         &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0] // Result is the same matrix
+    //     );
 
-        // Case 5: Single Row and Single Column Multiplication (1x3 * 3x1)
-        let mut row_matrix = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
-        let col_matrix = DenseMatrix::new(3, 1, &[4.0, 5.0, 6.0]);
-        row_matrix.matrix_multiply_in_place(&col_matrix);
-        assert_eq!(util::flatten(&row_matrix), &[32.0]); // Dot product result: 1*4 + 2*5 + 3*6 = 32
-    }
+    //     // Case 5: Single Row and Single Column Multiplication (1x3 * 3x1)
+    //     let mut row_matrix = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
+    //     let col_matrix = DenseMatrix::new(3, 1, &[4.0, 5.0, 6.0]);
+    //     row_matrix.matrix_multiply_in_place(&col_matrix);
+    //     assert_eq!(util::flatten(&row_matrix), &[32.0]); // Dot product result: 1*4 + 2*5 + 3*6 = 32
+    // }
 
     #[test]
     fn test_mul_elem() {

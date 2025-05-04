@@ -280,7 +280,7 @@ impl NetworkBuilder {
         let mut layers: Vec<Arc<RwLock<Box<dyn Layer + Send + Sync>>>> = Vec::new();
         let mut input_size = self.input_size; // Initialize with input_size
         let layer_count = self.layer_configs.len();
-        for (i, layer_config) in self.layer_configs.into_iter().enumerate() {
+        for (i, mut layer_config) in self.layer_configs.into_iter().enumerate() {
             let size = layer_config.size(); // Get size via &self
             let mut name = format!("Hidden {}", i);
             if i == layer_count - 1 {
@@ -880,6 +880,7 @@ mod tests {
     use crate::{
         adam::Adam,
         cross_entropy::CrossEntropy,
+        dense_layer::Dense,
         dropout::Dropout,
         l1::L1,
         l2::L2,
@@ -890,7 +891,6 @@ mod tests {
         sgd::SGD,
         sigmoid::Sigmoid,
         softmax::Softmax,
-        Dense,
     };
 
     #[test]

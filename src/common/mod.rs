@@ -1,6 +1,6 @@
 pub mod helper;
 pub mod matrix;
 pub mod numbers;
-pub mod parallel;
-pub mod random;
-pub mod util;
+pub(crate) mod parallel;
+pub(crate) mod random;
+pub(crate) mod util;

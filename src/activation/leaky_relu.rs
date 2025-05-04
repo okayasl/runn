@@ -34,14 +34,23 @@ impl LeakyReLU {
         LeakyReLU { alpha: 0.01 } // Default alpha = 0.01
     }
 
-    /// Method to set the alpha value
+    /// Sets the alpha parameter for the LeakyReLU activation function.
+    /// Alpha controls the slope of the function for negative values.
+    /// It should be a positive value.
     pub fn alpha(mut self, alpha: f32) -> Self {
         self.alpha = alpha;
         self
     }
 
-    // Method to build the LeakyReLU instanc
+    fn validate(&self) {
+        if self.alpha <= 0.0 {
+            panic!("Alpha for ELU must be greater than 0.0");
+        }
+    }
+
+    // Method to build the LeakyReLU instance
     pub fn build(self) -> Box<dyn ActivationFunction> {
+        self.validate();
         Box::new(LeakyReLUActivation { alpha: self.alpha })
     }
 }

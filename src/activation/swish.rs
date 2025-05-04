@@ -33,14 +33,23 @@ impl Swish {
         Swish { beta: 1.0 } // Default beta = 1.0
     }
 
-    // Method to set the beta value
+    /// Sets the beta parameter for the Swish activation function.
+    /// Beta controls the steepness of the curve.
+    /// It should be a positive value.
     pub fn beta(mut self, beta: f32) -> Self {
         self.beta = beta;
         self
     }
 
-    // Method to build the Swish instance
+    fn validate(&self) {
+        if self.beta <= 0.0 {
+            panic!("Beta for Swish must be greater than 0.0");
+        }
+    }
+
+    /// Method to build the Swish instance
     pub fn build(self) -> Box<dyn ActivationFunction> {
+        self.validate();
         Box::new(SwishActivation { beta: self.beta })
     }
 }

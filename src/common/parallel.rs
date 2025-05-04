@@ -5,7 +5,7 @@ use std::thread;
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
-pub struct ThreadPool {
+pub(crate) struct ThreadPool {
     workers: Vec<thread::JoinHandle<()>>,
     job_sender: Option<Sender<Job>>,
     remaining_jobs: Arc<(Mutex<usize>, Condvar)>,

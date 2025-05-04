@@ -39,13 +39,22 @@ impl ELU {
         ELU { alpha: 1.0 } // Default alpha = 1.0
     }
 
-    /// Method to set the alpha value
+    /// Sets the alpha parameter for the ELU activation function.
+    /// Alpha controls the steepness of the curve for negative values.
+    /// It should be a positive value.
     pub fn alpha(mut self, alpha: f32) -> Self {
         self.alpha = alpha;
         self
     }
 
+    fn validate(&self) {
+        if self.alpha <= 0.0 {
+            panic!("Alpha for ELU must be greater than 0.0");
+        }
+    }
+
     pub fn build(self) -> Box<dyn ActivationFunction> {
+        self.validate();
         Box::new(ELUActivation { alpha: self.alpha })
     }
 }

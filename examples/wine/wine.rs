@@ -4,8 +4,8 @@ use log::{error, info};
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
+    dense_layer::Dense,
     helper,
-    layer::Dense,
     matrix::DenseMatrix,
     min_max::MinMax,
     network::network::{Network, NetworkBuilder},

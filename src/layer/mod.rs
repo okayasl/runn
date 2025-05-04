@@ -1,5 +1,3 @@
-use dense_layer::DenseLayer;
-
 use crate::{matrix::DenseMatrix, random::Randomizer, ActivationFunction, Optimizer, Regularization, SummaryWriter};
 
 pub mod dense_layer;
@@ -43,75 +41,17 @@ impl Clone for Box<dyn Layer> {
 pub trait LayerConfig {
     fn size(&self) -> usize;
     fn create_layer(
-        self: Box<Self>, name: String, input_size: usize, optimizer: Box<dyn Optimizer>, randomizer: &Randomizer,
+        &mut self, name: String, input_size: usize, optimizer: Box<dyn Optimizer>, randomizer: &Randomizer,
     ) -> Box<dyn Layer>;
 }
 
-pub struct DenseConfig {
-    pub size: usize,
-    pub activation_function: Option<Box<dyn ActivationFunction>>,
-}
-
-impl LayerConfig for DenseConfig {
+impl LayerConfig for Box<dyn LayerConfig> {
     fn size(&self) -> usize {
-        self.size
+        (**self).size() // Dereference the Box to call the method on the inner type
     }
     fn create_layer(
-        self: Box<Self>, name: String, input_size: usize, optimizer: Box<dyn Optimizer>, randomizer: &Randomizer,
+        &mut self, name: String, input_size: usize, optimizer: Box<dyn Optimizer>, randomizer: &Randomizer,
     ) -> Box<dyn Layer> {
-        Box::new(DenseLayer::new(name, input_size, self.size, self.activation_function.unwrap(), optimizer, randomizer))
-    }
-}
-
-pub struct Dense {
-    size: Option<usize>,
-    activation_function: Option<Box<dyn ActivationFunction>>,
-}
-
-/// A builder for configuring a dense (fully connected) neural network layer.
-///
-/// This struct sets up a dense layer with a specified number of neurons and an activation function.
-/// Default settings:
-/// - size: None (must be set)
-/// - activation_function: None (must be set)
-impl Dense {
-    pub fn new() -> Self {
-        Self {
-            size: None,
-            activation_function: None,
-        }
-    }
-
-    /// Set the number of neurons in the dense layer.
-    ///
-    /// Defines the output size of the layer (i.e., the number of neurons).
-    /// # Parameters
-    /// - `size`: Number of neurons in the layer (e.g., 64).
-    pub fn size(mut self, size: usize) -> Self {
-        self.size = Some(size);
-        self
-    }
-
-    /// Set the activation function for the dense layer.
-    ///
-    /// Specifies the non-linear function applied to the layer’s output (e.g., ReLU, Sigmoid).
-    /// # Parameters
-    /// - `activation_function`: Activation function to apply (e.g., `ReLU`, `Sigmoid`).
-    pub fn activation(mut self, activation_function: impl ActivationFunction + 'static) -> Self {
-        self.activation_function = Some(Box::new(activation_function));
-        self
-    }
-
-    pub(crate) fn from(mut self, size: usize, af: Box<dyn ActivationFunction>) -> Self {
-        self.size = Some(size);
-        self.activation_function = Some(af);
-        self
-    }
-
-    pub fn build(self) -> DenseConfig {
-        DenseConfig {
-            size: self.size.expect("Size must be set"),
-            activation_function: Some(self.activation_function.expect("Activation function must be set")),
-        }
+        (**self).create_layer(name, input_size, optimizer, randomizer) // Dereference the Box to call the method on the inner type
     }
 }

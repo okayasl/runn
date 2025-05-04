@@ -7,13 +7,13 @@ use log::{error, info};
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
+    dense_layer::Dense,
     helper,
     network::network::{Network, NetworkBuilder},
     network_search::NetworkSearchBuilder,
     numbers::{Numbers, SequentialNumbers},
     relu::ReLU,
     softmax::Softmax,
-    Dense,
 };
 
 // Triplets is a Multi-class classification problem.
