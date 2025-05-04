@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::LearningRateScheduler;
+
 /// ExponentialLRScheduler implements an exponential decay learning rate scheduler which continuously
 /// decreases the learning rate after each epoch. This scheduler is useful for smoothing the training process
 /// by gradually decreasing the step size of updates to the model's parameters,
@@ -13,7 +15,7 @@ pub struct ExponentialLRScheduler {
 }
 
 impl ExponentialLRScheduler {
-    /// Creates a new `ExponentialLRScheduler`.
+    /// Creates a new `ExponentialLRScheduler` with the given initial learning rate, decay rate, and decay factor.
     pub fn new(initial_lr: f32, decay_rate: f32, decay_factor: f32) -> Self {
         Self {
             initial_lr,
@@ -21,11 +23,14 @@ impl ExponentialLRScheduler {
             decay_factor,
         }
     }
+}
 
+#[typetag::serde]
+impl LearningRateScheduler for ExponentialLRScheduler {
     /// Computes the new learning rate by applying exponential decay based on the epoch number.
     /// The decay factor controls how quickly the learning rate decreases;
     /// a smaller decay factor results in slower decay.
-    pub fn schedule(&self, epoch: usize) -> f32 {
+    fn schedule(&self, epoch: usize, _current_learning_rate: f32) -> f32 {
         self.initial_lr * self.decay_rate.powf(epoch as f32 * self.decay_factor)
     }
 }
@@ -71,9 +76,8 @@ impl Exponential {
     }
 
     /// Builds the `ExponentialLRScheduler` if all required fields are set.
-    pub fn build(self) -> Result<ExponentialLRScheduler, &'static str> {
-        let (initial_lr, decay_rate, decay_factor) = (self.initial_lr, self.decay_rate, self.decay_factor);
-        Ok(ExponentialLRScheduler::new(initial_lr, decay_rate, decay_factor))
+    pub fn build(self) -> ExponentialLRScheduler {
+        ExponentialLRScheduler::new(self.initial_lr, self.decay_rate, self.decay_factor)
     }
 }
 
@@ -84,8 +88,8 @@ mod tests {
     #[test]
     fn test_exponential_lr_scheduler() {
         let scheduler = ExponentialLRScheduler::new(0.1, 0.9, 0.5);
-        assert!((scheduler.schedule(0) - 0.1).abs() < 1e-6);
-        assert!((scheduler.schedule(1) - 0.09486833).abs() < 1e-6);
-        assert!((scheduler.schedule(2) - 0.09).abs() < 1e-6);
+        assert!((scheduler.schedule(0, 0.0) - 0.1).abs() < 1e-6);
+        assert!((scheduler.schedule(1, 0.0) - 0.09486833).abs() < 1e-6);
+        assert!((scheduler.schedule(2, 0.0) - 0.09).abs() < 1e-6);
     }
 }

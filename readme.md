@@ -8,7 +8,7 @@
 
 **A Compact Rust Neural Network Library**
 
-`runn` is a feature-rich, easy to use library for building, training, and evaluating feed forward neural networks in Rust. It supports a wide range of activation functions, optimizers, regularization techniques, hyperparameter search and more, with a user friendly api.
+`runn` is a feature-rich, easy to use library for building, training, and evaluating feed forward neural networks in Rust. It supports a wide range of activation functions, optimizers, regularization techniques, fine grained parallelization, hyperparameter search and more, with a user friendly api.
 
 ---
 
@@ -58,7 +58,6 @@ fn main() {
         .layer(Dense::new().size(1).activation(Softmax::new()).build())
         .loss_function(CrossEntropy::new().build())
         .optimizer(Adam::new().build())
-        .seed(42)
         .epochs(5)
         .batch_size(2)
         .build()
@@ -125,6 +124,43 @@ Normalization | Minmax, Zscore
 
 
 ## 📂 Examples
+
+With runn, you can write fairly complex networks according to your needs:
+
+```rust
+
+    let mut network = NetworkBuilder::new(5, 3)
+        .layer(Dense::new().size(12).activation(ELU::new().alpha(0.9).build()).build())
+        .layer(Dense::new().size(24).activation(Swish::new().beta(1.0).build()).build())
+        .layer(Dense::new().size(3).activation(Softmax::new()).build())
+        .loss_function(CrossEntropy::new().epsilon(0.99).build()) // loss function with epsilon
+        .optimizer(
+            Adam::new() // Adam optimizer with custom parameters
+                .beta1(0.98)
+                .beta2(0.990)
+                .learning_rate(0.0035)
+                .scheduler(Exponential::new().decay_factor(0.2).build()) // scheduler for learning rate
+                .build(),
+        )
+        .seed(42) // seed for reproducibility
+        .early_stopper(
+            Loss::new() // early stopping based on loss
+                .patience(500) // number of epochs with no improvement after which training will be stopped
+                .min_delta(0.1) // minimum change to be considered an improvement
+                .smoothing_factor(0.5) // factor to smooth the loss
+                .build(),
+        )
+        .epochs(5000) // number of epoch to run
+        .batch_size(4) // number of batches 
+        .batch_group_size(4) // number of batches to process in groups
+        .parallelize(4) // number of threads to use for parallel process the batch groups
+        .summary(TensorBoard::new().logdir("summary").build()) // tensorboard summary
+        .normalize_input(MinMax::new()) // normalization of the input data
+        .build() // Build network
+        .unwrap();
+
+```
+
 
 See the examples/ directory for end‑to‑end demos:
 

@@ -1,15 +1,24 @@
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
+    earlystop::loss::Loss,
+    elu::ELU,
+    exponential::Exponential,
     matrix::DenseMatrix,
+    min_max::MinMax,
     network::network::{Network, NetworkBuilder},
     network_io::SerializationFormat,
     network_search::NetworkSearchBuilder,
+    normalization,
     relu::ReLU,
     softmax::Softmax,
-    Dense,
+    swish::Swish,
+    tanh::Tanh,
+    tensor_board::TensorBoard,
+    Dense, Normalization,
 };
 use serde::ser;
+use tensorboard_rs::summary_writer;
 
 fn main() {
     let mut network = NetworkBuilder::new(2, 1)
@@ -48,4 +57,34 @@ fn main() {
         .build();
 
     // let ns=     network_search.unwrap().search(training_inputs, training_targets, validation_inputs, validation_targets);
+
+    let mut network = NetworkBuilder::new(5, 3)
+        .layer(Dense::new().size(12).activation(ELU::new().alpha(0.9).build()).build())
+        .layer(Dense::new().size(24).activation(Swish::new().beta(1.0).build()).build())
+        .layer(Dense::new().size(3).activation(Softmax::new()).build())
+        .loss_function(CrossEntropy::new().epsilon(0.99).build()) // loss function with epsilon
+        .optimizer(
+            Adam::new() // Adam optimizer with custom parameters
+                .beta1(0.98)
+                .beta2(0.990)
+                .learning_rate(0.0035)
+                .scheduler(Exponential::new().decay_factor(0.2).build()) // scheduler for learning rate
+                .build(),
+        )
+        .seed(42) // seed for reproducibility
+        .early_stopper(
+            Loss::new() // early stopping based on loss
+                .patience(500) // number of epochs with no improvement after which training will be stopped
+                .min_delta(0.1) // minimum change to be considered an improvement
+                .smoothing_factor(0.5) // factor to smooth the loss
+                .build(),
+        )
+        .epochs(5000)
+        .batch_size(4)
+        .batch_group_size(4) // number of batches to process in groups
+        .parallelize(4) // number of threads to use for parallel process the batch groups
+        .summary(TensorBoard::new().logdir("summary").build()) // tensorboard summary
+        .normalize_input(MinMax::new()) // normalization of the input data
+        .build()
+        .unwrap();
 }

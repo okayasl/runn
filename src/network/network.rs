@@ -215,8 +215,8 @@ impl NetworkBuilder {
     /// Controls the degree of parallelism for forward and backward passes. Must be greater than 0. Default is 1 (single-threaded).
     /// # Parameters
     /// - `parallelize`: Number of threads to use.
-    pub fn parallelize(mut self, paralelize: usize) -> Self {
-        self.parallelize = paralelize;
+    pub fn parallelize(mut self, parallelize: usize) -> Self {
+        self.parallelize = parallelize;
         self
     }
 

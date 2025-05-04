@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::LearningRateScheduler;
+
 /// StepLRScheduler implements a step decay learning rate scheduler which periodically
 /// reduces the learning rate by a fixed factor.
 /// This is useful for training neural networks where you might want to
@@ -18,11 +20,14 @@ impl StepLRScheduler {
     pub fn new(decay_rate: f32, step_size: usize) -> Self {
         Self { decay_rate, step_size }
     }
+}
 
+#[typetag::serde]
+impl LearningRateScheduler for StepLRScheduler {
     /// Updates the learning rate if the current epoch is a multiple of `step_size`,
     /// applying the decay rate to reduce the learning rate.
     /// Otherwise, it returns the current learning rate unchanged.
-    pub fn schedule(&self, epoch: usize, current_learning_rate: f32) -> f32 {
+    fn schedule(&self, epoch: usize, current_learning_rate: f32) -> f32 {
         if epoch % self.step_size == 0 {
             current_learning_rate * self.decay_rate
         } else {
@@ -66,9 +71,8 @@ impl Step {
     }
 
     /// Builds the StepLRScheduler, returning an error if any required fields are missing.
-    pub fn build(self) -> Result<StepLRScheduler, &'static str> {
-        let (decay_rate, step_size) = (self.decay_rate, self.step_size);
-        Ok(StepLRScheduler::new(decay_rate, step_size))
+    pub fn build(self) -> StepLRScheduler {
+        StepLRScheduler::new(self.decay_rate, self.step_size)
     }
 }
 #[cfg(test)]

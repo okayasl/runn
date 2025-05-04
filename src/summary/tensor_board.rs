@@ -132,7 +132,6 @@ impl SummaryWriter for TensorBoardSummaryWriter {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
 
     use tempfile::tempdir;
 

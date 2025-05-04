@@ -224,8 +224,8 @@ impl Adam {
     /// Optionally applies a scheduler to adjust the learning rate during training (e.g., exponential, step).
     /// # Parameters
     /// - `scheduler`: Learning rate scheduler to use.
-    pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
-        self.scheduler = Some(scheduler);
+    pub fn scheduler(mut self, scheduler: impl LearningRateScheduler + 'static) -> Self {
+        self.scheduler = Some(Box::new(scheduler));
         self
     }
 
