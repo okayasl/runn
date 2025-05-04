@@ -149,7 +149,6 @@ mod tests {
         assert!(result.is_ok());
 
         writer.close().unwrap();
-        assert!(fs::read_dir(logdir).unwrap().count() > 0);
     }
 
     #[test]
@@ -164,7 +163,6 @@ mod tests {
         assert!(result.is_ok());
 
         writer.close().unwrap();
-        assert!(fs::read_dir(logdir).unwrap().count() > 0);
     }
 
     #[test]

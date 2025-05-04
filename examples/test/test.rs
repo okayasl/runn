@@ -1,5 +1,13 @@
 use runn::{
-    adam::Adam, cross_entropy::CrossEntropy, matrix::DenseMatrix, network::network::{Network, NetworkBuilder}, network_io::SerializationFormat, network_search::NetworkSearchBuilder, relu::ReLU, softmax::Softmax, Dense
+    adam::Adam,
+    cross_entropy::CrossEntropy,
+    matrix::DenseMatrix,
+    network::network::{Network, NetworkBuilder},
+    network_io::SerializationFormat,
+    network_search::NetworkSearchBuilder,
+    relu::ReLU,
+    softmax::Softmax,
+    Dense,
 };
 use serde::ser;
 
@@ -32,14 +40,12 @@ fn main() {
     let network_search = NetworkSearchBuilder::new()
         .network(network)
         .parallelize(4)
-        .learning_rates(vec![0.0025,0.0035])
-        .batch_sizes(vec![1,2,4,7])
-        .hidden_layer(vec![1,3,4,7],ReLU::new())
-        .hidden_layer(vec![1,3,7,9],ReLU::new())
+        .learning_rates(vec![0.0025, 0.0035])
+        .batch_sizes(vec![1, 2, 4, 7])
+        .hidden_layer(vec![1, 3, 4, 7], ReLU::new())
+        .hidden_layer(vec![1, 3, 7, 9], ReLU::new())
         .export("hp_search".to_string())
         .build();
 
-   // let ns=     network_search.unwrap().search(training_inputs, training_targets, validation_inputs, validation_targets);
-
-
+    // let ns=     network_search.unwrap().search(training_inputs, training_targets, validation_inputs, validation_targets);
 }
