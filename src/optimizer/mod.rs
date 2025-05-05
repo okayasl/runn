@@ -40,23 +40,34 @@ impl Clone for Box<dyn Optimizer> {
 
 #[typetag::serde]
 pub trait OptimizerConfig: OptimizerConfigClone + Send + Sync {
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer>;
+    fn create_optimizer(&mut self) -> Box<dyn Optimizer>;
     fn update_learning_rate(&mut self, learning_rate: f32);
     fn learning_rate(&self) -> f32;
 }
 
-// Implement OptimizerConfigClone and make OptimizerConfig Clone and Send
-pub trait OptimizerConfigClone {
-    fn clone_box(&self) -> Box<dyn OptimizerConfig>;
+#[typetag::serde]
+impl OptimizerConfig for Box<dyn OptimizerConfig> {
+    fn create_optimizer(&mut self) -> Box<dyn Optimizer> {
+        (**self).create_optimizer()
+    }
+
+    fn update_learning_rate(&mut self, learning_rate: f32) {
+        (**self).update_learning_rate(learning_rate)
+    }
+
+    fn learning_rate(&self) -> f32 {
+        (**self).learning_rate()
+    }
 }
 
-impl<T> OptimizerConfigClone for T
-where
-    T: 'static + OptimizerConfig + Clone,
-{
+impl OptimizerConfigClone for Box<dyn OptimizerConfig> {
     fn clone_box(&self) -> Box<dyn OptimizerConfig> {
-        Box::new(self.clone())
+        (**self).clone_box() // Call clone_box on the inner concrete type
     }
+}
+
+pub trait OptimizerConfigClone {
+    fn clone_box(&self) -> Box<dyn OptimizerConfig>;
 }
 
 impl Clone for Box<dyn OptimizerConfig> {

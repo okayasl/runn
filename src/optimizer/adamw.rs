@@ -2,7 +2,7 @@ use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::{Optimizer, OptimizerConfig};
+use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
 
 /// AdamW (Adam with Weight Decay) is an optimization algorithm that extends the Adam optimizer
 /// by incorporating weight decay directly into the parameter update rule. This modification
@@ -23,7 +23,7 @@ use super::{Optimizer, OptimizerConfig};
 /// weight = weight - weight_decay * weight /// Weight decay
 /// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
 #[derive(Serialize, Deserialize, Clone)]
-pub struct AdamWOptimizer {
+struct AdamWOptimizer {
     config: AdamWConfig,
     moment1_weights: DenseMatrix,
     moment2_weights: DenseMatrix,
@@ -116,7 +116,7 @@ impl Optimizer for AdamWOptimizer {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct AdamWConfig {
+struct AdamWConfig {
     learning_rate: f32,
     beta1: f32,
     beta2: f32,
@@ -130,8 +130,8 @@ impl OptimizerConfig for AdamWConfig {
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.learning_rate = learning_rate;
     }
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(AdamWOptimizer::new(*self))
+    fn create_optimizer(&mut self) -> Box<dyn Optimizer> {
+        Box::new(AdamWOptimizer::new(self.clone()))
     }
     fn learning_rate(&self) -> f32 {
         self.learning_rate
@@ -172,7 +172,7 @@ impl AdamW {
             learning_rate: 0.01,
             beta1: 0.9,
             beta2: 0.999,
-            epsilon: 1e-8,
+            epsilon: f32::EPSILON,
             weight_decay: 0.01,
             scheduler: None,
         }
@@ -240,15 +240,38 @@ impl AdamW {
         self
     }
 
-    pub fn build(self) -> AdamWConfig {
-        AdamWConfig {
+    /// Validate the parameters.
+    fn validate(&self) {
+        if self.learning_rate <= 0.0 {
+            panic!("Learning rate must be greater than 0.0");
+        }
+        if self.beta1 <= 0.0 || self.beta1 >= 1.0 {
+            panic!("Beta1 must be in the range (0.0, 1.0)");
+        }
+        if self.beta2 <= 0.0 || self.beta2 >= 1.0 {
+            panic!("Beta2 must be in the range (0.0, 1.0)");
+        }
+        if self.epsilon <= 0.0 {
+            panic!("Epsilon must be greater than 0.0");
+        }
+    }
+
+    pub fn build(self) -> Box<dyn OptimizerConfig> {
+        self.validate();
+        Box::new(AdamWConfig {
             learning_rate: self.learning_rate,
             beta1: self.beta1,
             beta2: self.beta2,
             epsilon: self.epsilon,
             weight_decay: self.weight_decay,
             scheduler: self.scheduler,
-        }
+        })
+    }
+}
+
+impl OptimizerConfigClone for AdamWConfig {
+    fn clone_box(&self) -> Box<dyn OptimizerConfig> {
+        Box::new(self.clone())
     }
 }
 
@@ -262,13 +285,14 @@ mod tests {
 
     #[test]
     fn test_initialize() {
-        let adamw_config = AdamW::new()
-            .learning_rate(0.001)
-            .beta1(0.9)
-            .beta2(0.999)
-            .epsilon(1e-8)
-            .weight_decay(0.01)
-            .build();
+        let adamw_config = AdamWConfig {
+            learning_rate: 0.001,
+            beta1: 0.9,
+            beta2: 0.999,
+            epsilon: 1e-8,
+            weight_decay: 0.01,
+            scheduler: None,
+        };
         let mut optimizer = AdamWOptimizer::new(adamw_config);
         let weights = DenseMatrix::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
         let biases = DenseMatrix::new(2, 1, &[0.1, 0.2]);
@@ -303,13 +327,14 @@ mod tests {
 
     #[test]
     fn test_update_learning_rate() {
-        let adamw_config = AdamW::new()
-            .learning_rate(0.001)
-            .beta1(0.9)
-            .beta2(0.999)
-            .epsilon(1e-8)
-            .weight_decay(0.01)
-            .build();
+        let adamw_config = AdamWConfig {
+            learning_rate: 0.001,
+            beta1: 0.9,
+            beta2: 0.999,
+            epsilon: 1e-8,
+            weight_decay: 0.01,
+            scheduler: None,
+        };
         let mut optimizer = AdamWOptimizer::new(adamw_config);
         optimizer.update_learning_rate(0.01);
         assert_eq!(optimizer.config.learning_rate, 0.01);
@@ -333,13 +358,14 @@ mod tests {
         let d_biases = DenseMatrix::new(2, 1, &[10.0, 11.0]);
 
         // Create an instance of the AdamW optimizer
-        let adamw_config = AdamW::new()
-            .learning_rate(0.001)
-            .beta1(0.9)
-            .beta2(0.999)
-            .epsilon(1e-8)
-            .weight_decay(0.01)
-            .build();
+        let adamw_config = AdamWConfig {
+            learning_rate: 0.001,
+            beta1: 0.9,
+            beta2: 0.999,
+            epsilon: 1e-8,
+            weight_decay: 0.01,
+            scheduler: None,
+        };
         let mut optimizer = AdamWOptimizer::new(adamw_config);
         optimizer.initialize(&weights, &biases);
 

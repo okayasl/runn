@@ -1,4 +1,4 @@
-use super::{Optimizer, OptimizerConfig};
+use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
 use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
@@ -10,7 +10,7 @@ use typetag;
 /// weight = weight - (learning_rate * gradient) / sqrt(accumulated_gradient + epsilon)
 /// bias = bias - (learning_rate * gradient) / sqrt(accumulated_gradient + epsilon)
 #[derive(Serialize, Deserialize, Clone)]
-pub struct RMSPropOptimizer {
+struct RMSPropOptimizer {
     config: RMSPropConfig,
     accumulated_squared_grad_weights: DenseMatrix,
     accumulated_squared_grad_biases: DenseMatrix,
@@ -68,7 +68,7 @@ impl Optimizer for RMSPropOptimizer {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct RMSPropConfig {
+struct RMSPropConfig {
     learning_rate: f32,
     decay_rate: f32,
     epsilon: f32,
@@ -80,8 +80,8 @@ impl OptimizerConfig for RMSPropConfig {
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.learning_rate = learning_rate;
     }
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(RMSPropOptimizer::new(*self))
+    fn create_optimizer(&mut self) -> Box<dyn Optimizer> {
+        Box::new(RMSPropOptimizer::new(self.clone()))
     }
     fn learning_rate(&self) -> f32 {
         self.learning_rate
@@ -151,14 +151,33 @@ impl RMSProp {
         self.scheduler = Some(scheduler);
         self
     }
+    /// Validates the parameters of the optimizer.
+    fn validate(&self) {
+        if self.learning_rate <= 0.0 {
+            panic!("Learning rate must be greater than 0.0");
+        }
+        if self.decay_rate <= 0.0 || self.decay_rate >= 1.0 {
+            panic!("Decay rate must be in the range (0.0, 1.0)");
+        }
+        if self.epsilon <= 0.0 {
+            panic!("Epsilon must be greater than 0.0");
+        }
+    }
 
-    pub fn build(self) -> RMSPropConfig {
-        RMSPropConfig {
+    pub fn build(self) -> Box<dyn OptimizerConfig> {
+        self.validate();
+        Box::new(RMSPropConfig {
             learning_rate: self.learning_rate,
             decay_rate: self.decay_rate,
             epsilon: self.epsilon,
             scheduler: self.scheduler,
-        }
+        })
+    }
+}
+
+impl OptimizerConfigClone for RMSPropConfig {
+    fn clone_box(&self) -> Box<dyn OptimizerConfig> {
+        Box::new(self.clone())
     }
 }
 

@@ -2,7 +2,7 @@ use crate::{common::matrix::DenseMatrix, regression::RegressionEvaluator, Metric
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::LossFunction;
+use super::{LossFunction, LossFunctionClone};
 
 /// MeanSquaredErrorLoss is a commonly used loss function for regression tasks,
 /// measuring the average squared difference between the predicted values and the true target values.
@@ -16,7 +16,7 @@ use super::LossFunction;
 /// The gradient represents the scaled difference between the predicted and target values,
 /// which can be used to update the model parameters during optimization.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct MeanSquaredErrorLoss;
+struct MeanSquaredErrorLoss;
 
 /// MeanSquaredErrorLoss is a commonly used loss function for regression tasks,
 /// measuring the average squared difference between the predicted values and the true target values.
@@ -33,8 +33,14 @@ pub struct MeanSquared;
 
 impl MeanSquared {
     /// Creates a new builder for CrossEntropyLoss
-    pub fn new() -> MeanSquaredErrorLoss {
-        MeanSquaredErrorLoss {}
+    pub fn new() -> Box<dyn LossFunction> {
+        Box::new(MeanSquaredErrorLoss {})
+    }
+}
+
+impl LossFunctionClone for MeanSquaredErrorLoss {
+    fn clone_box(&self) -> Box<dyn LossFunction> {
+        Box::new(self.clone())
     }
 }
 

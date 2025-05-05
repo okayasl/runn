@@ -2,7 +2,7 @@ use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::{Optimizer, OptimizerConfig};
+use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
 
 /// Adam(Adaptive Moment Estimation) is an optimization algorithm that
 /// adapts learning rates for each parameter based on the magnitude of the gradient.
@@ -18,7 +18,7 @@ use super::{Optimizer, OptimizerConfig};
 /// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
 /// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
 #[derive(Serialize, Deserialize, Clone)]
-pub struct AdamOptimizer {
+struct AdamOptimizer {
     config: AdamConfig,
     moment1_weights: DenseMatrix,
     moment2_weights: DenseMatrix,
@@ -30,7 +30,7 @@ pub struct AdamOptimizer {
 }
 
 impl AdamOptimizer {
-    pub fn new(config: AdamConfig) -> Self {
+    pub(crate) fn new(config: AdamConfig) -> Self {
         Self {
             config: config,
             moment1_weights: DenseMatrix::zeros(0, 0),
@@ -123,7 +123,7 @@ impl Optimizer for AdamOptimizer {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct AdamConfig {
+struct AdamConfig {
     learning_rate: f32,
     beta1: f32,
     beta2: f32,
@@ -136,8 +136,8 @@ impl OptimizerConfig for AdamConfig {
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.learning_rate = learning_rate;
     }
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(AdamOptimizer::new(*self))
+    fn create_optimizer(&mut self) -> Box<dyn Optimizer> {
+        Box::new(AdamOptimizer::new(self.clone()))
     }
     fn learning_rate(&self) -> f32 {
         self.learning_rate
@@ -229,14 +229,20 @@ impl Adam {
         self
     }
 
-    pub fn build(self) -> AdamConfig {
-        AdamConfig {
+    pub fn build(self) -> Box<dyn OptimizerConfig> {
+        Box::new(AdamConfig {
             learning_rate: self.learning_rate,
             beta1: self.beta1,
             beta2: self.beta2,
             epsilon: self.epsilon,
             scheduler: self.scheduler,
-        }
+        })
+    }
+}
+
+impl OptimizerConfigClone for AdamConfig {
+    fn clone_box(&self) -> Box<dyn OptimizerConfig> {
+        Box::new(self.clone())
     }
 }
 
@@ -247,12 +253,13 @@ mod tests {
 
     #[test]
     fn test_initialize() {
-        let adam_config = Adam::new()
-            .learning_rate(0.001)
-            .beta1(0.9)
-            .beta2(0.999)
-            .epsilon(1e-8)
-            .build();
+        let adam_config = AdamConfig {
+            learning_rate: 0.001,
+            beta1: 0.9,
+            beta2: 0.999,
+            epsilon: 1e-8,
+            scheduler: None,
+        };
         let mut optimizer = AdamOptimizer::new(adam_config);
         let weights = DenseMatrix::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
         let biases = DenseMatrix::new(2, 1, &[0.1, 0.2]);
@@ -286,12 +293,13 @@ mod tests {
 
     #[test]
     fn test_update_learning_rate() {
-        let adam_config = Adam::new()
-            .learning_rate(0.001)
-            .beta1(0.9)
-            .beta2(0.999)
-            .epsilon(1e-8)
-            .build();
+        let adam_config = AdamConfig {
+            learning_rate: 0.001,
+            beta1: 0.9,
+            beta2: 0.999,
+            epsilon: 1e-8,
+            scheduler: None,
+        };
         let mut optimizer = AdamOptimizer::new(adam_config);
         optimizer.update_learning_rate(0.01);
         assert_eq!(optimizer.config.learning_rate, 0.01);
@@ -308,12 +316,13 @@ mod tests {
         let d_biases = DenseMatrix::new(2, 1, &[10.0, 11.0]);
 
         // Create an instance of the Adam optimizer
-        let adam_config = Adam::new()
-            .learning_rate(0.001)
-            .beta1(0.9)
-            .beta2(0.999)
-            .epsilon(1e-8)
-            .build();
+        let adam_config = AdamConfig {
+            learning_rate: 0.001,
+            beta1: 0.9,
+            beta2: 0.999,
+            epsilon: 1e-8,
+            scheduler: None,
+        };
         let mut optimizer = AdamOptimizer::new(adam_config);
         optimizer.initialize(&weights, &biases);
 
@@ -364,5 +373,33 @@ mod tests {
         });
 
         assert!(equal_approx(&weights, &expected_params, 1e-2));
+    }
+
+    #[test]
+    fn test_clone_adam_optimizer() {
+        let adam_config = AdamConfig {
+            learning_rate: 0.001,
+            beta1: 0.9,
+            beta2: 0.999,
+            epsilon: 1e-8,
+            scheduler: None,
+        };
+        let optimizer = AdamOptimizer::new(adam_config);
+        let cloned_optimizer = optimizer.clone();
+        assert_eq!(optimizer.config.learning_rate, cloned_optimizer.config.learning_rate);
+        assert_eq!(optimizer.config.beta1, cloned_optimizer.config.beta1);
+        assert_eq!(optimizer.config.beta2, cloned_optimizer.config.beta2);
+    }
+
+    #[test]
+    fn test_clone_adam_optimizer_config() {
+        let adam_config = Adam::new()
+            .learning_rate(0.001)
+            .beta1(0.9)
+            .beta2(0.999)
+            .epsilon(1e-8)
+            .build();
+        let cloned_config = adam_config.clone();
+        assert_eq!(adam_config.learning_rate(), cloned_config.learning_rate());
     }
 }

@@ -143,7 +143,7 @@ fn triplets_network(inp_size: usize, targ_size: usize) -> Network {
         .batch_size(8)
         .batch_group_size(2)
         .parallelize(2)
-        .epochs(150)
+        .epochs(1000)
         .seed(55)
         //.regularization(L1::new().lambda(0.0001).build())
         //.summary(TensorBoard::new().logdir("summary").build())

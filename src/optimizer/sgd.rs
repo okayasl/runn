@@ -3,7 +3,7 @@ use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::{Optimizer, OptimizerConfig};
+use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
 
 /// Stochastic Gradient Descent (SGD) optimizer is a simple and popular optimization algorithm
 /// that updates model parameters in the direction of the negative gradient of the loss function.
@@ -60,8 +60,8 @@ impl OptimizerConfig for SGDConfig {
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.learning_rate = learning_rate;
     }
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(SGDOptimizer::new(*self))
+    fn create_optimizer(&mut self) -> Box<dyn Optimizer> {
+        Box::new(SGDOptimizer::new(self.clone()))
     }
     fn learning_rate(&self) -> f32 {
         self.learning_rate
@@ -113,6 +113,12 @@ impl SGD {
             learning_rate: self.learning_rate,
             scheduler: self.scheduler,
         }
+    }
+}
+
+impl OptimizerConfigClone for SGDConfig {
+    fn clone_box(&self) -> Box<dyn OptimizerConfig> {
+        Box::new(self.clone())
     }
 }
 

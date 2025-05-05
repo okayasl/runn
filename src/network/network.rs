@@ -280,18 +280,14 @@ impl NetworkBuilder {
         let mut layers: Vec<Arc<RwLock<Box<dyn Layer + Send + Sync>>>> = Vec::new();
         let mut input_size = self.input_size; // Initialize with input_size
         let layer_count = self.layer_configs.len();
+        let mut opt = self.optimizer_config.as_ref().unwrap().clone();
         for (i, mut layer_config) in self.layer_configs.into_iter().enumerate() {
             let size = layer_config.size(); // Get size via &self
             let mut name = format!("Hidden {}", i);
             if i == layer_count - 1 {
                 name = String::from("Output");
             }
-            let layer = layer_config.create_layer(
-                name,
-                input_size,
-                self.optimizer_config.as_ref().unwrap().clone().create_optimizer(),
-                &randomizer,
-            );
+            let layer = layer_config.create_layer(name, input_size, opt.create_optimizer(), &randomizer);
             input_size = size; // Update input_size for the next layer
             layers.push(Arc::new(RwLock::new(layer)));
         }

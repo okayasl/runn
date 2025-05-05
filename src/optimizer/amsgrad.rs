@@ -2,7 +2,7 @@ use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::{Optimizer, OptimizerConfig};
+use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
 
 /// AMSGrad (Adaptive Moment Estimation with Maximum Moment) is a variant of the Adam optimizer
 /// designed to improve convergence in scenarios where Adam may fail due to rapidly changing gradients.
@@ -22,7 +22,7 @@ use super::{Optimizer, OptimizerConfig};
 /// weight = weight - (learning_rate / sqrt(max_accumulated_gradient + epsilon)) * momentum
 /// bias = bias - (learning_rate / sqrt(max_accumulated_gradient + epsilon)) * momentum
 #[derive(Serialize, Deserialize, Clone)]
-pub struct AMSGradOptimizer {
+struct AMSGradOptimizer {
     config: AMSGradConfig,
     moment1_weights: DenseMatrix,
     moment2_weights: DenseMatrix,
@@ -123,7 +123,7 @@ impl Optimizer for AMSGradOptimizer {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct AMSGradConfig {
+struct AMSGradConfig {
     learning_rate: f32,
     beta1: f32,
     beta2: f32,
@@ -136,8 +136,8 @@ impl OptimizerConfig for AMSGradConfig {
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.learning_rate = learning_rate;
     }
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(AMSGradOptimizer::new(*self))
+    fn create_optimizer(&mut self) -> Box<dyn Optimizer> {
+        Box::new(AMSGradOptimizer::new(self.clone()))
     }
     fn learning_rate(&self) -> f32 {
         self.learning_rate
@@ -231,14 +231,20 @@ impl AMSGrad {
         self
     }
 
-    pub fn build(self) -> AMSGradConfig {
-        AMSGradConfig {
+    pub fn build(self) -> Box<dyn OptimizerConfig> {
+        Box::new(AMSGradConfig {
             learning_rate: self.learning_rate,
             beta1: self.beta1,
             beta2: self.beta2,
             epsilon: self.epsilon,
             scheduler: self.scheduler,
-        }
+        })
+    }
+}
+
+impl OptimizerConfigClone for AMSGradConfig {
+    fn clone_box(&self) -> Box<dyn OptimizerConfig> {
+        Box::new(self.clone())
     }
 }
 

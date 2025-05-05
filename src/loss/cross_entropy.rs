@@ -3,7 +3,7 @@ use typetag;
 
 use crate::{classification::ClassificationEvaluator, matrix::DenseMatrix, MetricEvaluator, MetricResult};
 
-use super::LossFunction;
+use super::{LossFunction, LossFunctionClone};
 
 /// CrossEntropyLoss is a commonly used loss function for classification tasks,
 /// particularly in scenarios involving probabilistic outputs such as those from a softmax layer.
@@ -21,7 +21,7 @@ use super::LossFunction;
 /// The gradient represents the difference between the predicted probabilities and the true labels,
 /// which can be used to update the model parameters during optimization.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct CrossEntropyLoss {
+struct CrossEntropyLoss {
     epsilon: f32,
 }
 
@@ -41,26 +41,40 @@ pub struct CrossEntropyLoss {
 /// The gradient represents the difference between the predicted probabilities and the true labels,
 /// which can be used to update the model parameters during optimization.
 pub struct CrossEntropy {
-    epsilon: Option<f32>,
+    epsilon: f32,
 }
 
 impl CrossEntropy {
     /// Creates a new builder for CrossEntropyLoss
+    /// The default epsilon value is set to f32::EPSILON
     pub fn new() -> Self {
-        Self { epsilon: None }
+        Self { epsilon: f32::EPSILON }
     }
 
     /// Sets the epsilon value for the loss function
     pub fn epsilon(mut self, epsilon: f32) -> Self {
-        self.epsilon = Some(epsilon);
+        self.epsilon = epsilon;
         self
     }
 
-    /// Builds the CrossEntropyLoss instance
-    pub fn build(self) -> CrossEntropyLoss {
-        CrossEntropyLoss {
-            epsilon: self.epsilon.unwrap_or(1e-8), // Default epsilon value if not set
+    /// Validates the parameters of the loss function
+    /// Ensures that epsilon is set and within a valid range
+    fn validate(&self) {
+        let epsilon = self.epsilon;
+        if epsilon <= 0.0 || epsilon >= 1.0 {
+            panic!("Epsilon must be in the range (0, 1).");
         }
+    }
+
+    pub fn build(self) -> Box<dyn LossFunction> {
+        self.validate();
+        Box::new(CrossEntropyLoss { epsilon: self.epsilon })
+    }
+}
+
+impl LossFunctionClone for CrossEntropyLoss {
+    fn clone_box(&self) -> Box<dyn LossFunction> {
+        Box::new(self.clone())
     }
 }
 

@@ -1,4 +1,4 @@
-use super::{Optimizer, OptimizerConfig};
+use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
 use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
@@ -10,7 +10,7 @@ use typetag;
 /// weight = weight - velocity
 /// bias = bias - velocity
 #[derive(Serialize, Deserialize, Clone)]
-pub struct MomentumOptimizer {
+struct MomentumOptimizer {
     config: MomentumConfig,
     velocity_weights: DenseMatrix,
     velocity_biases: DenseMatrix,
@@ -27,7 +27,7 @@ impl MomentumOptimizer {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct MomentumConfig {
+struct MomentumConfig {
     learning_rate: f32,
     momentum: f32,
     scheduler: Option<Box<dyn LearningRateScheduler>>,
@@ -38,8 +38,8 @@ impl OptimizerConfig for MomentumConfig {
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.learning_rate = learning_rate;
     }
-    fn create_optimizer(self: Box<Self>) -> Box<dyn Optimizer> {
-        Box::new(MomentumOptimizer::new(*self))
+    fn create_optimizer(&mut self) -> Box<dyn Optimizer> {
+        Box::new(MomentumOptimizer::new(self.clone()))
     }
     fn learning_rate(&self) -> f32 {
         self.learning_rate
@@ -139,12 +139,28 @@ impl Momentum {
         self
     }
 
-    pub fn build(self) -> MomentumConfig {
-        MomentumConfig {
+    fn validate(&self) {
+        if self.learning_rate <= 0.0 {
+            panic!("Learning rate must be greater than 0.0");
+        }
+        if self.momentum < 0.0 || self.momentum > 1.0 {
+            panic!("Momentum must be in the range [0.0, 1.0]");
+        }
+    }
+
+    pub fn build(self) -> Box<dyn OptimizerConfig> {
+        self.validate();
+        Box::new(MomentumConfig {
             learning_rate: self.learning_rate,
             momentum: self.momentum,
             scheduler: self.scheduler,
-        }
+        })
+    }
+}
+
+impl OptimizerConfigClone for MomentumConfig {
+    fn clone_box(&self) -> Box<dyn OptimizerConfig> {
+        Box::new(self.clone())
     }
 }
 
