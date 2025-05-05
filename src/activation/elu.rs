@@ -1,27 +1,26 @@
-use crate::activation::ActivationFunction;
 use crate::common::matrix::DenseMatrix;
+use crate::{activation::ActivationFunction, error::NetworkError};
 
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::{he_initialization, ActivationFunctionClone};
 
-/// ELU (Exponential Linear Unit) Activation Function
-///
-/// ELU is similar to ReLU but adds a small curve when the input is less than zero,
-/// which helps to keep the mean activations closer to zero and improve the learning dynamics.
-/// This curve is defined as α(exp(x) - 1) for negative values of x.
-///
-/// Range: (-α, +∞) where typically α = 1
-/// Best for: Improving learning in networks where vanishing gradients are an issue;
-/// it tends to converge faster and produces more accurate results than ReLU in some cases.
+// ELU (Exponential Linear Unit) Activation Function
+//
+// ELU is similar to ReLU but adds a small curve when the input is less than zero,
+// which helps to keep the mean activations closer to zero and improve the learning dynamics.
+// This curve is defined as α(exp(x) - 1) for negative values of x.
+//
+// Range: (-α, +∞) where typically α = 1
+// Best for: Improving learning in networks where vanishing gradients are an issue;
+// it tends to converge faster and produces more accurate results than ReLU in some cases.
 #[derive(Serialize, Deserialize, Clone)]
 struct ELUActivation {
     alpha: f32,
 }
 
-/// ELU Builder for a user-friendly interface
-/// ELU (Exponential Linear Unit) Activation Function
+/// ELU is a builder for ELU (Exponential Linear Unit) Activation Function
 ///
 /// ELU is similar to ReLU but adds a small curve when the input is less than zero,
 /// which helps to keep the mean activations closer to zero and improve the learning dynamics.
@@ -35,6 +34,9 @@ pub struct ELU {
 }
 
 impl ELU {
+    /// Creates a new ELU activation function builder with default parameters.
+    /// The default alpha value is typically set to 1.0.
+    /// You can set a different alpha value using the `alpha` method.
     pub fn new() -> Self {
         ELU { alpha: 1.0 } // Default alpha = 1.0
     }
@@ -47,15 +49,19 @@ impl ELU {
         self
     }
 
-    fn validate(&self) {
+    fn validate(&self) -> Result<(), NetworkError> {
         if self.alpha <= 0.0 {
-            panic!("Alpha for ELU must be greater than 0.0");
+            return Err(NetworkError::ConfigError(format!(
+                "Alpha for ELU must be greater than 0.0, but was {}",
+                self.alpha
+            )));
         }
+        Ok(())
     }
 
-    pub fn build(self) -> Box<dyn ActivationFunction> {
-        self.validate();
-        Box::new(ELUActivation { alpha: self.alpha })
+    pub fn build(self) -> Result<Box<dyn ActivationFunction>, NetworkError> {
+        self.validate()?;
+        Ok(Box::new(ELUActivation { alpha: self.alpha }))
     }
 }
 
@@ -100,7 +106,7 @@ mod elu_tests {
 
     #[test]
     fn test_elu_forward_positive_values() {
-        let elu = ELU::new().alpha(1.0).build();
+        let elu = ELU::new().alpha(1.0).build().unwrap();
 
         let mut input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
 
@@ -115,7 +121,7 @@ mod elu_tests {
     #[test]
     fn test_elu_forward_mixed_values() {
         // Create an ELU with default alpha (typically 1.0)
-        let elu: Box<dyn ActivationFunction> = ELU::new().alpha(1.0).build();
+        let elu: Box<dyn ActivationFunction> = ELU::new().alpha(1.0).build().unwrap();
 
         // Create a matrix with mixed positive and negative values
         let mut input = DenseMatrix::new(2, 3, &[-1.0, 0.0, 2.0, -3.5, 4.2, 0.0]);
@@ -144,7 +150,7 @@ mod elu_tests {
 
     #[test]
     fn test_elu_backward_positive_values() {
-        let elu = ELU::new().alpha(1.0).build();
+        let elu = ELU::new().alpha(1.0).build().unwrap();
 
         // Original input matrix with positive values
         let mut input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
@@ -170,7 +176,7 @@ mod elu_tests {
         let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
         // Create an ELU with default alpha (typically 1.0)
-        let elu = ELU::new().alpha(1.0).build();
+        let elu = ELU::new().alpha(1.0).build().unwrap();
         elu.backward(&d_output, &mut input, &output);
 
         // Expected output:
@@ -202,7 +208,7 @@ mod elu_tests {
         ];
 
         for (alpha, input_value, expected_output) in test_cases {
-            let elu = ELU::new().alpha(alpha).build();
+            let elu = ELU::new().alpha(alpha).build().unwrap();
 
             let mut input = DenseMatrix::new(1, 1, &[input_value]);
 
@@ -211,6 +217,17 @@ mod elu_tests {
             let expected = DenseMatrix::new(1, 1, &[expected_output]);
 
             assert!(equal_approx(&input, &expected, 1e-6), "ELU forward pass with alpha failed");
+        }
+    }
+
+    #[test]
+    fn test_invalid_alpha() {
+        // Test with invalid alpha values
+        let invalid_alphas = [-1.0, 0.0];
+
+        for &alpha in &invalid_alphas {
+            let result = ELU::new().alpha(alpha).build();
+            assert!(result.is_err(), "ELU should not accept non-positive alpha values");
         }
     }
 }

@@ -1,23 +1,23 @@
-use crate::activation::ActivationFunction;
 use crate::common::matrix::DenseMatrix;
+use crate::{activation::ActivationFunction, error::NetworkError};
 
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::{he_initialization, ActivationFunctionClone};
 
-/// ReLU (Rectified Linear Unit) Activation Function
-///
-/// ReLU is a piecewise linear function that outputs zero for negative inputs and raw input for positive inputs.
-/// It is the most commonly used activation due to its simplicity and efficiency.
-///
-/// Range: [0, +∞)
-/// Best for: General use in most neural networks, especially in hidden layers,
-/// as it helps to alleviate the vanishing gradient problem.
+// ReLU (Rectified Linear Unit) Activation Function
+//
+// ReLU is a piecewise linear function that outputs zero for negative inputs and raw input for positive inputs.
+// It is the most commonly used activation due to its simplicity and efficiency.
+//
+// Range: [0, +∞)
+// Best for: General use in most neural networks, especially in hidden layers,
+// as it helps to alleviate the vanishing gradient problem.
 #[derive(Serialize, Deserialize, Clone)]
 struct ReLUActivation;
 
-/// ReLU (Rectified Linear Unit) Activation Function
+/// RelU is a builder for ReLU (Rectified Linear Unit) Activation Function
 ///
 /// ReLU is a piecewise linear function that outputs zero for negative inputs and raw input for positive inputs.
 /// It is the most commonly used activation due to its simplicity and efficiency.
@@ -28,8 +28,9 @@ struct ReLUActivation;
 pub struct ReLU;
 
 impl ReLU {
-    pub fn new() -> Box<dyn ActivationFunction> {
-        Box::new(ReLUActivation {})
+    /// Creates a new RelU activation function
+    pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
+        Ok(Box::new(ReLUActivation {}))
     }
 }
 
@@ -66,7 +67,7 @@ mod relu_tests {
     fn test_relu_forward_positive_values() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
-        let relu = ReLUActivation;
+        let relu = ReLU::new().unwrap();
         relu.forward(&mut input);
 
         // Positive values should remain unchanged
@@ -79,7 +80,7 @@ mod relu_tests {
     fn test_relu_forward_mixed_values() {
         let mut input = DenseMatrix::new(2, 3, &[-1.0, 0.0, 2.0, -3.5, 4.2, 0.0]);
 
-        let relu = ReLUActivation;
+        let relu = ReLU::new().unwrap();
         relu.forward(&mut input);
 
         // Expected output: zeros for negative values, unchanged for non-negative
@@ -96,7 +97,7 @@ mod relu_tests {
         // Downstream gradient
         let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
 
-        let relu = ReLUActivation;
+        let relu = ReLU::new().unwrap();
         let output = input.clone();
         relu.backward(&d_output, &mut input, &output);
 
@@ -114,7 +115,7 @@ mod relu_tests {
         let d_output = DenseMatrix::new(1, 3, &[0.5, 1.0, 0.7]);
         let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let relu = ReLUActivation;
+        let relu = ReLU::new().unwrap();
         relu.backward(&d_output, &mut input, &output);
 
         // Expected output: all zeros

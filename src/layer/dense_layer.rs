@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Write;
 use typetag;
 
-use crate::{matrix::DenseMatrix, random::Randomizer, util, ActivationFunction, Optimizer, Regularization};
+use crate::{
+    error::NetworkError, matrix::DenseMatrix, random::Randomizer, util, ActivationFunction, Optimizer, Regularization,
+};
 
 use super::{Layer, LayerConfig};
 
@@ -167,20 +169,22 @@ impl LayerConfig for DenseConfig {
 
 pub struct Dense {
     size: usize,
-    activation_function: Option<Box<dyn ActivationFunction>>,
+    activation_function: Result<Box<dyn ActivationFunction>, NetworkError>,
 }
 
 /// A builder for configuring a dense (fully connected) neural network layer.
 ///
 /// This struct sets up a dense layer with a specified number of neurons and an activation function.
-/// Default settings:
-/// - size: 0 (must be set)
-/// - activation_function: None (must be set)
 impl Dense {
+    /// Creates a new Dense layer builder with default settings.
+    /// - size: 0 (must be set)
+    /// - activation_function: Error (must be set)
     pub fn new() -> Self {
         Self {
             size: 0,
-            activation_function: None,
+            activation_function: Err(NetworkError::ConfigError(
+                "Activation function must be specified for Dense Layer.".to_string(),
+            )),
         }
     }
 
@@ -199,32 +203,33 @@ impl Dense {
     /// Specifies the non-linear function applied to the layer’s output (e.g., ReLU, Sigmoid).
     /// # Parameters
     /// - `activation_function`: Activation function to apply (e.g., `ReLU`, `Sigmoid`).
-    pub fn activation(mut self, activation_function: impl ActivationFunction + 'static) -> Self {
-        self.activation_function = Some(Box::new(activation_function));
+    pub fn activation(mut self, activation_function: Result<Box<dyn ActivationFunction>, NetworkError>) -> Self {
+        self.activation_function = activation_function;
         self
     }
 
     pub(crate) fn from(mut self, size: usize, af: Box<dyn ActivationFunction>) -> Self {
         self.size = size;
-        self.activation_function = Some(af);
+        self.activation_function = Ok(af);
         self
     }
 
-    fn validate(&self) {
+    fn validate(&self) -> Result<(), NetworkError> {
         if self.size == 0 {
-            panic!("Dense layer size must be greater than 0");
+            return Err(NetworkError::ConfigError("Dense layer size must be greater than 0".to_string()));
         }
-        if self.activation_function.is_none() {
-            panic!("Dense layer activation function must be set");
+        if self.activation_function.is_err() {
+            return Err(NetworkError::ConfigError("Dense layer activation function must be set".to_string()));
         }
+        Ok(())
     }
 
-    pub fn build(self) -> Box<dyn LayerConfig> {
-        self.validate();
-        Box::new(DenseConfig {
+    pub fn build(self) -> Result<Box<dyn LayerConfig>, NetworkError> {
+        self.validate()?;
+        Ok(Box::new(DenseConfig {
             size: self.size,
-            activation_function: self.activation_function.unwrap(),
-        })
+            activation_function: self.activation_function?,
+        }))
     }
 }
 
@@ -241,7 +246,7 @@ mod tests {
     #[test]
     fn test_dense_layer_forward() {
         let randomizer = Randomizer::new(Some(42));
-        let activation = ReLU::new();
+        let activation = ReLU::new().unwrap();
         let optimizer_config = Adam::new()
             .learning_rate(0.001)
             .beta1(0.9)
@@ -264,7 +269,7 @@ mod tests {
     #[test]
     fn test_dense_layer_backward() {
         let randomizer = Randomizer::new(Some(42));
-        let activation = Sigmoid::new();
+        let activation = Sigmoid::new().unwrap();
         let optimizer_config = Adam::new()
             .learning_rate(0.001)
             .beta1(0.9)
@@ -292,7 +297,7 @@ mod tests {
     #[test]
     fn test_dense_layer_update() {
         let randomizer = Randomizer::new(Some(42));
-        let activation = ReLU::new();
+        let activation = ReLU::new().unwrap();
         let optimizer_config = Adam::new()
             .learning_rate(0.001)
             .beta1(0.9)
@@ -310,5 +315,19 @@ mod tests {
         let (_d_input, d_weights, d_biases) = layer.backward(&d_output, &input, &mut pre_activated_output, &output);
 
         layer.update(&d_weights, &d_biases, 1);
+    }
+
+    #[test]
+    fn test_dense_validate() {
+        let dense = Dense::new().size(10).activation(Ok(Box::new(ReLU::new().unwrap())));
+        assert!(dense.validate().is_ok());
+
+        let dense_invalid = Dense::new().size(0).activation(Ok(Box::new(ReLU::new().unwrap())));
+        assert!(dense_invalid.validate().is_err());
+
+        let dense_invalid_activation = Dense::new().size(10).activation(Err(NetworkError::ConfigError(
+            "Activation function must be specified for Dense Layer.".to_string(),
+        )));
+        assert!(dense_invalid_activation.validate().is_err());
     }
 }

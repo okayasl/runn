@@ -7,6 +7,7 @@ use log::{error, info};
 
 use crate::{
     dropout::DropoutRegularization,
+    error::NetworkError,
     layer::{Layer, LayerConfig},
     matrix::DenseMatrix,
     parallel::ThreadPool,
@@ -23,7 +24,7 @@ use super::network_io::{load_network, save_network, NetworkIO, SerializationForm
 pub struct NetworkBuilder {
     input_size: usize,
     output_size: usize,
-    layer_configs: Vec<Box<dyn LayerConfig>>,
+    layer_configs: Vec<Result<Box<dyn LayerConfig>, NetworkError>>,
     loss_function: Option<Box<dyn LossFunction>>,
     optimizer_config: Option<Box<dyn OptimizerConfig>>,
     regularization: Vec<Box<dyn Regularization>>,
@@ -73,8 +74,8 @@ impl NetworkBuilder {
     /// Layers are added in the order they are specified and will be executed sequentially during forward and backward passes.
     /// # Parameters
     /// - `layer_config`: Configuration for the layer (e.g., Dense with specific size and activation).
-    pub fn layer(mut self, layer_config: impl LayerConfig + 'static) -> Self {
-        self.layer_configs.push(Box::new(layer_config));
+    pub fn layer(mut self, layer: Result<Box<dyn LayerConfig>, NetworkError>) -> Self {
+        self.layer_configs.push(layer);
         self
     }
 
@@ -251,21 +252,33 @@ impl NetworkBuilder {
         self
     }
 
-    fn validate(&self) -> Result<(), Box<dyn Error>> {
+    fn validate(&self) -> Result<(), NetworkError> {
         if self.input_size == 0 || self.output_size == 0 {
-            return Err("Input and output sizes must be greater than zero".into());
+            return Err(NetworkError::ConfigError("Input and output sizes must be greater than zero".to_string()));
         }
         if self.loss_function.is_none() {
-            return Err("Loss function is not set".into());
+            return Err(NetworkError::ConfigError("Loss function is not set".to_string()));
         }
         if self.optimizer_config.is_none() {
-            return Err("Optimizer is not set".into());
+            return Err(NetworkError::ConfigError("Optimizer is not set".to_string()));
         }
         if self.epochs == 0 {
-            return Err("Epochs must be greater than zero".into());
+            return Err(NetworkError::ConfigError("Epochs must be greater than zero".to_string()));
         }
         if self.parallelize <= 0 {
-            return Err("Parallelization factor must be greater than zero".into());
+            return Err(NetworkError::ConfigError("Parallelization factor must be greater than zero".to_string()));
+        }
+        if self.batch_size <= 0 {
+            return Err(NetworkError::ConfigError("Batch size must be greater than zero".to_string()));
+        }
+        if self.batch_group_size <= 0 {
+            return Err(NetworkError::ConfigError("Batch group size must be greater than zero".to_string()));
+        }
+        if self.clip_threshold < 0.0 {
+            return Err(NetworkError::ConfigError("Clip threshold must be non-negative".to_string()));
+        }
+        if self.layer_configs.is_empty() {
+            return Err(NetworkError::ConfigError("At least one layer must be added".to_string()));
         }
         Ok(())
     }
@@ -273,15 +286,17 @@ impl NetworkBuilder {
     /// Build the neural network.
     ///
     /// Validates the configuration and creates a `Network` instance ready for training or inference.
-    pub fn build(self) -> Result<Network, Box<dyn Error>> {
+    pub fn build(self) -> Result<Network, NetworkError> {
         self.validate()?;
+
+        let layer_configs: Vec<Box<dyn LayerConfig>> = self.layer_configs.into_iter().collect::<Result<Vec<_>, _>>()?;
 
         let randomizer = Randomizer::new(Some(self.seed));
         let mut layers: Vec<Arc<RwLock<Box<dyn Layer + Send + Sync>>>> = Vec::new();
         let mut input_size = self.input_size; // Initialize with input_size
-        let layer_count = self.layer_configs.len();
+        let layer_count = layer_configs.len();
         let opt = self.optimizer_config.as_ref().unwrap().clone();
-        for (i, mut layer_config) in self.layer_configs.into_iter().enumerate() {
+        for (i, mut layer_config) in layer_configs.into_iter().enumerate() {
             let size = layer_config.size(); // Get size via &self
             let mut name = format!("Hidden {}", i);
             if i == layer_count - 1 {

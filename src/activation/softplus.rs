@@ -1,21 +1,21 @@
-use crate::activation::ActivationFunction;
 use crate::common::matrix::DenseMatrix;
+use crate::{activation::ActivationFunction, error::NetworkError};
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::ActivationFunctionClone;
 
-/// Softplus Activation Function
-///
-/// Softplus is a smooth approximation to the ReLU function, returning a positive output for any input.
-/// It is more differentiable than ReLU and can be useful in scenarios where a non-zero gradient is always necessary.
-///
-/// Range: (0, +∞)
-/// Best for: Situations where a non-zero gradient is beneficial, providing a smooth approximation to ReLU.
+// Softplus Activation Function
+//
+// Softplus is a smooth approximation to the ReLU function, returning a positive output for any input.
+// It is more differentiable than ReLU and can be useful in scenarios where a non-zero gradient is always necessary.
+//
+// Range: (0, +∞)
+// Best for: Situations where a non-zero gradient is beneficial, providing a smooth approximation to ReLU.
 #[derive(Serialize, Deserialize, Clone)]
 struct SoftplusActivation;
 
-/// Softplus Activation Function
+/// Softplus is a builder for Softplus Activation Function
 ///
 /// Softplus is a smooth approximation to the ReLU function, returning a positive output for any input.
 /// It is more differentiable than ReLU and can be useful in scenarios where a non-zero gradient is always necessary.
@@ -24,8 +24,9 @@ struct SoftplusActivation;
 /// Best for: Situations where a non-zero gradient is beneficial, providing a smooth approximation to ReLU.
 pub struct Softplus;
 impl Softplus {
-    pub fn new() -> Box<dyn ActivationFunction> {
-        Box::new(SoftplusActivation {})
+    /// Creates a new Softplus activation function
+    pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
+        Ok(Box::new(SoftplusActivation {}))
     }
 }
 
@@ -56,7 +57,7 @@ mod softplus_tests {
     fn test_softplus_forward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
 
-        let softplus = Softplus::new();
+        let softplus = Softplus::new().unwrap();
         softplus.forward(&mut input);
 
         // Expected output: approximate values
@@ -71,7 +72,7 @@ mod softplus_tests {
         let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
         let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let softplus = Softplus::new();
+        let softplus = Softplus::new().unwrap();
         softplus.backward(&d_output, &mut input, &output);
 
         // Expected output: approximate values

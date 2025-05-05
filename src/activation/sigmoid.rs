@@ -1,22 +1,22 @@
-use crate::activation::ActivationFunction;
 use crate::common::matrix::DenseMatrix;
+use crate::{activation::ActivationFunction, error::NetworkError};
 
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::{xavier_initialization, ActivationFunctionClone};
 
-/// Sigmoid Activation Function
-///
-/// Sigmoid function outputs a value between 0 and 1, making it suitable for probabilities or as a gate in certain neural network architectures.
-/// It has a characteristic S-shaped curve.
-///
-/// Range: (0, 1)
-/// Best for: Binary classification tasks in the output layer of a network.
+// Sigmoid Activation Function
+//
+// Sigmoid function outputs a value between 0 and 1, making it suitable for probabilities or as a gate in certain neural network architectures.
+// It has a characteristic S-shaped curve.
+//
+// Range: (0, 1)
+// Best for: Binary classification tasks in the output layer of a network.
 #[derive(Serialize, Deserialize, Clone)]
 struct SigmoidActivation;
 
-/// Sigmoid Activation Function
+/// Sigmoid is a builder for Sigmoid Activation Function
 ///
 /// Sigmoid function outputs a value between 0 and 1, making it suitable for probabilities or as a gate in certain neural network architectures.
 /// It has a characteristic S-shaped curve.
@@ -26,8 +26,9 @@ struct SigmoidActivation;
 pub struct Sigmoid;
 
 impl Sigmoid {
-    pub fn new() -> Box<dyn ActivationFunction> {
-        Box::new(SigmoidActivation {})
+    /// Creates a new Sigmoid activation function
+    pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
+        Ok(Box::new(SigmoidActivation {}))
     }
 }
 
@@ -63,7 +64,7 @@ mod sigmoid_tests {
     #[test]
     fn test_sigmoid_forward_zero_input() {
         let mut input = DenseMatrix::new(1, 1, &[0.0f32]);
-        let sigmoid = SigmoidActivation;
+        let sigmoid = Sigmoid::new().unwrap();
         sigmoid.forward(&mut input);
 
         let expected = DenseMatrix::new(1, 1, &[0.5f32]);
@@ -73,7 +74,7 @@ mod sigmoid_tests {
     #[test]
     fn test_sigmoid_forward_mixed_values() {
         let mut input = DenseMatrix::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
-        let sigmoid = SigmoidActivation;
+        let sigmoid = Sigmoid::new().unwrap();
         sigmoid.forward(&mut input);
 
         // Expected outputs calculated manually for verification
@@ -99,7 +100,7 @@ mod sigmoid_tests {
         let d_output = DenseMatrix::new(2, 3, &[0.5f32, 1.0, 0.7, 0.2, 0.3, 0.1]);
         let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let sigmoid = SigmoidActivation;
+        let sigmoid = Sigmoid::new().unwrap();
         sigmoid.forward(&mut input); // First apply forward pass
         let original_input = input.clone();
 
@@ -126,7 +127,7 @@ mod sigmoid_tests {
     fn test_sigmoid_bounds() {
         let test_cases = [(f32::NEG_INFINITY, 0.0f32), (f32::INFINITY, 1.0f32)];
 
-        let sigmoid = SigmoidActivation;
+        let sigmoid = Sigmoid::new().unwrap();
 
         for (input_value, expected_output) in test_cases {
             let mut input = DenseMatrix::new(1, 1, &[input_value]);

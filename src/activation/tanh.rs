@@ -1,21 +1,21 @@
-use crate::activation::ActivationFunction;
 use crate::common::matrix::DenseMatrix;
+use crate::{activation::ActivationFunction, error::NetworkError};
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::{xavier_initialization, ActivationFunctionClone};
 
-/// Tanh (Hyperbolic Tangent) Activation Function
-///
-/// Tanh outputs values between -1 and 1, effectively scaling the input data. It is symmetric around the origin, which can help
-/// keep the mean activations close to zero and potentially improve convergence rates.
-///
-/// Range: (-1, 1)
-/// Best for: Hidden layers in a network where data normalization is beneficial, such as in certain types of autoencoders.
+// Tanh (Hyperbolic Tangent) Activation Function
+//
+// Tanh outputs values between -1 and 1, effectively scaling the input data. It is symmetric around the origin, which can help
+// keep the mean activations close to zero and potentially improve convergence rates.
+//
+// Range: (-1, 1)
+// Best for: Hidden layers in a network where data normalization is beneficial, such as in certain types of autoencoders.
 #[derive(Serialize, Deserialize, Clone)]
 struct TanhActivation;
 
-/// Tanh (Hyperbolic Tangent) Activation Function
+/// Tanh is a builder for Tanh (Hyperbolic Tangent) Activation Function
 ///
 /// Tanh outputs values between -1 and 1, effectively scaling the input data. It is symmetric around the origin, which can help
 /// keep the mean activations close to zero and potentially improve convergence rates.
@@ -25,8 +25,9 @@ struct TanhActivation;
 pub struct Tanh;
 
 impl Tanh {
-    pub fn new() -> Box<dyn ActivationFunction> {
-        Box::new(TanhActivation {})
+    /// Creates a new Tanh activation function
+    pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
+        Ok(Box::new(TanhActivation {}))
     }
 }
 

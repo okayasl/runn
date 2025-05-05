@@ -1,23 +1,23 @@
-use crate::activation::ActivationFunction;
 use crate::common::matrix::DenseMatrix;
+use crate::{activation::ActivationFunction, error::NetworkError};
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::{he_initialization, ActivationFunctionClone};
 
-/// Swish Activation Function
-///
-/// Swish is a self-gated activation function defined as x * sigmoid(βx). It has been found to sometimes outperform ReLU
-/// in deeper networks due to its non-monotonic form.
-///
-/// Range: (-∞, +∞)
-/// Best for: Deeper networks where traditional functions like ReLU tend to underperform.
+// Swish Activation Function
+//
+// Swish is a self-gated activation function defined as x * sigmoid(βx). It has been found to sometimes outperform ReLU
+// in deeper networks due to its non-monotonic form.
+//
+// Range: (-∞, +∞)
+// Best for: Deeper networks where traditional functions like ReLU tend to underperform.
 #[derive(Serialize, Deserialize, Clone)]
 struct SwishActivation {
     beta: f32,
 }
 
-/// Swish Activation Function
+/// Swish is a builder for Swish Activation Function
 ///
 /// Swish is a self-gated activation function defined as x * sigmoid(βx). It has been found to sometimes outperform ReLU
 /// in deeper networks due to its non-monotonic form.
@@ -29,6 +29,9 @@ pub struct Swish {
 }
 
 impl Swish {
+    /// Creates a new Swish activation function builder with default parameters.
+    /// The default beta value is typically set to 1.0.
+    /// You can set a different beta value using the `beta` method.
     pub fn new() -> Self {
         Swish { beta: 1.0 } // Default beta = 1.0
     }
@@ -41,16 +44,20 @@ impl Swish {
         self
     }
 
-    fn validate(&self) {
+    fn validate(&self) -> Result<(), NetworkError> {
         if self.beta <= 0.0 {
-            panic!("Beta for Swish must be greater than 0.0");
+            return Err(NetworkError::ConfigError(format!(
+                "Beta for Swish must be greater than 0.0, but was {}",
+                self.beta
+            )));
         }
+        Ok(())
     }
 
     /// Method to build the Swish instance
-    pub fn build(self) -> Box<dyn ActivationFunction> {
-        self.validate();
-        Box::new(SwishActivation { beta: self.beta })
+    pub fn build(self) -> Result<Box<dyn ActivationFunction>, NetworkError> {
+        self.validate()?;
+        Ok(Box::new(SwishActivation { beta: self.beta }))
     }
 }
 
@@ -88,7 +95,7 @@ mod swish_tests {
     fn test_swish_forward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
 
-        let swish = Swish::new().beta(1.0).build();
+        let swish = Swish::new().beta(1.0).build().unwrap();
         swish.forward(&mut input);
 
         // Expected output: approximate values
@@ -102,11 +109,17 @@ mod swish_tests {
         let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
         let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let swish = Swish::new().beta(1.0).build();
+        let swish = Swish::new().beta(1.0).build().unwrap();
         swish.backward(&d_output, &mut input, &output);
 
         // Expected output: approximate values
         let expected = DenseMatrix::new(2, 3, &[0.463835, -0.090784, 0.761673, -0.010533, 0.307964, -0.001233]);
         assert!(equal_approx(&input, &expected, 1e-3), "Swish backward pass failed");
+    }
+
+    #[test]
+    fn test_swish_invalid_beta() {
+        let swish = Swish::new().beta(-1.0);
+        assert!(swish.build().is_err(), "Swish activation function should not allow negative beta");
     }
 }

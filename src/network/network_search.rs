@@ -1,6 +1,5 @@
 use std::{
     collections::BTreeMap,
-    error::Error,
     fs::{self, File},
     io,
     sync::Arc,
@@ -12,7 +11,8 @@ use log::info;
 use rand::{seq::SliceRandom, thread_rng};
 
 use crate::{
-    dense_layer::Dense, matrix::DenseMatrix, parallel::ThreadPool, ActivationFunction, MetricResult, Normalization,
+    dense_layer::Dense, error::NetworkError, matrix::DenseMatrix, parallel::ThreadPool, ActivationFunction,
+    MetricResult, Normalization,
 };
 
 use super::network::{Network, NetworkBuilder};
@@ -23,7 +23,7 @@ use super::network::{Network, NetworkBuilder};
 /// The search will evaluate all specified combinations, training each network and reporting performance metrics.
 pub struct NetworkSearchBuilder {
     network: Option<Network>,
-    activation_functions: Vec<Box<dyn ActivationFunction>>,
+    activation_functions: Vec<Result<Box<dyn ActivationFunction>, NetworkError>>,
     hidden_layer_sizes: Vec<Vec<usize>>,
     batch_sizes: Vec<usize>,
     learning_rates: Vec<f32>,
@@ -67,9 +67,11 @@ impl NetworkSearchBuilder {
     /// # Parameters
     /// - `layer_sizes`: Vector of possible neuron counts for this layer (e.g., `[64, 128]`).
     /// - `af`: Activation function for the layer (e.g., ReLU, Sigmoid).
-    pub fn hidden_layer(mut self, layer_sizes: Vec<usize>, af: impl ActivationFunction + 'static) -> Self {
+    pub fn hidden_layer(
+        mut self, layer_sizes: Vec<usize>, activation_function: Result<Box<dyn ActivationFunction>, NetworkError>,
+    ) -> Self {
         self.hidden_layer_sizes.push(layer_sizes);
-        self.activation_functions.push(Box::new(af));
+        self.activation_functions.push(activation_function);
         self
     }
 
@@ -133,21 +135,32 @@ impl NetworkSearchBuilder {
         self
     }
 
-    fn validate(&self) -> Result<(), Box<dyn Error>> {
-        if self.activation_functions.is_empty() {
-            return Err("No activation functions provided".into());
-        }
-        if self.hidden_layer_sizes.is_empty() {
-            return Err("No hidden layer sizes provided".into());
+    fn validate(&self) -> Result<(), NetworkError> {
+        if self.parallelize <= 0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Parallelize value for network search must be greater than zero, but was {}",
+                self.parallelize
+            )));
         }
         if self.batch_sizes.is_empty() {
-            return Err("No batch sizes provided".into());
+            return Err(NetworkError::ConfigError("No batch sizes provided".into()));
         }
         if self.learning_rates.is_empty() {
-            return Err("No learning rates provided".into());
+            return Err(NetworkError::ConfigError("No learning rates provided".into()));
         }
         if self.network.is_none() {
-            return Err("No network provided".into());
+            return Err(NetworkError::ConfigError("No network provided".into()));
+        }
+        if self.hidden_layer_sizes.is_empty() {
+            return Err(NetworkError::ConfigError("No hidden layer sizes provided".into()));
+        }
+        if self.activation_functions.is_empty() {
+            return Err(NetworkError::ConfigError("No activation functions provided".into()));
+        }
+        if self.activation_functions.len() != self.hidden_layer_sizes.len() {
+            return Err(NetworkError::ConfigError(
+                "Mismatch between activation functions and hidden layer sizes".into(),
+            ));
         }
         Ok(())
     }
@@ -155,7 +168,24 @@ impl NetworkSearchBuilder {
     /// Build the hyperparameter search.
     ///
     /// Validates the configuration and creates a `NetworkSearch` instance that will evaluate all specified hyperparameter combinations.
-    fn generate_network_combinations(&self) -> Vec<Network> {
+    fn generate_network_combinations(&self) -> Result<Vec<Network>, NetworkError> {
+        // let mut activation_functions: Vec<Box<dyn ActivationFunction>> = Vec::new();
+        // for activation_function in &self.activation_functions {
+        //     match activation_function {
+        //         Ok(activation_function) => activation_functions.push(activation_function.clone_box()),
+        //         Err(e) => return Err(e.clone()),
+        //     }
+        // }
+
+        let activation_functions: Vec<Box<dyn ActivationFunction>> = self
+            .activation_functions
+            .iter()
+            .map(|af| af.as_ref().map(|f| f.clone_box()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.clone())?; // Convert &NetworkError to NetworkError
+
+        // let activation_functions: Vec<Box<dyn ActivationFunction>> = self.activation_functions.into_iter().collect::<Result<Vec<_>, _>>()?; // Fix: Use into_iter() instead of iter()
+
         let mut networks = Vec::new();
         let nw = self.network.as_ref().unwrap();
         let nw_is = nw.input_size;
@@ -165,22 +195,13 @@ impl NetworkSearchBuilder {
         let hidden_layer_sizes_groups = generate_layer_size_combinations(&self.hidden_layer_sizes);
         let balanced_configs =
             balance_network_configs(&hidden_layer_sizes_groups, &self.batch_sizes, &self.learning_rates);
-
-        // for hlsg in &hidden_layer_sizes_groups {
-        //     for lr in &self.learning_rates {
-        //         for bs in &self.batch_sizes {
-
         for (hlsg, bs, lr) in balanced_configs {
             let mut new_nwb: NetworkBuilder = NetworkBuilder::new(nw_is, nw_os)
                 .from_network(nw)
                 .batch_size(bs)
                 .update_learning_rate(lr);
             for (i, &size) in hlsg.iter().enumerate() {
-                new_nwb = new_nwb.layer(
-                    Dense::new()
-                        .from(size, self.activation_functions[i].clone_box())
-                        .build(),
-                );
+                new_nwb = new_nwb.layer(Dense::new().from(size, activation_functions[i].clone_box()).build());
             }
             new_nwb = new_nwb.layer(
                 Dense::new()
@@ -191,16 +212,15 @@ impl NetworkSearchBuilder {
             network.search = true;
             networks.push(network);
         }
-        //         }
-        //     }
-        // }
-        networks
+        Ok(networks)
     }
 
-    pub fn build(self) -> Result<NetworkSearch, Box<dyn Error>> {
+    pub fn build(self) -> Result<NetworkSearch, NetworkError> {
         self.validate()?;
+
+        let nc = self.generate_network_combinations()?;
         Ok(NetworkSearch {
-            networks: self.generate_network_combinations(),
+            networks: nc,
             filename: self.filename,
             normalize_input: self.normalize_input,
             normalize_output: self.normalize_output,
@@ -514,9 +534,11 @@ pub fn write_search_results(name: &str, results: &[SearchResult]) -> io::Result<
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
 
-    use crate::{adam::Adam, cross_entropy::CrossEntropy, min_max::MinMax, relu::ReLU, softmax::Softmax};
+    use crate::{
+        adam::Adam, cross_entropy::CrossEntropy, elu::ELU, error::NetworkError, min_max::MinMax, relu::ReLU,
+        softmax::Softmax,
+    };
 
     use super::*;
 
@@ -569,7 +591,7 @@ mod tests {
         assert!(!network_search.networks.is_empty());
     }
 
-    fn get_network() -> Result<Network, Box<dyn Error>> {
+    fn get_network() -> Result<Network, NetworkError> {
         let network = NetworkBuilder::new(1, 3)
             .layer(Dense::new().size(16).activation(ReLU::new()).build())
             .layer(Dense::new().size(3).activation(Softmax::new()).build())
@@ -579,5 +601,34 @@ mod tests {
             .epochs(300)
             .build();
         network
+    }
+
+    #[test]
+    fn validate_network_search() {
+        let network = get_network().unwrap();
+        let search = NetworkSearchBuilder::new()
+            .network(network)
+            .hidden_layer(vec![10], ReLU::new())
+            .batch_sizes(vec![32])
+            .learning_rates(vec![0.01])
+            .build();
+
+        assert!(search.is_ok());
+    }
+
+    #[test]
+    fn validate_network_search_with_invalid_activation_function() {
+        let network = get_network().unwrap();
+        let search = NetworkSearchBuilder::new()
+            .network(network)
+            .hidden_layer(vec![10], ELU::new().alpha(-1.0).build())
+            .batch_sizes(vec![32])
+            .learning_rates(vec![0.01])
+            .build();
+
+        assert!(search.is_err());
+        if let Err(e) = search {
+            assert_eq!(e.to_string(), "Configuration error: Alpha for ELU must be greater than 0.0, but was -1");
+        }
     }
 }

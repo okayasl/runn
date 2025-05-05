@@ -1,22 +1,24 @@
-use crate::activation::ActivationFunction;
 use crate::common::matrix::DenseMatrix;
+use crate::{activation::ActivationFunction, error::NetworkError};
 
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::{xavier_initialization, ActivationFunctionClone};
 
-/// Softmax Activation Function converts a vector of values into a normalized probability distribution,
-/// where each element is in the range (0, 1) and all elements sum to 1.
-/// It is typically used in the output layer of a classification model to represent
-/// confidence scores across multiple classes.
-///
-/// Range: (0, 1) for each output element
-/// Best for: Output layers of multi-class classification models.
+// Softmax Activation Function converts a vector of values into a normalized probability distribution,
+// where each element is in the range (0, 1) and all elements sum to 1.
+// It is typically used in the output layer of a classification model to represent
+// confidence scores across multiple classes.
+//
+// Range: (0, 1) for each output element
+// Best for: Output layers of multi-class classification models.
 #[derive(Serialize, Deserialize, Clone)]
 struct SoftmaxActivation {}
 
-/// Softmax Activation Function converts a vector of values into a normalized probability distribution,
+/// Softmax  is a builder for Softmax Activation Function
+///
+/// It converts a vector of values into a normalized probability distribution,
 /// where each element is in the range (0, 1) and all elements sum to 1.
 /// It is typically used in the output layer of a classification model to represent
 /// confidence scores across multiple classes.
@@ -26,8 +28,9 @@ struct SoftmaxActivation {}
 pub struct Softmax;
 
 impl Softmax {
-    pub fn new() -> Box<dyn ActivationFunction> {
-        Box::new(SoftmaxActivation {})
+    /// Creates a new Softmax activation function
+    pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
+        Ok(Box::new(SoftmaxActivation {}))
     }
 }
 
@@ -98,7 +101,7 @@ mod tests {
     #[test]
     fn test_softmax_forward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 1.0, 2.0, 3.0]);
-        let softmax = Softmax::new();
+        let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
         // Check if the output sums to 1 for each row
@@ -113,7 +116,7 @@ mod tests {
         let output = DenseMatrix::new(2, 3, &[0.1, 0.2, 0.7, 0.1, 0.2, 0.7]);
         let d_output = DenseMatrix::new(2, 3, &[0.01, 0.02, 0.03, 0.01, 0.02, 0.03]);
 
-        let softmax = Softmax::new();
+        let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
         softmax.backward(&d_output, &mut input, &output);
 
@@ -139,7 +142,7 @@ mod tests {
     #[test]
     fn test_softmax_small_input() {
         let mut input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
-        let softmax = Softmax::new();
+        let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
         let expected = DenseMatrix::new(1, 3, &[0.0900, 0.2447, 0.6652]);
@@ -160,7 +163,7 @@ mod tests {
     #[test]
     fn test_softmax_large_positive_values() {
         let mut input = DenseMatrix::new(1, 3, &[100.0, 200.0, 300.0]);
-        let softmax = Softmax::new();
+        let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
         // The largest value should dominate
@@ -172,7 +175,7 @@ mod tests {
     #[test]
     fn test_softmax_large_negative_values() {
         let mut input = DenseMatrix::new(1, 3, &[-100.0, -200.0, -300.0]);
-        let softmax = Softmax::new();
+        let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
         // The least negative value should dominate
@@ -184,7 +187,7 @@ mod tests {
     #[test]
     fn test_softmax_equal_values() {
         let mut input = DenseMatrix::new(1, 3, &[1.0, 1.0, 1.0]);
-        let softmax = Softmax::new();
+        let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
         // All probabilities should be equal
@@ -204,7 +207,7 @@ mod tests {
     #[test]
     fn test_softmax_empty_input() {
         let mut input = DenseMatrix::new(0, 0, &[]);
-        let softmax = Softmax::new();
+        let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
         // Ensure no panic and output remains empty
@@ -215,7 +218,7 @@ mod tests {
     #[test]
     fn test_softmax_single_element() {
         let mut input = DenseMatrix::new(1, 1, &[42.0]);
-        let softmax = Softmax::new();
+        let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
         // Single element should always have probability 1

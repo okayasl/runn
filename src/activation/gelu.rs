@@ -1,23 +1,23 @@
-use crate::activation::ActivationFunction;
 use crate::common::matrix::DenseMatrix;
+use crate::{activation::ActivationFunction, error::NetworkError};
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::{he_initialization, ActivationFunctionClone};
 
-/// GeLU (Gaussian Error Linear Unit) Activation Function
-///
-/// GeLU is a smooth activation function that approximates the behavior of a gate,
-/// using the input's magnitude to decide the neuron's output.
-/// It uses the standard Gaussian cumulative distribution function.
-///
-/// Range: (0, +∞)
-/// Best for: Transformer models (such as BERT) where it has been shown to improve performance
-/// and convergence over standard ReLU.
+// GeLU (Gaussian Error Linear Unit) Activation Function
+//
+// GeLU is a smooth activation function that approximates the behavior of a gate,
+// using the input's magnitude to decide the neuron's output.
+// It uses the standard Gaussian cumulative distribution function.
+//
+// Range: (0, +∞)
+// Best for: Transformer models (such as BERT) where it has been shown to improve performance
+// and convergence over standard ReLU.
 #[derive(Serialize, Deserialize, Clone)]
 struct GELUActivation;
 
-/// GeLU (Gaussian Error Linear Unit) Activation Function
+/// GELU is a builder for GeLU (Gaussian Error Linear Unit) Activation Function
 ///
 /// GeLU is a smooth activation function that approximates the behavior of a gate,
 /// using the input's magnitude to decide the neuron's output.
@@ -29,8 +29,9 @@ struct GELUActivation;
 pub struct GELU;
 
 impl GELU {
-    pub fn new() -> Box<dyn ActivationFunction> {
-        Box::new(GELUActivation {})
+    /// Creates a new GELU activation function
+    pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
+        Ok(Box::new(GELUActivation {}))
     }
 }
 
@@ -70,7 +71,7 @@ mod gelu_tests {
     fn test_gelu_forward() {
         let mut input = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
-        let gelu = GELU::new();
+        let gelu = GELU::new().unwrap();
         gelu.forward(&mut input);
 
         // Expected output: approximate values
@@ -85,7 +86,7 @@ mod gelu_tests {
         let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
         let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let gelu = GELU::new();
+        let gelu = GELU::new().unwrap();
         gelu.backward(&d_output, &mut input, &output);
 
         // Expected output: approximate values
