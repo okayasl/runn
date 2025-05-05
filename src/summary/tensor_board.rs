@@ -3,39 +3,10 @@ use std::error::Error;
 use serde::{Deserialize, Serialize};
 use tensorboard_rs::summary_writer::SummaryWriter as InnerWriter;
 
-use super::SummaryWriter;
+use super::{SummaryWriter, SummaryWriterClone};
 
-/// A builder for configuring a TensorBoard summary writer.
-///
-/// This struct sets up a TensorBoard logger to write training metrics (e.g., scalars, histograms) to a specified log directory for visualization.
-/// Default settings:
-/// - logdir: None (must be set before building)
-pub struct TensorBoard {
-    logdir: Option<String>,
-}
-
-impl TensorBoard {
-    pub fn new() -> Self {
-        TensorBoard { logdir: None }
-    }
-
-    /// Set the log directory for TensorBoard output.
-    ///
-    /// Specifies the directory where TensorBoard event files will be written for visualization.
-    /// # Parameters
-    /// - `logdir`: Path to the log directory (e.g., "./logs").
-    pub fn logdir(mut self, logdir: &str) -> Self {
-        self.logdir = Some(logdir.to_string());
-        self
-    }
-
-    pub fn build(self) -> Box<dyn SummaryWriter> {
-        Box::new(TensorBoardSummaryWriter::new(&self.logdir.unwrap()))
-    }
-}
 #[derive(Serialize, Deserialize)]
-
-pub struct TensorBoardSummaryWriter {
+struct TensorBoardSummaryWriter {
     logdir: String,
     #[serde(skip)] // Skip serialization of the InnerWriter itself
     inner: Option<InnerWriter>,
@@ -77,12 +48,47 @@ impl TensorBoardSummaryWriter {
     }
 }
 
+impl SummaryWriterClone for TensorBoardSummaryWriter {
+    fn clone_box(&self) -> Box<dyn SummaryWriter> {
+        Box::new(self.clone())
+    }
+}
+
 impl Clone for TensorBoardSummaryWriter {
     fn clone(&self) -> Self {
         TensorBoardSummaryWriter {
             logdir: self.logdir.clone(),
             inner: None, // Recreate the `InnerWriter`
         }
+    }
+}
+
+/// A builder for configuring a TensorBoard summary writer.
+///
+/// This struct sets up a TensorBoard logger to write training metrics (e.g., scalars, histograms) to a specified log directory for visualization.
+/// Default settings:
+/// - logdir: None (must be set before building)
+pub struct TensorBoard {
+    logdir: Option<String>,
+}
+
+impl TensorBoard {
+    pub fn new() -> Self {
+        TensorBoard { logdir: None }
+    }
+
+    /// Set the log directory for TensorBoard output.
+    ///
+    /// Specifies the directory where TensorBoard event files will be written for visualization.
+    /// # Parameters
+    /// - `logdir`: Path to the log directory (e.g., "./logs").
+    pub fn logdir(mut self, logdir: &str) -> Self {
+        self.logdir = Some(logdir.to_string());
+        self
+    }
+
+    pub fn build(self) -> Box<dyn SummaryWriter> {
+        Box::new(TensorBoardSummaryWriter::new(&self.logdir.unwrap()))
     }
 }
 

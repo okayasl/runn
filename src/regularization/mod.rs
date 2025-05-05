@@ -10,17 +10,25 @@ pub trait Regularization: RegularizationClone + Send + Sync {
     fn as_any(&self) -> &dyn std::any::Any;
 }
 
-pub trait RegularizationClone {
-    fn clone_box(&self) -> Box<dyn Regularization>;
+#[typetag::serde]
+impl Regularization for Box<dyn Regularization> {
+    fn apply(&self, params: &mut [&mut DenseMatrix], grads: &mut [&mut DenseMatrix]) {
+        (**self).apply(params, grads);
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        (**self).as_any()
+    }
 }
 
-impl<T> RegularizationClone for T
-where
-    T: 'static + Regularization + Clone,
-{
+impl RegularizationClone for Box<dyn Regularization> {
     fn clone_box(&self) -> Box<dyn Regularization> {
-        Box::new(self.clone())
+        (**self).clone_box()
     }
+}
+
+pub trait RegularizationClone {
+    fn clone_box(&self) -> Box<dyn Regularization>;
 }
 
 impl Clone for Box<dyn Regularization> {

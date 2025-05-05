@@ -25,7 +25,7 @@ impl RegressionMetrics {
     }
 }
 
-pub struct RegressionEvaluator;
+pub(crate) struct RegressionEvaluator;
 
 impl MetricEvaluator for RegressionEvaluator {
     fn evaluate(&self, targets: &DenseMatrix, predictions: &DenseMatrix) -> MetricResult {

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::LearningRateScheduler;
+use super::{LearningRateScheduler, LearningRateSchedulerClone};
 
 /// ExponentialLRScheduler implements an exponential decay learning rate scheduler which continuously
 /// decreases the learning rate after each epoch. This scheduler is useful for smoothing the training process
@@ -8,7 +8,7 @@ use super::LearningRateScheduler;
 /// allowing for more precise convergence as training progresses. The rate of decay per epoch is
 /// controlled by `decay_rate` raised to the power of the product of the epoch number and `decay_factor`.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct ExponentialLRScheduler {
+struct ExponentialLRScheduler {
     initial_lr: f32,   // Initial learning rate
     decay_rate: f32,   // Base for the exponential decay
     decay_factor: f32, // Decay factor
@@ -32,6 +32,12 @@ impl LearningRateScheduler for ExponentialLRScheduler {
     /// a smaller decay factor results in slower decay.
     fn schedule(&self, epoch: usize, _current_learning_rate: f32) -> f32 {
         self.initial_lr * self.decay_rate.powf(epoch as f32 * self.decay_factor)
+    }
+}
+
+impl LearningRateSchedulerClone for ExponentialLRScheduler {
+    fn clone_box(&self) -> Box<dyn LearningRateScheduler> {
+        Box::new(self.clone())
     }
 }
 
@@ -76,8 +82,8 @@ impl Exponential {
     }
 
     /// Builds the `ExponentialLRScheduler` if all required fields are set.
-    pub fn build(self) -> ExponentialLRScheduler {
-        ExponentialLRScheduler::new(self.initial_lr, self.decay_rate, self.decay_factor)
+    pub fn build(self) -> Box<dyn LearningRateScheduler> {
+        Box::new(ExponentialLRScheduler::new(self.initial_lr, self.decay_rate, self.decay_factor))
     }
 }
 

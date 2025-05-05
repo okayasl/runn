@@ -80,7 +80,7 @@ impl OptimizerConfig for RMSPropConfig {
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.learning_rate = learning_rate;
     }
-    fn create_optimizer(&mut self) -> Box<dyn Optimizer> {
+    fn create_optimizer(&self) -> Box<dyn Optimizer> {
         Box::new(RMSPropOptimizer::new(self.clone()))
     }
     fn learning_rate(&self) -> f32 {

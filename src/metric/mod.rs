@@ -6,7 +6,7 @@ use crate::matrix::DenseMatrix;
 pub mod classification;
 pub mod regression;
 
-pub trait MetricEvaluator {
+pub(crate) trait MetricEvaluator {
     fn evaluate(&self, targets: &DenseMatrix, predictions: &DenseMatrix) -> MetricResult;
 }
 

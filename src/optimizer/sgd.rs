@@ -12,7 +12,7 @@ use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
 /// weight = weight - learning_rate * gradient_of_weight
 /// bias = bias - learning_rate * gradient_of_bias
 #[derive(Serialize, Deserialize, Clone)]
-pub struct SGDOptimizer {
+struct SGDOptimizer {
     config: SGDConfig,
 }
 
@@ -50,7 +50,7 @@ impl Optimizer for SGDOptimizer {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct SGDConfig {
+struct SGDConfig {
     learning_rate: f32,
     scheduler: Option<Box<dyn LearningRateScheduler>>,
 }
@@ -60,7 +60,7 @@ impl OptimizerConfig for SGDConfig {
     fn update_learning_rate(&mut self, learning_rate: f32) {
         self.learning_rate = learning_rate;
     }
-    fn create_optimizer(&mut self) -> Box<dyn Optimizer> {
+    fn create_optimizer(&self) -> Box<dyn Optimizer> {
         Box::new(SGDOptimizer::new(self.clone()))
     }
     fn learning_rate(&self) -> f32 {
@@ -108,11 +108,11 @@ impl SGD {
         self
     }
 
-    pub fn build(self) -> SGDConfig {
-        SGDConfig {
+    pub fn build(self) -> Box<dyn OptimizerConfig> {
+        Box::new(SGDConfig {
             learning_rate: self.learning_rate,
             scheduler: self.scheduler,
-        }
+        })
     }
 }
 

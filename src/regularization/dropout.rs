@@ -1,4 +1,4 @@
-use super::Regularization;
+use super::{Regularization, RegularizationClone};
 use crate::common::matrix::DenseMatrix;
 use crate::common::random::Randomizer;
 
@@ -20,7 +20,7 @@ use typetag;
 /// Dropout is commonly used in deep neural networks with many layers and parameters,
 /// as these networks are more prone to overfitting.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct DropoutRegularization {
+pub(crate) struct DropoutRegularization {
     dropout_rate: f32,
     randomizer: Randomizer,
 }
@@ -39,6 +39,12 @@ impl Regularization for DropoutRegularization {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+impl RegularizationClone for DropoutRegularization {
+    fn clone_box(&self) -> Box<dyn Regularization> {
+        Box::new(self.clone())
     }
 }
 
@@ -91,11 +97,11 @@ impl Dropout {
         self
     }
 
-    pub fn build(self) -> DropoutRegularization {
-        DropoutRegularization {
+    pub fn build(self) -> Box<dyn Regularization> {
+        Box::new(DropoutRegularization {
             dropout_rate: self.dropout_rate,
             randomizer: Randomizer::new(self.seed),
-        }
+        })
     }
 }
 

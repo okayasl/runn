@@ -280,7 +280,7 @@ impl NetworkBuilder {
         let mut layers: Vec<Arc<RwLock<Box<dyn Layer + Send + Sync>>>> = Vec::new();
         let mut input_size = self.input_size; // Initialize with input_size
         let layer_count = self.layer_configs.len();
-        let mut opt = self.optimizer_config.as_ref().unwrap().clone();
+        let opt = self.optimizer_config.as_ref().unwrap().clone();
         for (i, mut layer_config) in self.layer_configs.into_iter().enumerate() {
             let size = layer_config.size(); // Get size via &self
             let mut name = format!("Hidden {}", i);

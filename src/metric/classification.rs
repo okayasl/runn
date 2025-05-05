@@ -54,7 +54,7 @@ impl ClassificationMetrics {
     }
 }
 
-pub struct ClassificationEvaluator;
+pub(crate) struct ClassificationEvaluator;
 
 impl MetricEvaluator for ClassificationEvaluator {
     fn evaluate(&self, targets: &DenseMatrix, predictions: &DenseMatrix) -> MetricResult {

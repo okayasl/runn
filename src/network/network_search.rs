@@ -270,13 +270,13 @@ pub fn balance_network_configs(
     balanced
 }
 
-pub struct NetworkConfig {
+pub struct NetworkSearchConfig {
     learning_rate: f32,
     batch_size: usize,
     layer_sizes: Vec<usize>,
 }
 
-fn extract_config_from_network(nw: &Network) -> NetworkConfig {
+fn extract_config_from_network(nw: &Network) -> NetworkSearchConfig {
     let learning_rate = nw.optimizer_config.learning_rate();
     let batch_size = nw.batch_size;
     let mut layer_sizes = Vec::new();
@@ -286,7 +286,7 @@ fn extract_config_from_network(nw: &Network) -> NetworkConfig {
         layer_sizes.push(output_size);
     }
 
-    NetworkConfig {
+    NetworkSearchConfig {
         learning_rate,
         batch_size,
         layer_sizes,
@@ -443,7 +443,7 @@ fn run(
 
 pub struct SearchResult {
     elapsed_time: f32,
-    config: NetworkConfig,
+    config: NetworkSearchConfig,
     training_metrics: MetricResult,
     validation_metrics: MetricResult,
     t_loss: f32,

@@ -249,14 +249,8 @@ mod tests {
             .epsilon(1e-8)
             .build();
 
-        let layer = DenseLayer::new(
-            "layer".to_owned(),
-            3,
-            2,
-            activation,
-            Box::new(optimizer_config).create_optimizer(),
-            &randomizer,
-        );
+        let layer =
+            DenseLayer::new("layer".to_owned(), 3, 2, activation, optimizer_config.create_optimizer(), &randomizer);
 
         let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
         let (output, pre_activated_output) = layer.forward(&input);
@@ -278,14 +272,8 @@ mod tests {
             .epsilon(1e-8)
             .build();
 
-        let layer = DenseLayer::new(
-            "layer".to_owned(),
-            3,
-            2,
-            activation,
-            Box::new(optimizer_config).create_optimizer(),
-            &randomizer,
-        );
+        let layer =
+            DenseLayer::new("layer".to_owned(), 3, 2, activation, optimizer_config.create_optimizer(), &randomizer);
 
         let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
         let (output, mut pre_activated_output) = layer.forward(&input);
@@ -312,14 +300,8 @@ mod tests {
             .epsilon(1e-8)
             .build();
 
-        let mut layer = DenseLayer::new(
-            "layer".to_owned(),
-            3,
-            2,
-            activation,
-            Box::new(optimizer_config).create_optimizer(),
-            &randomizer,
-        );
+        let mut layer =
+            DenseLayer::new("layer".to_owned(), 3, 2, activation, optimizer_config.create_optimizer(), &randomizer);
 
         let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
         let (output, mut pre_activated_output) = layer.forward(&input);

@@ -8,17 +8,33 @@ pub trait SummaryWriter: SummaryWriterClone + Send + Sync {
     fn close(&mut self) -> Result<(), Box<dyn Error>>;
     fn init(&mut self);
 }
-pub trait SummaryWriterClone {
-    fn clone_box(&self) -> Box<dyn SummaryWriter>;
+
+#[typetag::serde]
+impl SummaryWriter for Box<dyn SummaryWriter> {
+    fn write_scalar(&mut self, tag: &str, step: usize, value: f32) -> Result<(), Box<dyn Error>> {
+        (**self).write_scalar(tag, step, value)
+    }
+
+    fn write_histogram(&mut self, tag: &str, step: usize, values: &[f32]) -> Result<(), Box<dyn Error>> {
+        (**self).write_histogram(tag, step, values)
+    }
+
+    fn close(&mut self) -> Result<(), Box<dyn Error>> {
+        (**self).close()
+    }
+
+    fn init(&mut self) {
+        (**self).init()
+    }
+}
+impl SummaryWriterClone for Box<dyn SummaryWriter> {
+    fn clone_box(&self) -> Box<dyn SummaryWriter> {
+        (**self).clone_box()
+    }
 }
 
-impl<T> SummaryWriterClone for T
-where
-    T: 'static + SummaryWriter + Clone,
-{
-    fn clone_box(&self) -> Box<dyn SummaryWriter> {
-        Box::new(self.clone())
-    }
+pub trait SummaryWriterClone {
+    fn clone_box(&self) -> Box<dyn SummaryWriter>;
 }
 
 impl Clone for Box<dyn SummaryWriter> {

@@ -3,7 +3,7 @@ use crate::common::matrix::DenseMatrix;
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use super::Regularization;
+use super::{Regularization, RegularizationClone};
 
 /// L2 regularization(also known as Ridge regularization) adds a penalty term to
 /// the loss function that is proportional to the square of the weights.
@@ -28,7 +28,7 @@ use super::Regularization;
 /// This can be advantageous when all features are potentially relevant and feature
 /// selection is not a primary concern.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct L2Regularization {
+pub(crate) struct L2Regularization {
     lambda: f32,
 }
 
@@ -45,6 +45,12 @@ impl Regularization for L2Regularization {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+impl RegularizationClone for L2Regularization {
+    fn clone_box(&self) -> Box<dyn Regularization> {
+        Box::new(self.clone())
     }
 }
 
@@ -92,10 +98,10 @@ impl L2 {
     }
 
     /// Builds the L2Regularization instance
-    pub fn build(self) -> L2Regularization {
-        L2Regularization {
+    pub fn build(self) -> Box<dyn Regularization> {
+        Box::new(L2Regularization {
             lambda: self.lambda.expect("Lambda must be set"),
-        }
+        })
     }
 }
 

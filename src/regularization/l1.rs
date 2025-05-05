@@ -1,4 +1,4 @@
-use super::Regularization;
+use super::{Regularization, RegularizationClone};
 use crate::common::matrix::DenseMatrix;
 
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ use typetag;
 /// L1 regularization is commonly used in linear models and sparse models, where
 /// feature selection and interpretability are important.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct L1Regularization {
+pub(crate) struct L1Regularization {
     lambda: f32,
 }
 
@@ -38,6 +38,12 @@ impl Regularization for L1Regularization {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+impl RegularizationClone for L1Regularization {
+    fn clone_box(&self) -> Box<dyn Regularization> {
+        Box::new(self.clone())
     }
 }
 
@@ -80,10 +86,10 @@ impl L1 {
     }
 
     /// Builds the L1Regularization instance
-    pub fn build(self) -> L1Regularization {
-        L1Regularization {
+    pub fn build(self) -> Box<dyn Regularization> {
+        Box::new(L1Regularization {
             lambda: self.lambda.expect("Lambda must be set"),
-        }
+        })
     }
 }
 

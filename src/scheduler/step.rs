@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::LearningRateScheduler;
+use super::{LearningRateScheduler, LearningRateSchedulerClone};
 
 /// StepLRScheduler implements a step decay learning rate scheduler which periodically
 /// reduces the learning rate by a fixed factor.
@@ -10,7 +10,7 @@ use super::LearningRateScheduler;
 /// The decay occurs every `step_size` number of epochs,
 /// and the amount by which the learning rate decreases is controlled by `decay_rate`.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct StepLRScheduler {
+struct StepLRScheduler {
     decay_rate: f32,  // Factor by which the learning rate is decayed
     step_size: usize, // Number of epochs between two updates to the learning rate
 }
@@ -33,6 +33,12 @@ impl LearningRateScheduler for StepLRScheduler {
         } else {
             current_learning_rate
         }
+    }
+}
+
+impl LearningRateSchedulerClone for StepLRScheduler {
+    fn clone_box(&self) -> Box<dyn LearningRateScheduler> {
+        Box::new(self.clone())
     }
 }
 
@@ -71,8 +77,8 @@ impl Step {
     }
 
     /// Builds the StepLRScheduler, returning an error if any required fields are missing.
-    pub fn build(self) -> StepLRScheduler {
-        StepLRScheduler::new(self.decay_rate, self.step_size)
+    pub fn build(self) -> Box<dyn LearningRateScheduler> {
+        Box::new(StepLRScheduler::new(self.decay_rate, self.step_size))
     }
 }
 #[cfg(test)]

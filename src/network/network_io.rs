@@ -12,7 +12,7 @@ pub enum SerializationFormat {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct NetworkIO {
+pub(crate) struct NetworkIO {
     pub(crate) input_size: usize,
     pub(crate) output_size: usize,
     pub(crate) layers: Vec<Box<dyn Layer>>,
@@ -32,7 +32,7 @@ pub struct NetworkIO {
     pub(crate) parallelize: usize,
 }
 
-pub fn save_network(network_io: &NetworkIO, filename: &str, format: SerializationFormat) {
+pub(crate) fn save_network(network_io: &NetworkIO, filename: &str, format: SerializationFormat) {
     let serialized_data = match format {
         SerializationFormat::Json => serde_json::to_vec(&network_io).expect("Failed to serialize to JSON"),
         SerializationFormat::MessagePack => encode::to_vec(&network_io).expect("Failed to serialize to MessagePack"),
@@ -42,7 +42,7 @@ pub fn save_network(network_io: &NetworkIO, filename: &str, format: Serializatio
     file.write_all(&serialized_data).expect("Failed to write to file");
 }
 
-pub fn load_network(filename: &str, format: SerializationFormat) -> NetworkIO {
+pub(crate) fn load_network(filename: &str, format: SerializationFormat) -> NetworkIO {
     let mut file = File::open(filename).expect("Failed to open file");
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer).expect("Failed to read file");
