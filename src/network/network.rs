@@ -1,6 +1,5 @@
 use std::{
     error::Error,
-    f32::consts::E,
     sync::{Arc, RwLock},
 };
 
@@ -28,7 +27,7 @@ pub struct NetworkBuilder {
     layer_configs: Vec<Result<Box<dyn LayerConfig>, NetworkError>>,
     loss_function: Result<Box<dyn LossFunction>, NetworkError>,
     optimizer_config: Result<Box<dyn OptimizerConfig>, NetworkError>,
-    regularization: Vec<Box<dyn Regularization>>,
+    regularization: Vec<Result<Box<dyn Regularization>, NetworkError>>,
     batch_size: usize,
     batch_group_size: usize,
     epochs: usize,
@@ -86,8 +85,8 @@ impl NetworkBuilder {
     /// Multiple regularizations can be added and will be applied in order.
     /// # Parameters
     /// - `reg`: Regularization method to apply (e.g., `Dropout`).
-    pub fn regularization(mut self, reg: impl Regularization + 'static) -> Self {
-        self.regularization.push(Box::new(reg));
+    pub fn regularization(mut self, reg: Result<Box<dyn Regularization>, NetworkError>) -> Self {
+        self.regularization.push(reg);
         self
     }
 
@@ -248,7 +247,7 @@ impl NetworkBuilder {
             self.summary_writer = Some(summary_writer.clone());
         }
 
-        self.regularization = nw.regularizations.iter().map(|reg| (**reg).clone_box()).collect();
+        self.regularization = nw.regularizations.iter().map(|reg| Ok((**reg).clone_box())).collect();
 
         self
     }
@@ -291,6 +290,7 @@ impl NetworkBuilder {
         self.validate()?;
 
         let layer_configs: Vec<Box<dyn LayerConfig>> = self.layer_configs.into_iter().collect::<Result<Vec<_>, _>>()?;
+        let regularizations = self.regularization.into_iter().collect::<Result<Vec<_>, _>>()?;
 
         let randomizer = Randomizer::new(Some(self.seed));
         let mut layers: Vec<Arc<RwLock<Box<dyn Layer + Send + Sync>>>> = Vec::new();
@@ -315,7 +315,7 @@ impl NetworkBuilder {
             layers: layers,
             loss_function: self.loss_function?,
             optimizer_config: self.optimizer_config.unwrap(),
-            regularizations: Arc::new(self.regularization),
+            regularizations: Arc::new(regularizations),
             batch_size: self.batch_size,
             batch_group_size: self.batch_group_size,
             epochs: self.epochs,

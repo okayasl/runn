@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{error::NetworkError, network::network::Network};
+use crate::error::NetworkError;
 
 use super::{LearningRateScheduler, LearningRateSchedulerClone};
 
