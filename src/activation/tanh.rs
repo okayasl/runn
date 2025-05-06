@@ -26,6 +26,7 @@ pub struct Tanh;
 
 impl Tanh {
     /// Creates a new Tanh activation function
+    /// Tanh weight initialization factor is set to Xavier initialization.
     pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(TanhActivation {}))
     }

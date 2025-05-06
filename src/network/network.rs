@@ -25,7 +25,7 @@ pub struct NetworkBuilder {
     input_size: usize,
     output_size: usize,
     layer_configs: Vec<Result<Box<dyn LayerConfig>, NetworkError>>,
-    loss_function: Option<Box<dyn LossFunction>>,
+    loss_function: Result<Box<dyn LossFunction>, NetworkError>,
     optimizer_config: Option<Box<dyn OptimizerConfig>>,
     regularization: Vec<Box<dyn Regularization>>,
     batch_size: usize,
@@ -52,7 +52,7 @@ impl NetworkBuilder {
             input_size,
             output_size,
             layer_configs: Vec::new(),
-            loss_function: None,
+            loss_function: Err(NetworkError::ConfigError("Loss function for NetworkBuilder is not set".to_string())),
             optimizer_config: None,
             regularization: Vec::new(),
             batch_size: usize::MAX,
@@ -95,8 +95,8 @@ impl NetworkBuilder {
     /// The loss function measures the error between predictions and targets. It must be set before building the network.
     /// # Parameters
     /// - `loss_function`: Loss function to use (e.g., mean squared error, cross-entropy).
-    pub fn loss_function(mut self, loss_function: impl LossFunction + 'static) -> Self {
-        self.loss_function = Some(Box::new(loss_function));
+    pub fn loss_function(mut self, loss_function: Result<Box<dyn LossFunction>, NetworkError>) -> Self {
+        self.loss_function = loss_function;
         self
     }
 
@@ -229,7 +229,7 @@ impl NetworkBuilder {
     }
 
     pub(crate) fn from_network(mut self, nw: &Network) -> Self {
-        self.loss_function = Some(nw.loss_function.clone());
+        self.loss_function = Ok(nw.loss_function.clone_box());
         self.optimizer_config = Some(nw.optimizer_config.clone());
         self.batch_size = nw.batch_size;
         self.batch_group_size = nw.batch_group_size;
@@ -256,8 +256,8 @@ impl NetworkBuilder {
         if self.input_size == 0 || self.output_size == 0 {
             return Err(NetworkError::ConfigError("Input and output sizes must be greater than zero".to_string()));
         }
-        if self.loss_function.is_none() {
-            return Err(NetworkError::ConfigError("Loss function is not set".to_string()));
+        if let Some(err) = self.loss_function.as_ref().err() {
+            return Err(err.clone());
         }
         if self.optimizer_config.is_none() {
             return Err(NetworkError::ConfigError("Optimizer is not set".to_string()));
@@ -312,7 +312,7 @@ impl NetworkBuilder {
             input_size: self.input_size,
             output_size: self.output_size,
             layers: layers,
-            loss_function: self.loss_function.unwrap(),
+            loss_function: self.loss_function?,
             optimizer_config: self.optimizer_config.unwrap(),
             regularizations: Arc::new(self.regularization),
             batch_size: self.batch_size,

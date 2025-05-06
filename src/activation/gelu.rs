@@ -30,6 +30,7 @@ pub struct GELU;
 
 impl GELU {
     /// Creates a new GELU activation function
+    /// GELU weight initialization factor is set to He initialization.
     pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(GELUActivation {}))
     }

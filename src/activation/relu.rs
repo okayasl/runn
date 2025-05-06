@@ -29,6 +29,7 @@ pub struct ReLU;
 
 impl ReLU {
     /// Creates a new RelU activation function
+    /// ReLU weight initialization factor is set to He initialization.
     pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(ReLUActivation {}))
     }

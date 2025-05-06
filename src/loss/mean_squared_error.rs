@@ -1,40 +1,45 @@
-use crate::{common::matrix::DenseMatrix, regression::RegressionEvaluator, MetricEvaluator, MetricResult};
+use crate::{
+    common::matrix::DenseMatrix, error::NetworkError, regression::RegressionEvaluator, MetricEvaluator, MetricResult,
+};
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::{LossFunction, LossFunctionClone};
 
-/// MeanSquaredErrorLoss is a commonly used loss function for regression tasks,
-/// measuring the average squared difference between the predicted values and the true target values.
-/// It penalizes larger errors more heavily than smaller ones, making it sensitive to outliers.
-/// The loss is computed as the mean of the squared differences between the predicted and target values.
-/// Forward pass:
-/// loss = (1 / N) * Σ((predicted - target) ** 2)
-/// where N is the number of samples, and the summation is over all elements in the matrices.
-/// Backward pass:
-/// gradient = (2 / N) * (predicted - target)
-/// The gradient represents the scaled difference between the predicted and target values,
-/// which can be used to update the model parameters during optimization.
+// MeanSquaredErrorLoss is a commonly used loss function for regression tasks,
+// measuring the average squared difference between the predicted values and the true target values.
+// It penalizes larger errors more heavily than smaller ones, making it sensitive to outliers.
+// The loss is computed as the mean of the squared differences between the predicted and target values.
+// Forward pass:
+// loss = (1 / N) * Σ((predicted - target) ** 2)
+// where N is the number of samples, and the summation is over all elements in the matrices.
+// Backward pass:
+// gradient = (2 / N) * (predicted - target)
+// The gradient represents the scaled difference between the predicted and target values,
+// which can be used to update the model parameters during optimization.
 #[derive(Serialize, Deserialize, Clone)]
 struct MeanSquaredErrorLoss;
 
-/// MeanSquaredErrorLoss is a commonly used loss function for regression tasks,
+/// MeanSquared is a builder for Mean Squared Error Loss which is a commonly used loss function for regression tasks,
 /// measuring the average squared difference between the predicted values and the true target values.
 /// It penalizes larger errors more heavily than smaller ones, making it sensitive to outliers.
 /// The loss is computed as the mean of the squared differences between the predicted and target values.
+///
 /// Forward pass:
 /// loss = (1 / N) * Σ((predicted - target) ** 2)
 /// where N is the number of samples, and the summation is over all elements in the matrices.
+///
 /// Backward pass:
 /// gradient = (2 / N) * (predicted - target)
+///
 /// The gradient represents the scaled difference between the predicted and target values,
 /// which can be used to update the model parameters during optimization.
 pub struct MeanSquared;
 
 impl MeanSquared {
     /// Creates a new builder for CrossEntropyLoss
-    pub fn new() -> Box<dyn LossFunction> {
-        Box::new(MeanSquaredErrorLoss {})
+    pub fn new() -> Result<Box<dyn LossFunction>, NetworkError> {
+        Ok(Box::new(MeanSquaredErrorLoss {}))
     }
 }
 
@@ -82,7 +87,7 @@ mod tests {
 
     #[test]
     fn test_forward() {
-        let loss = MeanSquared::new();
+        let loss = MeanSquared::new().unwrap();
         let predicted = DenseMatrix::new(2, 1, &[0.9, 0.2]);
         let target = DenseMatrix::new(2, 1, &[1.0, 0.0]);
         let result = loss.forward(&predicted, &target);
@@ -91,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_backward() {
-        let loss = MeanSquared::new();
+        let loss = MeanSquared::new().unwrap();
         let predicted = DenseMatrix::new(2, 1, &[0.9, 0.2]);
         let target = DenseMatrix::new(2, 1, &[1.0, 0.0]);
         let gradient = loss.backward(&predicted, &target);

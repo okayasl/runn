@@ -37,6 +37,7 @@ impl ELU {
     /// Creates a new ELU activation function builder with default parameters.
     /// The default alpha value is typically set to 1.0.
     /// You can set a different alpha value using the `alpha` method.
+    /// ELU weight initialization factor is set to He initialization.
     pub fn new() -> Self {
         ELU { alpha: 1.0 } // Default alpha = 1.0
     }

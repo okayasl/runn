@@ -25,6 +25,8 @@ struct LinearActivation;
 pub struct Linear;
 
 impl Linear {
+    /// Creates a new Linear activation function
+    /// Linear weight initialization factor is set to 1.0.
     pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(LinearActivation {}))
     }

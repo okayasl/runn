@@ -25,6 +25,7 @@ struct SoftplusActivation;
 pub struct Softplus;
 impl Softplus {
     /// Creates a new Softplus activation function
+    /// Softplus weight initialization factor is set to He initialization.
     pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(SoftplusActivation {}))
     }

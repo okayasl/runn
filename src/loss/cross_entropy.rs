@@ -1,43 +1,49 @@
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use crate::{classification::ClassificationEvaluator, matrix::DenseMatrix, MetricEvaluator, MetricResult};
+use crate::{
+    classification::ClassificationEvaluator, error::NetworkError, matrix::DenseMatrix, MetricEvaluator, MetricResult,
+};
 
 use super::{LossFunction, LossFunctionClone};
 
-/// CrossEntropyLoss is a commonly used loss function for classification tasks,
-/// particularly in scenarios involving probabilistic outputs such as those from a softmax layer.
-/// It measures the dissimilarity between the predicted probability distribution and the true labels,
-/// penalizing predictions that deviate from the target distribution.
-/// The loss is computed as the negative log-likelihood of the true labels given the predicted probabilities.
-/// To prevent numerical instability (e.g., log(0)), the predicted probabilities are clamped
-/// to the range [epsilon, 1-epsilon], where epsilon is a small positive constant.
-/// This ensures that the logarithm operation remains well-defined and avoids issues like division by zero.
-/// Forward pass:
-/// loss = -Σ(target * log(predicted))
-/// where the summation is over all elements in the matrices.
-/// Backward pass:
-/// gradient = predicted - target
-/// The gradient represents the difference between the predicted probabilities and the true labels,
-/// which can be used to update the model parameters during optimization.
+// CrossEntropyLoss is a commonly used loss function for classification tasks,
+// particularly in scenarios involving probabilistic outputs such as those from a softmax layer.
+// It measures the dissimilarity between the predicted probability distribution and the true labels,
+// penalizing predictions that deviate from the target distribution.
+// The loss is computed as the negative log-likelihood of the true labels given the predicted probabilities.
+// To prevent numerical instability (e.g., log(0)), the predicted probabilities are clamped
+// to the range [epsilon, 1-epsilon], where epsilon is a small positive constant.
+// This ensures that the logarithm operation remains well-defined and avoids issues like division by zero.
+// Forward pass:
+// loss = -Σ(target * log(predicted))
+// where the summation is over all elements in the matrices.
+// Backward pass:
+// gradient = predicted - target
+// The gradient represents the difference between the predicted probabilities and the true labels,
+// which can be used to update the model parameters during optimization.
 #[derive(Serialize, Deserialize, Clone)]
 struct CrossEntropyLoss {
     epsilon: f32,
 }
 
-/// CrossEntropyLoss is a commonly used loss function for classification tasks,
+/// CrossEntropy is a builder for Cross-Entropy Loss which is a commonly used loss function for classification tasks,
 /// particularly in scenarios involving probabilistic outputs such as those from a softmax layer.
+///
 /// It measures the dissimilarity between the predicted probability distribution and the true labels,
 /// penalizing predictions that deviate from the target distribution.
 /// The loss is computed as the negative log-likelihood of the true labels given the predicted probabilities.
 /// To prevent numerical instability (e.g., log(0)), the predicted probabilities are clamped
 /// to the range [epsilon, 1-epsilon], where epsilon is a small positive constant.
 /// This ensures that the logarithm operation remains well-defined and avoids issues like division by zero.
+///
 /// Forward pass:
 /// loss = -Σ(target * log(predicted))
 /// where the summation is over all elements in the matrices.
+///
 /// Backward pass:
 /// gradient = predicted - target
+///
 /// The gradient represents the difference between the predicted probabilities and the true labels,
 /// which can be used to update the model parameters during optimization.
 pub struct CrossEntropy {
@@ -52,6 +58,7 @@ impl CrossEntropy {
     }
 
     /// Sets the epsilon value for the loss function
+    /// Epsilon is a small positive constant used to prevent numerical instability
     pub fn epsilon(mut self, epsilon: f32) -> Self {
         self.epsilon = epsilon;
         self
@@ -59,16 +66,19 @@ impl CrossEntropy {
 
     /// Validates the parameters of the loss function
     /// Ensures that epsilon is set and within a valid range
-    fn validate(&self) {
-        let epsilon = self.epsilon;
-        if epsilon <= 0.0 || epsilon >= 1.0 {
-            panic!("Epsilon must be in the range (0, 1).");
+    fn validate(&self) -> Result<(), NetworkError> {
+        if self.epsilon <= 0.0 || self.epsilon >= 1.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Epsilon for CrossEntropy must be in the range (0, 1), but was {}",
+                self.epsilon
+            )));
         }
+        Ok(())
     }
 
-    pub fn build(self) -> Box<dyn LossFunction> {
-        self.validate();
-        Box::new(CrossEntropyLoss { epsilon: self.epsilon })
+    pub fn build(self) -> Result<Box<dyn LossFunction>, NetworkError> {
+        self.validate()?;
+        Ok(Box::new(CrossEntropyLoss { epsilon: self.epsilon }))
     }
 }
 
@@ -134,7 +144,7 @@ mod tests {
 
     #[test]
     fn test_forward() {
-        let loss = CrossEntropy::new().epsilon(1e-7).build();
+        let loss = CrossEntropy::new().epsilon(1e-7).build().unwrap();
         let predicted = DenseMatrix::new(2, 2, &[0.9, 0.1, 0.2, 0.8]);
         let target = DenseMatrix::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
         let result = loss.forward(&predicted, &target);
@@ -143,11 +153,23 @@ mod tests {
 
     #[test]
     fn test_backward() {
-        let loss = CrossEntropy::new().epsilon(1e-7).build();
+        let loss = CrossEntropy::new().epsilon(1e-7).build().unwrap();
         let predicted = DenseMatrix::new(2, 2, &[0.9, 0.1, 0.2, 0.8]);
         let target = DenseMatrix::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
         let gradient = loss.backward(&predicted, &target);
         let expected_gradient = DenseMatrix::new(2, 2, &[-0.1, 0.1, 0.2, -0.2]);
         assert!(util::equal_approx(&gradient, &expected_gradient, 1e-6));
+    }
+
+    #[test]
+    fn test_crossentropy_validate() {
+        let loss = CrossEntropy::new().epsilon(1e-7);
+        assert!(loss.validate().is_ok());
+
+        let loss = CrossEntropy::new().epsilon(0.0);
+        assert!(loss.validate().is_err());
+
+        let loss = CrossEntropy::new().epsilon(1.0);
+        assert!(loss.validate().is_err());
     }
 }
