@@ -1,26 +1,26 @@
-use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
+use crate::{common::matrix::DenseMatrix, error::NetworkError, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
 
-/// AMSGrad (Adaptive Moment Estimation with Maximum Moment) is a variant of the Adam optimizer
-/// designed to improve convergence in scenarios where Adam may fail due to rapidly changing gradients.
-/// Similar to Adam, AMSGrad maintains two moments:
-/// - moment1 (m_t): The first moment, which captures the exponentially decaying average of past gradients,
-///   acting as a momentum term to accelerate optimization in the direction of historical gradients.
-/// - moment2 (v_t): The second moment, which tracks the exponentially decaying average of squared gradients,
-///   providing an adaptive learning rate that scales based on the magnitude of recent gradients.
-/// AMSGrad introduces an additional term:
-/// - max_moment2 (v_max): This tracks the maximum value of the second moment (v_t) observed so far,
-///   ensuring that the denominator in the parameter update rule does not decrease over time.
-/// This modification addresses issues with Adam's convergence by enforcing a more stable learning rate.
-/// Update rules:
-/// momentum = beta1 * momentum + (1 - beta1) * gradient
-/// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
-/// max_accumulated_gradient = max(max_accumulated_gradient, accumulated_gradient)
-/// weight = weight - (learning_rate / sqrt(max_accumulated_gradient + epsilon)) * momentum
-/// bias = bias - (learning_rate / sqrt(max_accumulated_gradient + epsilon)) * momentum
+// AMSGrad (Adaptive Moment Estimation with Maximum Moment) is a variant of the Adam optimizer
+// designed to improve convergence in scenarios where Adam may fail due to rapidly changing gradients.
+// Similar to Adam, AMSGrad maintains two moments:
+// - moment1 (m_t): The first moment, which captures the exponentially decaying average of past gradients,
+//   acting as a momentum term to accelerate optimization in the direction of historical gradients.
+// - moment2 (v_t): The second moment, which tracks the exponentially decaying average of squared gradients,
+//   providing an adaptive learning rate that scales based on the magnitude of recent gradients.
+// AMSGrad introduces an additional term:
+// - max_moment2 (v_max): This tracks the maximum value of the second moment (v_t) observed so far,
+//   ensuring that the denominator in the parameter update rule does not decrease over time.
+// This modification addresses issues with Adam's convergence by enforcing a more stable learning rate.
+// Update rules:
+// momentum = beta1 * momentum + (1 - beta1) * gradient
+// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
+// max_accumulated_gradient = max(max_accumulated_gradient, accumulated_gradient)
+// weight = weight - (learning_rate / sqrt(max_accumulated_gradient + epsilon)) * momentum
+// bias = bias - (learning_rate / sqrt(max_accumulated_gradient + epsilon)) * momentum
 #[derive(Serialize, Deserialize, Clone)]
 struct AMSGradOptimizer {
     config: AMSGradConfig,
@@ -144,18 +144,21 @@ impl OptimizerConfig for AMSGradConfig {
     }
 }
 
-/// Builder for AMSGrad optimizer
-/// AMSGrad (Adaptive Moment Estimation with Maximum Moment) is a variant of the Adam optimizer
-/// designed to improve convergence in scenarios where Adam may fail due to rapidly changing gradients.
+/// AMSGrad is a builder for AMSGrad (Adaptive Moment Estimation with Maximum Moment) which is a variant of
+/// the Adam optimizer designed to improve convergence in scenarios where Adam may fail due to rapidly changing gradients.
+///
 /// Similar to Adam, AMSGrad maintains two moments:
 /// - moment1 (m_t): The first moment, which captures the exponentially decaying average of past gradients,
 ///   acting as a momentum term to accelerate optimization in the direction of historical gradients.
 /// - moment2 (v_t): The second moment, which tracks the exponentially decaying average of squared gradients,
 ///   providing an adaptive learning rate that scales based on the magnitude of recent gradients.
+///
 /// AMSGrad introduces an additional term:
 /// - max_moment2 (v_max): This tracks the maximum value of the second moment (v_t) observed so far,
 ///   ensuring that the denominator in the parameter update rule does not decrease over time.
+///
 /// This modification addresses issues with Adam's convergence by enforcing a more stable learning rate.
+///
 /// Update rules:
 /// momentum = beta1 * momentum + (1 - beta1) * gradient
 /// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
@@ -167,16 +170,23 @@ pub struct AMSGrad {
     beta1: f32,
     beta2: f32,
     epsilon: f32,
-    scheduler: Option<Box<dyn LearningRateScheduler>>,
+    scheduler: Option<Result<Box<dyn LearningRateScheduler>, NetworkError>>,
 }
 
 impl AMSGrad {
+    /// Creates a new AMSGrad optimizer builder
+    /// Default value:
+    /// - learning_rate: 0.01
+    /// - beta1: 0.9
+    /// - beta2: 0.999
+    /// - epsilon: f32::EPSILON
+    /// - scheduler: None
     pub fn new() -> Self {
         Self {
             learning_rate: 0.01,
             beta1: 0.9,
             beta2: 0.999,
-            epsilon: 1e-8,
+            epsilon: f32::EPSILON,
             scheduler: None,
         }
     }
@@ -226,19 +236,51 @@ impl AMSGrad {
     /// Optionally applies a scheduler to adjust the learning rate during training (e.g., exponential, step).
     /// # Parameters
     /// - `scheduler`: Learning rate scheduler to use.
-    pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
+    pub fn scheduler(mut self, scheduler: Result<Box<dyn LearningRateScheduler>, NetworkError>) -> Self {
         self.scheduler = Some(scheduler);
         self
     }
 
-    pub fn build(self) -> Box<dyn OptimizerConfig> {
-        Box::new(AMSGradConfig {
+    fn validate(&self) -> Result<(), NetworkError> {
+        if self.learning_rate <= 0.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Learning rate for AMSGrad must be greater than 0.0, but was {}",
+                self.learning_rate
+            )));
+        }
+        if self.beta1 <= 0.0 || self.beta1 >= 1.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Beta1 for AMSGrad must be in the range (0.0, 1.0), but was {}",
+                self.beta1
+            )));
+        }
+        if self.beta2 <= 0.0 || self.beta2 >= 1.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Beta2 for AMSGrad must be in the range (0.0, 1.0), but was {}",
+                self.beta2
+            )));
+        }
+        if self.epsilon <= 0.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Epsilon for AMSGrad must be greater than 0.0, but was {}",
+                self.epsilon
+            )));
+        }
+        if let Some(ref scheduler) = self.scheduler {
+            scheduler.as_ref().map_err(|e| e.clone())?;
+        }
+        Ok(())
+    }
+
+    pub fn build(self) -> Result<Box<dyn OptimizerConfig>, NetworkError> {
+        self.validate()?;
+        Ok(Box::new(AMSGradConfig {
             learning_rate: self.learning_rate,
             beta1: self.beta1,
             beta2: self.beta2,
             epsilon: self.epsilon,
-            scheduler: self.scheduler,
-        })
+            scheduler: self.scheduler.map(|s| s.unwrap()),
+        }))
     }
 }
 

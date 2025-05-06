@@ -1,5 +1,5 @@
 use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
-use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
+use crate::{common::matrix::DenseMatrix, error::NetworkError, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
@@ -97,10 +97,15 @@ impl Optimizer for MomentumOptimizer {
 pub struct Momentum {
     learning_rate: f32,
     momentum: f32,
-    scheduler: Option<Box<dyn LearningRateScheduler>>,
+    scheduler: Option<Result<Box<dyn LearningRateScheduler>, NetworkError>>,
 }
 
 impl Momentum {
+    /// Creates a new builder for Momentum optimizer.
+    /// Default values:
+    /// - learning_rate: 0.01
+    /// - momentum: 0.9
+    /// - scheduler: None
     pub fn new() -> Self {
         Self {
             learning_rate: 0.01,
@@ -134,27 +139,37 @@ impl Momentum {
     /// Optionally applies a scheduler to adjust the learning rate during training (e.g., exponential, step).
     /// # Parameters
     /// - `scheduler`: Learning rate scheduler to use.
-    pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
+    pub fn scheduler(mut self, scheduler: Result<Box<dyn LearningRateScheduler>, NetworkError>) -> Self {
         self.scheduler = Some(scheduler);
         self
     }
 
-    fn validate(&self) {
+    fn validate(&self) -> Result<(), NetworkError> {
         if self.learning_rate <= 0.0 {
-            panic!("Learning rate must be greater than 0.0");
+            return Err(NetworkError::ConfigError(format!(
+                "Learning rate for Momentum must be greater than 0.0, but was {}",
+                self.learning_rate
+            )));
         }
         if self.momentum < 0.0 || self.momentum > 1.0 {
-            panic!("Momentum must be in the range [0.0, 1.0]");
+            return Err(NetworkError::ConfigError(format!(
+                "Momentum for Momentum must be in [0.0, 1.0], but was {}",
+                self.momentum
+            )));
         }
+        if let Some(ref scheduler) = self.scheduler {
+            scheduler.as_ref().map_err(|e| e.clone())?;
+        }
+        Ok(())
     }
 
-    pub fn build(self) -> Box<dyn OptimizerConfig> {
-        self.validate();
-        Box::new(MomentumConfig {
+    pub fn build(self) -> Result<Box<dyn OptimizerConfig>, NetworkError> {
+        self.validate()?;
+        Ok(Box::new(MomentumConfig {
             learning_rate: self.learning_rate,
             momentum: self.momentum,
-            scheduler: self.scheduler,
-        })
+            scheduler: self.scheduler.map(|s| s.unwrap()),
+        }))
     }
 }
 
@@ -166,7 +181,7 @@ impl OptimizerConfigClone for MomentumConfig {
 
 #[cfg(test)]
 mod tests {
-    use crate::util::equal_approx;
+    use crate::{step::Step, util::equal_approx};
 
     use super::*;
 
@@ -243,5 +258,38 @@ mod tests {
         let expected_weights = DenseMatrix::new(2, 2, &[0.99, 1.99, 2.99, 3.99]);
 
         assert!(equal_approx(&weights, &expected_weights, 1e-3));
+    }
+
+    #[test]
+    fn test_momentum_builder() {
+        let optimizer = Momentum::new().learning_rate(0.01).momentum(0.9).build().unwrap();
+        assert_eq!(optimizer.learning_rate(), 0.01);
+    }
+
+    #[test]
+    fn test_momentum_builder_invalid_learning_rate() {
+        let result = Momentum::new().learning_rate(-0.01).build();
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert_eq!(
+                e.to_string(),
+                "Configuration error: Learning rate for Momentum must be greater than 0.0, but was -0.01"
+            );
+        }
+    }
+
+    #[test]
+    fn test_momentum_builder_invalid_scheduler() {
+        let result = Momentum::new()
+            .momentum(0.5)
+            .scheduler(Step::new().decay_rate(5.0).build())
+            .build();
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert_eq!(
+                e.to_string(),
+                "Configuration error: Decay rate for Step must be in the range (0, 1), but was 5"
+            );
+        }
     }
 }

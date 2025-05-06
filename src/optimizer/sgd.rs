@@ -1,16 +1,16 @@
-use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
+use crate::{common::matrix::DenseMatrix, error::NetworkError, LearningRateScheduler};
 
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
 
-/// Stochastic Gradient Descent (SGD) optimizer is a simple and popular optimization algorithm
-/// that updates model parameters in the direction of the negative gradient of the loss function.
-/// It is widely used due to its simplicity and effectiveness, especially when the dataset is large.
-/// However, it can be slow to converge, especially for complex models or noisy data.
-/// weight = weight - learning_rate * gradient_of_weight
-/// bias = bias - learning_rate * gradient_of_bias
+// Stochastic Gradient Descent (SGD) optimizer is a simple and popular optimization algorithm
+// that updates model parameters in the direction of the negative gradient of the loss function.
+// It is widely used due to its simplicity and effectiveness, especially when the dataset is large.
+// However, it can be slow to converge, especially for complex models or noisy data.
+// weight = weight - learning_rate * gradient_of_weight
+// bias = bias - learning_rate * gradient_of_bias
 #[derive(Serialize, Deserialize, Clone)]
 struct SGDOptimizer {
     config: SGDConfig,
@@ -68,19 +68,25 @@ impl OptimizerConfig for SGDConfig {
     }
 }
 
-/// Builder for SGD optimizer
-/// Stochastic Gradient Descent (SGD) optimizer is a simple and popular optimization algorithm
-/// that updates model parameters in the direction of the negative gradient of the loss function.
+/// SGD is a builder for Stochastic Gradient Descent (SGD) optimizer which is a simple and
+/// popular optimization algorithm that updates model parameters in the direction of the
+/// negative gradient of the loss function.
+///
 /// It is widely used due to its simplicity and effectiveness, especially when the dataset is large.
 /// However, it can be slow to converge, especially for complex models or noisy data.
+///
 /// weight = weight - learning_rate * gradient_of_weight
 /// bias = bias - learning_rate * gradient_of_bias
 pub struct SGD {
     learning_rate: f32,
-    scheduler: Option<Box<dyn LearningRateScheduler>>,
+    scheduler: Option<Result<Box<dyn LearningRateScheduler>, NetworkError>>,
 }
 
 impl SGD {
+    /// Creates a new SGD optimizer builder
+    /// Default values:
+    /// - learning_rate: 0.01
+    /// - scheduler: None
     pub fn new() -> Self {
         Self {
             learning_rate: 0.01,
@@ -92,7 +98,7 @@ impl SGD {
     ///
     /// Controls the step size for parameter updates. Smaller values lead to slower but more stable convergence.
     /// # Parameters
-    /// - `lr`: The learning rate value (e.g., 0.01).
+    /// - `learning_rate`: The learning rate value (e.g., 0.01).
     pub fn learning_rate(mut self, learning_rate: f32) -> Self {
         self.learning_rate = learning_rate;
         self
@@ -103,16 +109,30 @@ impl SGD {
     /// Optionally applies a scheduler to adjust the learning rate during training (e.g., exponential, step).
     /// # Parameters
     /// - `scheduler`: Learning rate scheduler to use.
-    pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
+    pub fn scheduler(mut self, scheduler: Result<Box<dyn LearningRateScheduler>, NetworkError>) -> Self {
         self.scheduler = Some(scheduler);
         self
     }
 
-    pub fn build(self) -> Box<dyn OptimizerConfig> {
-        Box::new(SGDConfig {
+    fn validate(&self) -> Result<(), NetworkError> {
+        if self.learning_rate <= 0.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Learning rate for SGD must be greater than 0.0, but was {}",
+                self.learning_rate
+            )));
+        }
+        if let Some(ref scheduler) = self.scheduler {
+            scheduler.as_ref().map_err(|e| e.clone())?;
+        }
+        Ok(())
+    }
+
+    pub fn build(self) -> Result<Box<dyn OptimizerConfig>, NetworkError> {
+        self.validate()?;
+        Ok(Box::new(SGDConfig {
             learning_rate: self.learning_rate,
-            scheduler: self.scheduler,
-        })
+            scheduler: self.scheduler.map(|s| s.unwrap()),
+        }))
     }
 }
 

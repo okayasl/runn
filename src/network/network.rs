@@ -1,5 +1,6 @@
 use std::{
     error::Error,
+    f32::consts::E,
     sync::{Arc, RwLock},
 };
 
@@ -26,7 +27,7 @@ pub struct NetworkBuilder {
     output_size: usize,
     layer_configs: Vec<Result<Box<dyn LayerConfig>, NetworkError>>,
     loss_function: Result<Box<dyn LossFunction>, NetworkError>,
-    optimizer_config: Option<Box<dyn OptimizerConfig>>,
+    optimizer_config: Result<Box<dyn OptimizerConfig>, NetworkError>,
     regularization: Vec<Box<dyn Regularization>>,
     batch_size: usize,
     batch_group_size: usize,
@@ -53,7 +54,7 @@ impl NetworkBuilder {
             output_size,
             layer_configs: Vec::new(),
             loss_function: Err(NetworkError::ConfigError("Loss function for NetworkBuilder is not set".to_string())),
-            optimizer_config: None,
+            optimizer_config: Err(NetworkError::ConfigError("Optimizer for NetworkBuilder is not set".to_string())),
             regularization: Vec::new(),
             batch_size: usize::MAX,
             batch_group_size: 1,
@@ -105,8 +106,8 @@ impl NetworkBuilder {
     /// The optimizer defines how weights are updated during backpropagation. It must be set before building the network.
     /// # Parameters
     /// - `optimizer_config`: Optimizer configuration (e.g., SGD, Adam).
-    pub fn optimizer(mut self, optimizer_config: impl OptimizerConfig + 'static) -> Self {
-        self.optimizer_config = Some(Box::new(optimizer_config));
+    pub fn optimizer(mut self, optimizer_config: Result<Box<dyn OptimizerConfig>, NetworkError>) -> Self {
+        self.optimizer_config = optimizer_config;
         self
     }
 
@@ -222,7 +223,7 @@ impl NetworkBuilder {
     }
 
     pub(crate) fn update_learning_rate(mut self, learning_rate: f32) -> Self {
-        if let Some(optimizer_config) = &mut self.optimizer_config {
+        if let Ok(optimizer_config) = &mut self.optimizer_config {
             optimizer_config.update_learning_rate(learning_rate);
         }
         self
@@ -230,7 +231,7 @@ impl NetworkBuilder {
 
     pub(crate) fn from_network(mut self, nw: &Network) -> Self {
         self.loss_function = Ok(nw.loss_function.clone_box());
-        self.optimizer_config = Some(nw.optimizer_config.clone());
+        self.optimizer_config = Ok(nw.optimizer_config.clone());
         self.batch_size = nw.batch_size;
         self.batch_group_size = nw.batch_group_size;
         self.parallelize = nw.parallelize;
@@ -259,8 +260,8 @@ impl NetworkBuilder {
         if let Some(err) = self.loss_function.as_ref().err() {
             return Err(err.clone());
         }
-        if self.optimizer_config.is_none() {
-            return Err(NetworkError::ConfigError("Optimizer is not set".to_string()));
+        if let Some(err) = self.optimizer_config.as_ref().err() {
+            return Err(err.clone());
         }
         if self.epochs == 0 {
             return Err(NetworkError::ConfigError("Epochs must be greater than zero".to_string()));

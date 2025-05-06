@@ -1,12 +1,14 @@
 use serde::{Deserialize, Serialize};
 
+use crate::{error::NetworkError, network::network::Network};
+
 use super::{LearningRateScheduler, LearningRateSchedulerClone};
 
-/// ExponentialLRScheduler implements an exponential decay learning rate scheduler which continuously
-/// decreases the learning rate after each epoch. This scheduler is useful for smoothing the training process
-/// by gradually decreasing the step size of updates to the model's parameters,
-/// allowing for more precise convergence as training progresses. The rate of decay per epoch is
-/// controlled by `decay_rate` raised to the power of the product of the epoch number and `decay_factor`.
+// ExponentialLRScheduler implements an exponential decay learning rate scheduler which continuously
+// decreases the learning rate after each epoch. This scheduler is useful for smoothing the training process
+// by gradually decreasing the step size of updates to the model's parameters,
+// allowing for more precise convergence as training progresses. The rate of decay per epoch is
+// controlled by `decay_rate` raised to the power of the product of the epoch number and `decay_factor`.
 #[derive(Serialize, Deserialize, Clone)]
 struct ExponentialLRScheduler {
     initial_lr: f32,   // Initial learning rate
@@ -15,7 +17,7 @@ struct ExponentialLRScheduler {
 }
 
 impl ExponentialLRScheduler {
-    /// Creates a new `ExponentialLRScheduler` with the given initial learning rate, decay rate, and decay factor.
+    // Creates a new `ExponentialLRScheduler` with the given initial learning rate, decay rate, and decay factor.
     pub fn new(initial_lr: f32, decay_rate: f32, decay_factor: f32) -> Self {
         Self {
             initial_lr,
@@ -27,9 +29,9 @@ impl ExponentialLRScheduler {
 
 #[typetag::serde]
 impl LearningRateScheduler for ExponentialLRScheduler {
-    /// Computes the new learning rate by applying exponential decay based on the epoch number.
-    /// The decay factor controls how quickly the learning rate decreases;
-    /// a smaller decay factor results in slower decay.
+    // Computes the new learning rate by applying exponential decay based on the epoch number.
+    // The decay factor controls how quickly the learning rate decreases;
+    // a smaller decay factor results in slower decay.
     fn schedule(&self, epoch: usize, _current_learning_rate: f32) -> f32 {
         self.initial_lr * self.decay_rate.powf(epoch as f32 * self.decay_factor)
     }
@@ -41,8 +43,9 @@ impl LearningRateSchedulerClone for ExponentialLRScheduler {
     }
 }
 
-/// Builder for `ExponentialLRScheduler` to allow for more flexible and readable construction.
-/// ExponentialLRScheduler implements an exponential decay learning rate scheduler which continuously
+/// Exponential is a builder for Exponential Learning rate scheduler which allows for more flexible and readable construction.
+///
+/// It implements an exponential decay learning rate scheduler which continuously
 /// decreases the learning rate after each epoch. This scheduler is useful for smoothing the training process
 /// by gradually decreasing the step size of updates to the model's parameters,
 /// allowing for more precise convergence as training progresses. The rate of decay per epoch is
@@ -55,6 +58,7 @@ pub struct Exponential {
 
 impl Exponential {
     /// Creates a new `ExponentialLRSchedulerBuilder`.
+    /// The default initial learning rate is 0.01, decay rate is 0.95, and decay factor is 0.1.
     pub fn new() -> Self {
         Self {
             initial_lr: 0.01,
@@ -64,26 +68,59 @@ impl Exponential {
     }
 
     /// Sets the initial learning rate.
+    /// This is the starting learning rate before any decay is applied.
+    /// # Parameters
+    /// - `initial_lr`: The initial learning rate.
     pub fn initial_lr(mut self, initial_lr: f32) -> Self {
         self.initial_lr = initial_lr;
         self
     }
 
     /// Sets the decay rate.
+    /// This is the base for the exponential decay.
+    /// # Parameters
+    /// - `decay_rate`: The decay rate.
     pub fn decay_rate(mut self, decay_rate: f32) -> Self {
         self.decay_rate = decay_rate;
         self
     }
 
     /// Sets the decay factor.
+    /// This controls how quickly the learning rate decreases.
+    /// A smaller decay factor results in slower decay.
+    /// # Parameters
+    /// - `decay_factor`: The decay factor.
     pub fn decay_factor(mut self, decay_factor: f32) -> Self {
         self.decay_factor = decay_factor;
         self
     }
 
+    fn validate(&self) -> Result<(), NetworkError> {
+        if self.initial_lr <= 0.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Initial learning rate for Exponential must be greater than 0.0, but was {}",
+                self.initial_lr
+            )));
+        }
+        if self.decay_rate <= 0.0 || self.decay_rate >= 1.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Decay rate for Exponential must be in the range (0, 1), but was {}",
+                self.decay_rate
+            )));
+        }
+        if self.decay_factor <= 0.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Decay factor for Exponential  must be greater than 0.0, but was {}",
+                self.decay_factor
+            )));
+        }
+        Ok(())
+    }
+
     /// Builds the `ExponentialLRScheduler` if all required fields are set.
-    pub fn build(self) -> Box<dyn LearningRateScheduler> {
-        Box::new(ExponentialLRScheduler::new(self.initial_lr, self.decay_rate, self.decay_factor))
+    pub fn build(self) -> Result<Box<dyn LearningRateScheduler>, NetworkError> {
+        self.validate()?;
+        Ok(Box::new(ExponentialLRScheduler::new(self.initial_lr, self.decay_rate, self.decay_factor)))
     }
 }
 

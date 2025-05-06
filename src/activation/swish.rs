@@ -32,14 +32,15 @@ impl Swish {
     /// Creates a new Swish activation function builder with default parameters.
     /// The default beta value is typically set to 1.0.
     /// You can set a different beta value using the `beta` method.
-    /// /// Swish weight initialization factor is set to He initialization.
+    /// Swish weight initialization factor is set to He initialization.
     pub fn new() -> Self {
         Swish { beta: 1.0 } // Default beta = 1.0
     }
 
     /// Sets the beta parameter for the Swish activation function.
     /// Beta controls the steepness of the curve.
-    /// It should be a positive value.
+    /// #Parameters
+    /// - `beta`: positive value.
     pub fn beta(mut self, beta: f32) -> Self {
         self.beta = beta;
         self

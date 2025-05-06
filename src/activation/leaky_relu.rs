@@ -39,7 +39,8 @@ impl LeakyReLU {
 
     /// Sets the alpha parameter for the LeakyReLU activation function.
     /// Alpha controls the slope of the function for negative values.
-    /// It should be a positive value.
+    /// # Parameters
+    /// - `alpha`: positive value.
     pub fn alpha(mut self, alpha: f32) -> Self {
         self.alpha = alpha;
         self

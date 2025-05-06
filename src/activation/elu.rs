@@ -44,7 +44,8 @@ impl ELU {
 
     /// Sets the alpha parameter for the ELU activation function.
     /// Alpha controls the steepness of the curve for negative values.
-    /// It should be a positive value.
+    /// # Parameters
+    /// - `alpha`: positive value.
     pub fn alpha(mut self, alpha: f32) -> Self {
         self.alpha = alpha;
         self

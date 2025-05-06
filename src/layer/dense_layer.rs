@@ -252,7 +252,8 @@ mod tests {
             .beta1(0.9)
             .beta2(0.999)
             .epsilon(1e-8)
-            .build();
+            .build()
+            .unwrap();
 
         let layer =
             DenseLayer::new("layer".to_owned(), 3, 2, activation, optimizer_config.create_optimizer(), &randomizer);
@@ -275,7 +276,8 @@ mod tests {
             .beta1(0.9)
             .beta2(0.999)
             .epsilon(1e-8)
-            .build();
+            .build()
+            .unwrap();
 
         let layer =
             DenseLayer::new("layer".to_owned(), 3, 2, activation, optimizer_config.create_optimizer(), &randomizer);
@@ -303,7 +305,8 @@ mod tests {
             .beta1(0.9)
             .beta2(0.999)
             .epsilon(1e-8)
-            .build();
+            .build()
+            .unwrap();
 
         let mut layer =
             DenseLayer::new("layer".to_owned(), 3, 2, activation, optimizer_config.create_optimizer(), &randomizer);

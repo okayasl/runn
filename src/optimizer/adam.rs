@@ -1,22 +1,22 @@
-use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
+use crate::{common::matrix::DenseMatrix, error::NetworkError, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
 
-/// Adam(Adaptive Moment Estimation) is an optimization algorithm that
-/// adapts learning rates for each parameter based on the magnitude of the gradient.
-/// moment1 (often referred to as m or v_t in literature) acts as the Momentum,
-/// capturing the direction of the gradients over time and
-/// accelerating the optimization in the direction of the combined historical gradients.
-/// moment2 (typically denoted as v or s_t) represents the RMS component,
-/// tracking the magnitude (or scale) of the gradients,
-/// allowing for an adaptive learning rate that scales according to the recent gradient history,
-/// helping in managing oscillations and stabilizing learning.
-/// momentum = beta1 * momentum + (1 - beta1) * gradient
-/// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
-/// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
-/// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
+// Adam(Adaptive Moment Estimation) is an optimization algorithm that
+// adapts learning rates for each parameter based on the magnitude of the gradient.
+// moment1 (often referred to as m or v_t in literature) acts as the Momentum,
+// capturing the direction of the gradients over time and
+// accelerating the optimization in the direction of the combined historical gradients.
+// moment2 (typically denoted as v or s_t) represents the RMS component,
+// tracking the magnitude (or scale) of the gradients,
+// allowing for an adaptive learning rate that scales according to the recent gradient history,
+// helping in managing oscillations and stabilizing learning.
+// momentum = beta1 * momentum + (1 - beta1) * gradient
+// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
+// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
+// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
 #[derive(Serialize, Deserialize, Clone)]
 struct AdamOptimizer {
     config: AdamConfig,
@@ -63,19 +63,19 @@ impl AdamOptimizer {
         });
     }
 
-    /// Updates the parameters (weights and biases) using the Adam optimization algorithm.
-    ///
-    /// This function applies the Adam update rule to the provided weights and biases matrices.
-    /// It uses the pre-computed first and second moment estimates (m_hat and v_hat) to adjust
-    /// the parameters, ensuring a more adaptive learning rate for each parameter. The update
-    /// is performed in place, modifying the original matrices. The step size is a scaling
-    /// factor that influences the magnitude of the update.
-    ///
-    /// # Arguments
-    ///
-    /// * `weights` - A mutable reference to a DenseMatrix representing the weights to be updated.
-    /// * `biases` - A mutable reference to a DenseMatrix representing the biases to be updated.
-    /// * `step_size` - A floating-point value that represents the step size for scaling the update.
+    // Updates the parameters (weights and biases) using the Adam optimization algorithm.
+    //
+    // This function applies the Adam update rule to the provided weights and biases matrices.
+    // It uses the pre-computed first and second moment estimates (m_hat and v_hat) to adjust
+    // the parameters, ensuring a more adaptive learning rate for each parameter. The update
+    // is performed in place, modifying the original matrices. The step size is a scaling
+    // factor that influences the magnitude of the update.
+    //
+    // # Arguments
+    //
+    // * `weights` - A mutable reference to a DenseMatrix representing the weights to be updated.
+    // * `biases` - A mutable reference to a DenseMatrix representing the biases to be updated.
+    // * `step_size` - A floating-point value that represents the step size for scaling the update.
     fn update_parameters(&self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, step_size: f32) {
         weights.apply_with_indices(|i, j, v| {
             let m_hat = self.moment1_weights.at(i, j) / self.m_hat_factor;
@@ -144,16 +144,18 @@ impl OptimizerConfig for AdamConfig {
     }
 }
 
-/// Builder for Adam optimizer
-/// Adam(Adaptive Moment Estimation) is an optimization algorithm that
+/// Adam is a builder for Adam(Adaptive Moment Estimation) which is an optimization algorithm that
 /// adapts learning rates for each parameter based on the magnitude of the gradient.
+///
 /// moment1 (often referred to as m or v_t in literature) acts as the Momentum,
 /// capturing the direction of the gradients over time and
 /// accelerating the optimization in the direction of the combined historical gradients.
+///
 /// moment2 (typically denoted as v or s_t) represents the RMS component,
 /// tracking the magnitude (or scale) of the gradients,
 /// allowing for an adaptive learning rate that scales according to the recent gradient history,
 /// helping in managing oscillations and stabilizing learning.
+///
 /// momentum = beta1 * momentum + (1 - beta1) * gradient
 /// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
 /// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
@@ -163,16 +165,23 @@ pub struct Adam {
     beta1: f32,
     beta2: f32,
     epsilon: f32,
-    scheduler: Option<Box<dyn LearningRateScheduler>>,
+    scheduler: Option<Result<Box<dyn LearningRateScheduler>, NetworkError>>,
 }
 
 impl Adam {
+    /// Creates a new builder for Adam(Adaptive Moment Estimation) optimizer.
+    /// Default values:
+    /// - learning_rate: 0.01
+    /// - beta1: 0.9
+    /// - beta2: 0.999
+    /// - epsilon: f32::EPSILON
+    /// - scheduler: None
     pub fn new() -> Adam {
         Adam {
             learning_rate: 0.01,
             beta1: 0.9,
             beta2: 0.999,
-            epsilon: 1e-8,
+            epsilon: f32::EPSILON,
             scheduler: None,
         }
     }
@@ -181,9 +190,9 @@ impl Adam {
 impl Adam {
     /// Set the learning rate.
     ///
-    /// Controls the step size for parameter updates. Smaller values lead to slower but more stable convergence.
+    /// The learning rate controls the step size at each iteration while moving toward a minimum of the loss function.
     /// # Parameters
-    /// - `learning_rate`: The learning rate value (e.g., 0.001).
+    /// - `learning_rate`: Learning rate, typically a small positive value (e.g., 0.001).
     pub fn learning_rate(mut self, learning_rate: f32) -> Self {
         self.learning_rate = learning_rate;
         self
@@ -224,19 +233,51 @@ impl Adam {
     /// Optionally applies a scheduler to adjust the learning rate during training (e.g., exponential, step).
     /// # Parameters
     /// - `scheduler`: Learning rate scheduler to use.
-    pub fn scheduler(mut self, scheduler: impl LearningRateScheduler + 'static) -> Self {
-        self.scheduler = Some(Box::new(scheduler));
+    pub fn scheduler(mut self, scheduler: Result<Box<dyn LearningRateScheduler>, NetworkError>) -> Self {
+        self.scheduler = Some(scheduler);
         self
     }
 
-    pub fn build(self) -> Box<dyn OptimizerConfig> {
-        Box::new(AdamConfig {
+    fn validate(&self) -> Result<(), NetworkError> {
+        if self.learning_rate <= 0.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Learning rate for Adam must be greater than 0.0, but was {}",
+                self.learning_rate
+            )));
+        }
+        if self.beta1 <= 0.0 || self.beta1 >= 1.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Beta1 for Adam must be in the range (0, 1), but was {}",
+                self.beta1
+            )));
+        }
+        if self.beta2 <= 0.0 || self.beta2 >= 1.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Beta2 for Adam must be in the range (0, 1), but was {}",
+                self.beta2
+            )));
+        }
+        if self.epsilon <= 0.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Epsilon for Adam must be greater than 0.0, but was {}",
+                self.epsilon
+            )));
+        }
+        if let Some(ref scheduler) = self.scheduler {
+            scheduler.as_ref().map_err(|e| e.clone())?;
+        }
+        Ok(())
+    }
+
+    pub fn build(self) -> Result<Box<dyn OptimizerConfig>, NetworkError> {
+        self.validate()?;
+        Ok(Box::new(AdamConfig {
             learning_rate: self.learning_rate,
             beta1: self.beta1,
             beta2: self.beta2,
             epsilon: self.epsilon,
-            scheduler: self.scheduler,
-        })
+            scheduler: self.scheduler.map(|s| s.unwrap()),
+        }))
     }
 }
 
@@ -398,7 +439,8 @@ mod tests {
             .beta1(0.9)
             .beta2(0.999)
             .epsilon(1e-8)
-            .build();
+            .build()
+            .unwrap();
         let cloned_config = adam_config.clone();
         assert_eq!(adam_config.learning_rate(), cloned_config.learning_rate());
     }

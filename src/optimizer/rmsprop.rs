@@ -1,5 +1,5 @@
 use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
-use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
+use crate::{common::matrix::DenseMatrix, error::NetworkError, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
@@ -99,15 +99,21 @@ pub struct RMSProp {
     learning_rate: f32,
     decay_rate: f32,
     epsilon: f32,
-    scheduler: Option<Box<dyn LearningRateScheduler>>,
+    scheduler: Option<Result<Box<dyn LearningRateScheduler>, NetworkError>>,
 }
 
 impl RMSProp {
+    /// Creates a new builder for RMSProp optimizer
+    /// Default values:
+    /// - learning_rate: 0.001
+    /// - decay_rate: 0.9
+    /// - epsilon: f32::EPSILON
+    /// - scheduler: None
     pub fn new() -> Self {
         Self {
             learning_rate: 0.001,
             decay_rate: 0.9,
-            epsilon: 1e-8,
+            epsilon: f32::EPSILON,
             scheduler: None,
         }
     }
@@ -147,31 +153,44 @@ impl RMSProp {
     /// Optionally applies a scheduler to adjust the learning rate during training (e.g., exponential, step).
     /// # Parameters
     /// - `scheduler`: Learning rate scheduler to use.
-    pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
+    pub fn scheduler(mut self, scheduler: Result<Box<dyn LearningRateScheduler>, NetworkError>) -> Self {
         self.scheduler = Some(scheduler);
         self
     }
-    /// Validates the parameters of the optimizer.
-    fn validate(&self) {
+
+    fn validate(&self) -> Result<(), NetworkError> {
         if self.learning_rate <= 0.0 {
-            panic!("Learning rate must be greater than 0.0");
+            return Err(NetworkError::ConfigError(format!(
+                "Learning rate for RMSProp must be greater than 0.0, but was {}",
+                self.learning_rate
+            )));
         }
-        if self.decay_rate <= 0.0 || self.decay_rate >= 1.0 {
-            panic!("Decay rate must be in the range (0.0, 1.0)");
+        if self.decay_rate < 0.0 || self.decay_rate > 1.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Decay rate for RMSProp must be in [0.0, 1.0], but was {}",
+                self.decay_rate
+            )));
         }
         if self.epsilon <= 0.0 {
-            panic!("Epsilon must be greater than 0.0");
+            return Err(NetworkError::ConfigError(format!(
+                "Epsilon for RMSProp must be greater than 0.0, but was {}",
+                self.epsilon
+            )));
         }
+        if let Some(ref scheduler) = self.scheduler {
+            scheduler.as_ref().map_err(|e| e.clone())?;
+        }
+        Ok(())
     }
 
-    pub fn build(self) -> Box<dyn OptimizerConfig> {
-        self.validate();
-        Box::new(RMSPropConfig {
+    pub fn build(self) -> Result<Box<dyn OptimizerConfig>, NetworkError> {
+        self.validate()?;
+        Ok(Box::new(RMSPropConfig {
             learning_rate: self.learning_rate,
             decay_rate: self.decay_rate,
             epsilon: self.epsilon,
-            scheduler: self.scheduler,
-        })
+            scheduler: self.scheduler.map(|s| s.unwrap()),
+        }))
     }
 }
 

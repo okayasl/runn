@@ -1,27 +1,27 @@
-use crate::{common::matrix::DenseMatrix, LearningRateScheduler};
+use crate::{common::matrix::DenseMatrix, error::NetworkError, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
 use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
 
-/// AdamW (Adam with Weight Decay) is an optimization algorithm that extends the Adam optimizer
-/// by incorporating weight decay directly into the parameter update rule. This modification
-/// improves generalization by penalizing large weights, which helps prevent overfitting.
-/// Similar to Adam, AdamW maintains two moments:
-/// - moment1 (m_t): The first moment, which captures the exponentially decaying average of past gradients,
-///   acting as a momentum term to accelerate optimization in the direction of historical gradients.
-/// - moment2 (v_t): The second moment, which tracks the exponentially decaying average of squared gradients,
-///   providing an adaptive learning rate that scales based on the magnitude of recent gradients.
-/// AdamW introduces an additional term:
-/// - weight_decay: A regularization term that penalizes large weights by scaling them down during updates.
-/// This modification ensures that weight decay is applied independently of the adaptive learning rate,
-/// addressing issues with traditional L2 regularization in Adam.
-/// Update rules:
-/// momentum = beta1 * momentum + (1 - beta1) * gradient
-/// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
-/// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
-/// weight = weight - weight_decay * weight /// Weight decay
-/// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
+// AdamW (Adam with Weight Decay) is an optimization algorithm that extends the Adam optimizer
+// by incorporating weight decay directly into the parameter update rule. This modification
+// improves generalization by penalizing large weights, which helps prevent overfitting.
+// Similar to Adam, AdamW maintains two moments:
+// - moment1 (m_t): The first moment, which captures the exponentially decaying average of past gradients,
+//   acting as a momentum term to accelerate optimization in the direction of historical gradients.
+// - moment2 (v_t): The second moment, which tracks the exponentially decaying average of squared gradients,
+//   providing an adaptive learning rate that scales based on the magnitude of recent gradients.
+// AdamW introduces an additional term:
+// - weight_decay: A regularization term that penalizes large weights by scaling them down during updates.
+// This modification ensures that weight decay is applied independently of the adaptive learning rate,
+// addressing issues with traditional L2 regularization in Adam.
+// Update rules:
+// momentum = beta1 * momentum + (1 - beta1) * gradient
+// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
+// weight = weight - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
+// weight = weight - weight_decay * weight /// Weight decay
+// bias = bias - (learning_rate / sqrt(accumulated_gradient + epsilon)) * momentum
 #[derive(Serialize, Deserialize, Clone)]
 struct AdamWOptimizer {
     config: AdamWConfig,
@@ -138,19 +138,22 @@ impl OptimizerConfig for AdamWConfig {
     }
 }
 
-/// Builder for AdamW optimizer
-/// AdamW (Adam with Weight Decay) is an optimization algorithm that extends the Adam optimizer
-/// by incorporating weight decay directly into the parameter update rule. This modification
-/// improves generalization by penalizing large weights, which helps prevent overfitting.
+/// AdamW is a Builder for AAdamW (Adam with Weight Decay) optimizer which  is an optimization algorithm
+/// that extends the Adam optimizer by incorporating weight decay directly into the parameter update rule.
+/// This modification improves generalization by penalizing large weights, which helps prevent overfitting.
+///
 /// Similar to Adam, AdamW maintains two moments:
 /// - moment1 (m_t): The first moment, which captures the exponentially decaying average of past gradients,
 ///   acting as a momentum term to accelerate optimization in the direction of historical gradients.
 /// - moment2 (v_t): The second moment, which tracks the exponentially decaying average of squared gradients,
 ///   providing an adaptive learning rate that scales based on the magnitude of recent gradients.
+///
 /// AdamW introduces an additional term:
 /// - weight_decay: A regularization term that penalizes large weights by scaling them down during updates.
+///
 /// This modification ensures that weight decay is applied independently of the adaptive learning rate,
 /// addressing issues with traditional L2 regularization in Adam.
+///
 /// Update rules:
 /// momentum = beta1 * momentum + (1 - beta1) * gradient
 /// accumulated_gradient = beta2 * accumulated_gradient + (1 - beta2) * gradient ** 2
@@ -163,10 +166,18 @@ pub struct AdamW {
     beta2: f32,
     epsilon: f32,
     weight_decay: f32,
-    scheduler: Option<Box<dyn LearningRateScheduler>>,
+    scheduler: Option<Result<Box<dyn LearningRateScheduler>, NetworkError>>,
 }
 
 impl AdamW {
+    /// Creates a new AdamW optimizer builder with default parameters.
+    /// Default values:
+    /// - learning_rate: 0.01
+    /// - beta1: 0.9
+    /// - beta2: 0.999
+    /// - epsilon: f32::EPSILON
+    /// - weight_decay: 0.01
+    /// - scheduler: None
     pub fn new() -> AdamW {
         AdamW {
             learning_rate: 0.01,
@@ -235,37 +246,59 @@ impl AdamW {
     /// Optionally applies a scheduler to adjust the learning rate during training (e.g., exponential, step).
     /// # Parameters
     /// - `scheduler`: Learning rate scheduler to use.
-    pub fn scheduler(mut self, scheduler: Box<dyn LearningRateScheduler>) -> Self {
+    pub fn scheduler(mut self, scheduler: Result<Box<dyn LearningRateScheduler>, NetworkError>) -> Self {
         self.scheduler = Some(scheduler);
         self
     }
 
-    /// Validate the parameters.
-    fn validate(&self) {
+    fn validate(&self) -> Result<(), NetworkError> {
         if self.learning_rate <= 0.0 {
-            panic!("Learning rate must be greater than 0.0");
+            return Err(NetworkError::ConfigError(format!(
+                "Learning rate for AdamW must be greater than 0.0, but was {}",
+                self.learning_rate
+            )));
         }
         if self.beta1 <= 0.0 || self.beta1 >= 1.0 {
-            panic!("Beta1 must be in the range (0.0, 1.0)");
+            return Err(NetworkError::ConfigError(format!(
+                "Beta1 for AdamW must be in the range (0, 1), but was {}",
+                self.beta1
+            )));
         }
         if self.beta2 <= 0.0 || self.beta2 >= 1.0 {
-            panic!("Beta2 must be in the range (0.0, 1.0)");
+            return Err(NetworkError::ConfigError(format!(
+                "Beta2 for AdamW must be in the range (0, 1), but was {}",
+                self.beta2
+            )));
         }
         if self.epsilon <= 0.0 {
-            panic!("Epsilon must be greater than 0.0");
+            return Err(NetworkError::ConfigError(format!(
+                "Epsilon for AdamW must be greater than 0.0, but was {}",
+                self.epsilon
+            )));
         }
+        if self.weight_decay < 0.0 {
+            return Err(NetworkError::ConfigError(format!(
+                "Weight decay for AdamW must be greater than or equal to 0.0, but was {}",
+                self.weight_decay
+            )));
+        }
+        if let Some(ref scheduler) = self.scheduler {
+            scheduler.as_ref().map_err(|e| e.clone())?;
+        }
+        Ok(())
     }
 
-    pub fn build(self) -> Box<dyn OptimizerConfig> {
-        self.validate();
-        Box::new(AdamWConfig {
+    pub fn build(self) -> Result<Box<dyn OptimizerConfig>, NetworkError> {
+        self.validate()?;
+
+        Ok(Box::new(AdamWConfig {
             learning_rate: self.learning_rate,
             beta1: self.beta1,
             beta2: self.beta2,
             epsilon: self.epsilon,
             weight_decay: self.weight_decay,
-            scheduler: self.scheduler,
-        })
+            scheduler: self.scheduler.map(|s| s.unwrap()),
+        }))
     }
 }
 
