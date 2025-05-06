@@ -98,10 +98,8 @@ impl TensorBoard {
 
     pub fn build(self) -> Result<Box<dyn SummaryWriter>, NetworkError> {
         self.validate()?;
-        Ok(Box::new(TensorBoardSummaryWriter {
-            logdir: self.logdir.unwrap(),
-            inner: None,
-        }))
+        let logdir = self.logdir.clone().unwrap();
+        Ok(Box::new(TensorBoardSummaryWriter::new(&logdir)))
     }
 }
 

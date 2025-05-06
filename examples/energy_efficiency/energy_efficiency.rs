@@ -4,7 +4,7 @@ use log::{error, info};
 use runn::{
     adam::Adam,
     dense_layer::Dense,
-    earlystop::loss::Loss,
+    flexible::{Flexible, MonitorMetric},
     helper,
     linear::Linear,
     matrix::DenseMatrix,
@@ -91,7 +91,14 @@ fn energy_efficiency_network(inp_size: usize, targ_size: usize) -> Network {
         .layer(Dense::new().size(targ_size).activation(Linear::new()).build())
         .optimizer(Adam::new().beta1(0.99).beta2(0.999).learning_rate(0.0030).build())
         .loss_function(MeanSquared::new())
-        .early_stopper(Loss::new().patience(500).min_delta(0.1).smoothing_factor(0.5).build())
+        .early_stopper(
+            Flexible::new()
+                .monitor_metric(MonitorMetric::Loss)
+                .patience(500)
+                .min_delta(0.1)
+                .smoothing_factor(0.5)
+                .build(),
+        )
         .batch_size(7)
         .batch_group_size(2)
         .parallelize(2)

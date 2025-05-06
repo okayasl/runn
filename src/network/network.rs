@@ -4,7 +4,6 @@ use std::{
 };
 
 use log::{error, info};
-use tensorboard_rs::summary;
 
 use crate::{
     dropout::DropoutRegularization,
@@ -34,7 +33,7 @@ pub struct NetworkBuilder {
     epochs: usize,
     clip_threshold: f32,
     seed: u64,
-    early_stopper: Option<Box<dyn EarlyStopper>>,
+    early_stopper: Option<Result<Box<dyn EarlyStopper>, NetworkError>>,
     debug: bool,
     normalize_input: Option<Box<dyn Normalization>>,
     normalize_output: Option<Box<dyn Normalization>>,
@@ -116,8 +115,8 @@ impl NetworkBuilder {
     /// Early stopping halts training when performance stops improving, based on the provided stopper's criteria.
     /// # Parameters
     /// - `early_stopper`: Early stopping strategy (e.g., `Loss`).
-    pub fn early_stopper(mut self, early_stopper: impl EarlyStopper + 'static) -> Self {
-        self.early_stopper = Some(Box::new(early_stopper));
+    pub fn early_stopper(mut self, early_stopper: Result<Box<dyn EarlyStopper>, NetworkError>) -> Self {
+        self.early_stopper = Some(early_stopper);
         self
     }
 
@@ -241,7 +240,7 @@ impl NetworkBuilder {
         self.debug = nw.debug;
 
         if let Some(early_stopper) = &nw.early_stopper {
-            self.early_stopper = Some(early_stopper.clone());
+            self.early_stopper = Some(Ok(early_stopper.as_ref().clone_box()));
         }
 
         if let Some(summary_writer) = &nw.summary_writer {
@@ -329,7 +328,7 @@ impl NetworkBuilder {
             epochs: self.epochs,
             clip_threshold: self.clip_threshold,
             seed: self.seed,
-            early_stopper: self.early_stopper,
+            early_stopper: self.early_stopper.transpose()?,
             debug: self.debug,
             normalize_input: self.normalize_input,
             normalize_output: self.normalize_output,
@@ -410,8 +409,7 @@ impl Network {
                 let epoch_loss = epoch_result.loss;
                 self.log_epoch_training_info(epoch, epoch_loss, &epoch_result.metrics);
                 self.summarize(epoch, epoch_loss, &epoch_result.metrics);
-                // info!("{}",epoch_loss);
-                if self.early_stopped(epoch, epoch_loss) {
+                if self.early_stopped(epoch, epoch_loss, &epoch_result.metrics) {
                     break;
                 }
             }
@@ -723,9 +721,9 @@ impl Network {
         }
     }
 
-    fn early_stopped(&mut self, epoch: usize, val_loss: f32) -> bool {
+    fn early_stopped(&mut self, epoch: usize, val_loss: f32, metric_result: &MetricResult) -> bool {
         if let Some(early_stopper) = &mut self.early_stopper {
-            early_stopper.update(epoch, val_loss);
+            early_stopper.update(epoch, val_loss, metric_result);
             if early_stopper.is_training_stopped() {
                 if !self.search {
                     info!("Network training early stopped: epoch:{}", epoch,);
@@ -902,6 +900,7 @@ mod tests {
         cross_entropy::CrossEntropy,
         dense_layer::Dense,
         dropout::Dropout,
+        flexible::{Flexible, MonitorMetric},
         l1::L1,
         l2::L2,
         matrix::DenseMatrix,
@@ -1030,7 +1029,7 @@ mod tests {
             .optimizer(SGD::new().learning_rate(0.01).build())
             .regularization(Dropout::new().dropout_rate(0.01).seed(42).build())
             .seed(42)
-            .epochs(800)
+            .epochs(300)
             .batch_size(2)
             .build()
             .unwrap();
@@ -1055,6 +1054,52 @@ mod tests {
         assert!(result.is_ok(), "Training should complete without errors");
 
         let loss = result.unwrap().loss;
-        assert!(loss > 0.01, "Network should achieve reasonable loss with dropout regularization.Test loss: {}", loss);
+        assert!(loss < 0.11, "Network should achieve reasonable loss with dropout regularization.Test loss: {}", loss);
+    }
+
+    #[test]
+    fn test_network_training_with_early_stopping() {
+        let mut network = NetworkBuilder::new(4, 3)
+            .layer(Dense::new().size(8).activation(ReLU::new()).build())
+            .layer(Dense::new().size(8).activation(ReLU::new()).build())
+            .layer(Dense::new().size(3).activation(Softmax::new()).build())
+            .loss_function(MeanSquared::new())
+            .optimizer(SGD::new().learning_rate(0.01).build())
+            .regularization(Dropout::new().dropout_rate(0.01).seed(42).build())
+            .seed(42)
+            .epochs(300)
+            .batch_size(2)
+            .early_stopper(
+                Flexible::new()
+                    .patience(20)
+                    .target(0.11)
+                    .monitor_metric(MonitorMetric::Loss)
+                    .min_delta(0.002)
+                    .build(),
+            )
+            .build()
+            .unwrap();
+
+        let input_data = RandomNumbers::new()
+            .lower_limit(0.0)
+            .upper_limit(1.0)
+            .size(100)
+            .seed(42)
+            .floats();
+        let target_data = RandomNumbers::new()
+            .lower_limit(0.0)
+            .upper_limit(1.0)
+            .size(75)
+            .seed(42)
+            .floats();
+
+        let inputs = DenseMatrix::new(25, 4, &input_data);
+        let targets = DenseMatrix::new(25, 3, &target_data);
+
+        let result = network.train(&inputs, &targets);
+        assert!(result.is_ok(), "Training should complete without errors");
+
+        let loss = result.unwrap().loss;
+        assert!(loss < 0.11, "Network should achieve reasonable loss with early stopping.Test loss: {}", loss);
     }
 }

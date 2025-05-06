@@ -1,7 +1,21 @@
 use runn::{
-    adam::Adam, cross_entropy::CrossEntropy, dense_layer::Dense, dropout::Dropout, earlystop::loss::Loss, elu::ELU,
-    exponential::Exponential, l2::L2, matrix::DenseMatrix, min_max::MinMax, network::network::NetworkBuilder,
-    network_search::NetworkSearchBuilder, relu::ReLU, softmax::Softmax, swish::Swish, tensor_board::TensorBoard,
+    adam::Adam,
+    cross_entropy::CrossEntropy,
+    dense_layer::Dense,
+    dropout::Dropout,
+    earlystop::loss::Loss,
+    elu::ELU,
+    exponential::Exponential,
+    flexible::{Flexible, MonitorMetric},
+    l2::L2,
+    matrix::DenseMatrix,
+    min_max::MinMax,
+    network::network::NetworkBuilder,
+    network_search::NetworkSearchBuilder,
+    relu::ReLU,
+    softmax::Softmax,
+    swish::Swish,
+    tensor_board::TensorBoard,
 };
 
 fn main() {
@@ -57,7 +71,8 @@ fn main() {
         )
         .seed(42) // seed for reproducibility
         .early_stopper(
-            Loss::new() // early stopping based on loss
+            Flexible::new()
+                .monitor_metric(MonitorMetric::Loss) // early stopping based on loss
                 .patience(500) // number of epochs with no improvement after which training will be stopped
                 .min_delta(0.1) // minimum change to be considered an improvement
                 .smoothing_factor(0.5) // factor to smooth the loss

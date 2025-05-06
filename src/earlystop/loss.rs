@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::MetricResult;
+
 use super::EarlyStopper;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -33,7 +35,7 @@ impl LossEarlyStopper {
 
 #[typetag::serde]
 impl EarlyStopper for LossEarlyStopper {
-    fn update(&mut self, epoch: usize, loss: f32) {
+    fn update(&mut self, epoch: usize, loss: f32, _metric_result: &MetricResult) {
         if let Some(target) = self.target_loss {
             if loss <= target {
                 self.stop_training = true;
@@ -156,6 +158,8 @@ impl Loss {
 
 #[cfg(test)]
 mod tests {
+    use crate::metric;
+
     use super::*;
 
     #[test]
@@ -164,12 +168,25 @@ mod tests {
 
         let losses = vec![0.5, 0.4, 0.35, 0.36, 0.37, 0.38];
         for (epoch, &val_loss) in losses.iter().enumerate() {
-            early_stopper.update(epoch, val_loss);
+            early_stopper.update(epoch, val_loss, &get_dummy_metric_result());
             if early_stopper.is_training_stopped() {
                 assert_eq!(epoch, 5);
                 break;
             }
         }
+    }
+
+    fn get_dummy_metric_result() -> MetricResult {
+        let dummy_metric = metric::classification::ClassificationMetrics {
+            accuracy: 0.0,
+            micro_precision: 0.0,
+            micro_recall: 0.0,
+            macro_f1_score: 0.0,
+            micro_f1_score: 0.0,
+            metrics_by_class: vec![],
+        };
+        let metric_result = MetricResult::Classification(dummy_metric);
+        metric_result
     }
 
     #[test]
@@ -178,7 +195,7 @@ mod tests {
 
         let val_losses = vec![0.5, 0.4, 0.35, 0.34, 0.33, 0.32];
         for (epoch, &val_loss) in val_losses.iter().enumerate() {
-            early_stopper.update(epoch, val_loss);
+            early_stopper.update(epoch, val_loss, &get_dummy_metric_result());
         }
         assert!(!early_stopper.is_training_stopped());
     }
@@ -190,7 +207,7 @@ mod tests {
         let val_losses = vec![0.5, 0.4, 0.35, 0.36, 0.37, 0.38];
 
         for (epoch, &val_loss) in val_losses.iter().enumerate() {
-            early_stopper.update(epoch, val_loss);
+            early_stopper.update(epoch, val_loss, &get_dummy_metric_result());
 
             if early_stopper.is_training_stopped() {
                 assert_eq!(epoch, 5);
@@ -210,7 +227,7 @@ mod tests {
 
         let val_losses = vec![0.5, 0.4, 0.35, 0.34, 0.33, 0.32];
         for (epoch, &val_loss) in val_losses.iter().enumerate() {
-            early_stopper.update(epoch, val_loss);
+            early_stopper.update(epoch, val_loss, &get_dummy_metric_result());
             if early_stopper.is_training_stopped() {
                 assert_eq!(epoch, 4); // Should stop at 0.33
                 return;
@@ -226,7 +243,7 @@ mod tests {
         let losses = vec![0.5, 0.4, 0.45, 0.46, 0.47]; // Raw loss is going up but slowly
         let mut stopped = false;
         for (epoch, &val_loss) in losses.iter().enumerate() {
-            early_stopper.update(epoch, val_loss);
+            early_stopper.update(epoch, val_loss, &get_dummy_metric_result());
             if early_stopper.is_training_stopped() {
                 assert_eq!(epoch, 3);
                 stopped = true;
@@ -252,8 +269,8 @@ mod tests {
             let mut with_smoothing = Loss::new().patience(2).min_delta(0.01).smoothing_factor(0.6).build();
 
             for (epoch, &loss) in val_losses.iter().enumerate() {
-                no_smoothing.update(epoch, loss);
-                with_smoothing.update(epoch, loss);
+                no_smoothing.update(epoch, loss, &get_dummy_metric_result());
+                with_smoothing.update(epoch, loss, &get_dummy_metric_result());
             }
 
             // EMA-based stopper should have halted
