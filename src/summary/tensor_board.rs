@@ -3,6 +3,8 @@ use std::error::Error;
 use serde::{Deserialize, Serialize};
 use tensorboard_rs::summary_writer::SummaryWriter as InnerWriter;
 
+use crate::error::NetworkError;
+
 use super::{SummaryWriter, SummaryWriterClone};
 
 #[derive(Serialize, Deserialize)]
@@ -63,7 +65,7 @@ impl Clone for TensorBoardSummaryWriter {
     }
 }
 
-/// A builder for configuring a TensorBoard summary writer.
+/// TensorBoard is builder for configuring a TensorBoard summary writer.
 ///
 /// This struct sets up a TensorBoard logger to write training metrics (e.g., scalars, histograms) to a specified log directory for visualization.
 /// Default settings:
@@ -87,8 +89,19 @@ impl TensorBoard {
         self
     }
 
-    pub fn build(self) -> Box<dyn SummaryWriter> {
-        Box::new(TensorBoardSummaryWriter::new(&self.logdir.unwrap()))
+    fn validate(&self) -> Result<(), NetworkError> {
+        if self.logdir.is_none() {
+            return Err(NetworkError::ConfigError("logdir for Tensorboard must be set".to_string()));
+        }
+        Ok(())
+    }
+
+    pub fn build(self) -> Result<Box<dyn SummaryWriter>, NetworkError> {
+        self.validate()?;
+        Ok(Box::new(TensorBoardSummaryWriter {
+            logdir: self.logdir.unwrap(),
+            inner: None,
+        }))
     }
 }
 
@@ -209,5 +222,21 @@ mod tests {
         let bucket_counts = writer.compute_bucket_counts(&values, 0.0, 1.0, 5);
 
         assert_eq!(bucket_counts, vec![1.0, 1.0, 1.0, 1.0, 1.0]);
+    }
+
+    #[test]
+    fn test_tensor_board() {
+        let temp_dir = tempdir().unwrap();
+        let logdir = temp_dir.path().to_str().unwrap();
+        let tensor_board = TensorBoard::new().logdir(logdir);
+        let result = tensor_board.build();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_tensor_board_invalid_logdir() {
+        let tensor_board = TensorBoard::new();
+        let result = tensor_board.build();
+        assert!(result.is_err());
     }
 }

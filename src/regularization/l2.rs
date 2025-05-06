@@ -54,7 +54,7 @@ impl RegularizationClone for L2Regularization {
     }
 }
 
-/// L2 is a Builder for L2 regularization(also known as Ridge regularization) which adds 
+/// L2 is a Builder for L2 regularization(also known as Ridge regularization) which adds
 /// a penalty term to the loss function that is proportional to the square of the weights.
 /// This encourages the weights to be small but non-zero, effectively shrinking the weights
 /// towards zero but not driving them to exactly zero.
@@ -109,7 +109,7 @@ impl L2 {
     }
 
     /// Builds the L2Regularization instance
-    pub fn build(self) -> Result<Box<dyn Regularization>,NetworkError> {
+    pub fn build(self) -> Result<Box<dyn Regularization>, NetworkError> {
         self.validate()?;
         Ok(Box::new(L2Regularization { lambda: self.lambda }))
     }

@@ -1,7 +1,7 @@
 use super::{Regularization, RegularizationClone};
+use crate::common::matrix::DenseMatrix;
 use crate::common::random::Randomizer;
 use crate::error::NetworkError;
-use crate::common::matrix::DenseMatrix;
 
 use serde::{Deserialize, Serialize};
 use typetag;

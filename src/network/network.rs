@@ -4,6 +4,7 @@ use std::{
 };
 
 use log::{error, info};
+use tensorboard_rs::summary;
 
 use crate::{
     dropout::DropoutRegularization,
@@ -37,7 +38,7 @@ pub struct NetworkBuilder {
     debug: bool,
     normalize_input: Option<Box<dyn Normalization>>,
     normalize_output: Option<Box<dyn Normalization>>,
-    summary_writer: Option<Box<dyn SummaryWriter>>,
+    summary_writer: Option<Result<Box<dyn SummaryWriter>, NetworkError>>,
     parallelize: usize,
 }
 
@@ -206,7 +207,7 @@ impl NetworkBuilder {
     /// Writes training statistics (e.g., loss, metrics) to a specified output (e.g., TensorBoard).
     /// # Parameters
     /// - `summary_writer`: Summary writer for logging metrics.
-    pub fn summary(mut self, summary_writer: Box<dyn SummaryWriter>) -> Self {
+    pub fn summary(mut self, summary_writer: Result<Box<dyn SummaryWriter>, NetworkError>) -> Self {
         self.summary_writer = Some(summary_writer);
         self
     }
@@ -244,7 +245,7 @@ impl NetworkBuilder {
         }
 
         if let Some(summary_writer) = &nw.summary_writer {
-            self.summary_writer = Some(summary_writer.clone());
+            self.summary_writer = Some(Ok(summary_writer.as_ref().clone_box()));
         }
 
         self.regularization = nw.regularizations.iter().map(|reg| Ok((**reg).clone_box())).collect();
@@ -261,6 +262,13 @@ impl NetworkBuilder {
         }
         if let Some(err) = self.optimizer_config.as_ref().err() {
             return Err(err.clone());
+        }
+        if self.summary_writer.is_some() {
+            if let Some(summary_writer) = self.summary_writer.as_ref() {
+                if let Err(err) = summary_writer {
+                    return Err(err.clone());
+                }
+            }
         }
         if self.epochs == 0 {
             return Err(NetworkError::ConfigError("Epochs must be greater than zero".to_string()));
@@ -289,7 +297,7 @@ impl NetworkBuilder {
     pub fn build(self) -> Result<Network, NetworkError> {
         self.validate()?;
 
-        let layer_configs: Vec<Box<dyn LayerConfig>> = self.layer_configs.into_iter().collect::<Result<Vec<_>, _>>()?;
+        let layer_configs = self.layer_configs.into_iter().collect::<Result<Vec<_>, _>>()?;
         let regularizations = self.regularization.into_iter().collect::<Result<Vec<_>, _>>()?;
 
         let randomizer = Randomizer::new(Some(self.seed));
@@ -327,7 +335,7 @@ impl NetworkBuilder {
             normalize_output: self.normalize_output,
             randomizer,
             search: false,
-            summary_writer: self.summary_writer,
+            summary_writer: self.summary_writer.transpose()?,
             parallelize: self.parallelize,
             forward_pool: ThreadPool::new(self.parallelize),
             backward_pool: ThreadPool::new(self.parallelize),
