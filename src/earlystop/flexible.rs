@@ -2,7 +2,7 @@ use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use crate::{error::NetworkError, MetricResult};
+use crate::{error::NetworkError, Metrics};
 
 use super::EarlyStopper;
 
@@ -21,11 +21,11 @@ struct FlexibleEarlyStopper {
 }
 
 impl FlexibleEarlyStopper {
-    fn get_current_value(&self, loss: f32, metric_result: &MetricResult) -> Option<f32> {
+    fn get_current_value(&self, loss: f32, metric_result: &Metrics) -> Option<f32> {
         match self.monitor_metric {
             MonitorMetric::Loss => Some(loss), // Loss is always valid
             MonitorMetric::Accuracy => {
-                if let MetricResult::Classification(metrics) = metric_result {
+                if let Metrics::Classification(metrics) = metric_result {
                     Some(metrics.accuracy)
                 } else {
                     warn!("Early stopping is set to monitor accuracy, but the metric result is not classification.");
@@ -33,7 +33,7 @@ impl FlexibleEarlyStopper {
                 }
             }
             MonitorMetric::R2 => {
-                if let MetricResult::Regression(metrics) = metric_result {
+                if let Metrics::Regression(metrics) = metric_result {
                     Some(metrics.r2)
                 } else {
                     warn!("Early stopping is set to monitor R2, but the metric result is not regression.");
@@ -46,7 +46,7 @@ impl FlexibleEarlyStopper {
 
 #[typetag::serde]
 impl EarlyStopper for FlexibleEarlyStopper {
-    fn update(&mut self, epoch: usize, loss: f32, metric_result: &MetricResult) {
+    fn update(&mut self, epoch: usize, loss: f32, metric_result: &Metrics) {
         let raw_value = match self.get_current_value(loss, metric_result) {
             Some(value) => value,
             None => {
@@ -295,7 +295,7 @@ mod tests {
         flexible::{Flexible, MonitorMetric},
         metric,
         regression::RegressionMetrics,
-        MetricResult,
+        Metrics,
     };
 
     #[test]
@@ -370,7 +370,7 @@ mod tests {
 
         let losses = vec![0.5, 0.4, 0.39, 0.39, 0.39, 0.38];
         for (epoch, &loss) in losses.iter().enumerate() {
-            stopper.update(epoch, loss, &MetricResult::Regression(RegressionMetrics { rmse: loss, r2: 0.0 }));
+            stopper.update(epoch, loss, &Metrics::Regression(RegressionMetrics { rmse: loss, r2: 0.0 }));
             if stopper.is_training_stopped() {
                 assert_eq!(epoch, 5); // Training should stop after 4 epochs with no improvement
                 break;
@@ -393,7 +393,7 @@ mod tests {
             stopper.update(
                 epoch,
                 0.0,
-                &MetricResult::Classification(ClassificationMetrics {
+                &Metrics::Classification(ClassificationMetrics {
                     accuracy,
                     micro_precision: 0.0,
                     micro_recall: 0.0,
@@ -421,7 +421,7 @@ mod tests {
 
         let losses = vec![0.5, 0.4, 0.39, 0.39, 0.39, 0.38];
         for (epoch, &loss) in losses.iter().enumerate() {
-            stopper.update(epoch, loss, &MetricResult::Regression(RegressionMetrics { rmse: loss, r2: 0.0 }));
+            stopper.update(epoch, loss, &Metrics::Regression(RegressionMetrics { rmse: loss, r2: 0.0 }));
             if stopper.is_training_stopped() {
                 assert_eq!(epoch, 4); // Training should stop after 3 epochs with no improvement
                 break;
@@ -438,7 +438,7 @@ mod tests {
             .build()
             .unwrap();
 
-        stopper.update(0, 0.0, &MetricResult::Regression(RegressionMetrics { rmse: 0.5, r2: 0.0 }));
+        stopper.update(0, 0.0, &Metrics::Regression(RegressionMetrics { rmse: 0.5, r2: 0.0 }));
         assert!(!stopper.is_training_stopped()); // Should not stop as MetricResult is invalid for Accuracy
     }
 
@@ -461,7 +461,7 @@ mod tests {
         }
     }
 
-    fn get_dummy_metric_result() -> MetricResult {
+    fn get_dummy_metric_result() -> Metrics {
         let dummy_metric = metric::classification::ClassificationMetrics {
             accuracy: 0.0,
             micro_precision: 0.0,
@@ -470,7 +470,7 @@ mod tests {
             micro_f1_score: 0.0,
             metrics_by_class: vec![],
         };
-        let metric_result = MetricResult::Classification(dummy_metric);
+        let metric_result = Metrics::Classification(dummy_metric);
         metric_result
     }
 

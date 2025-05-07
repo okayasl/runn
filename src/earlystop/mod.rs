@@ -2,11 +2,11 @@ pub mod flexible;
 
 use typetag;
 
-use crate::MetricResult;
+use crate::Metrics;
 
 #[typetag::serde]
 pub trait EarlyStopper: EarlyStopperClone + Send + Sync {
-    fn update(&mut self, epoch: usize, val_loss: f32, metric_result: &MetricResult);
+    fn update(&mut self, epoch: usize, val_loss: f32, metric_result: &Metrics);
     fn is_training_stopped(&self) -> bool;
     fn reset(&mut self);
 }

@@ -52,7 +52,7 @@ fn train_and_validate(
         Ok(_) => {
             println!("Training completed successfully");
             network.save(&een_file, runn::network_io::SerializationFormat::Json);
-            let net_results = network.predict(&training_inputs, &training_targets);
+            let net_results = network.predict(&training_inputs, &training_targets).unwrap();
             log::info!(
                 "{}",
                 helper::pretty_compare_matrices(
@@ -70,7 +70,7 @@ fn train_and_validate(
     }
 
     network = Network::load(&een_file, runn::network_io::SerializationFormat::Json);
-    let net_results = network.predict(&validation_inputs, &validation_targets);
+    let net_results = network.predict(&validation_inputs, &validation_targets).unwrap();
     log::info!(
         "{}",
         helper::pretty_compare_matrices(
@@ -166,8 +166,9 @@ fn test_search(training_inputs: &DMat, training_targets: &DMat, validation_input
         }
     };
 
-    let search_res =
-        network_search.search(&training_inputs, &training_targets, &validation_inputs, &validation_targets);
+    let search_res = network_search
+        .search(&training_inputs, &training_targets, &validation_inputs, &validation_targets)
+        .unwrap();
 
     info!("Energy Efficieny network search finished in {} seconds.", start_time.elapsed().as_secs());
     info!("Num Results: {}", search_res.len());

@@ -3,6 +3,8 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 
+use super::error::NetworkError;
+
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
 pub(crate) struct ThreadPool {
@@ -53,7 +55,7 @@ impl ThreadPool {
         }
     }
 
-    pub fn submit<R, F>(&self, job: F) -> Receiver<R>
+    pub fn submit<R, F>(&self, job: F) -> Result<Receiver<R>, NetworkError>
     where
         R: Send + 'static,
         F: FnOnce() -> R + Send + 'static,
@@ -71,25 +73,33 @@ impl ThreadPool {
 
         {
             let (lock, _) = &*self.remaining_jobs;
-            let mut rem = lock.lock().unwrap();
+            let mut rem = lock
+                .lock()
+                .map_err(|_| NetworkError::ThreadPoolError("ThreadPool failed to lock remaining_jobs".to_string()))?;
             *rem += 1;
         }
 
+        // Send the job to the job_sender
         self.job_sender
             .as_ref()
-            .unwrap()
+            .ok_or_else(|| NetworkError::ThreadPoolError("Threadpool job sender is unavailable".to_string()))?
             .send(job_wrapper)
-            .expect("Failed to submit job");
+            .map_err(|_| NetworkError::ThreadPoolError("ThreadPool submit job failed".to_string()))?;
 
-        result_receiver
+        Ok(result_receiver)
     }
 
-    pub fn join(&self) {
+    pub fn join(&self) -> Result<(), NetworkError> {
         let (lock, cvar) = &*self.remaining_jobs;
-        let mut remaining = lock.lock().unwrap();
+        let mut remaining = lock
+            .lock()
+            .map_err(|_| NetworkError::ThreadPoolError("ThreadPool failed to lock remaining_jobs".to_string()))?;
         while *remaining > 0 {
-            remaining = cvar.wait(remaining).unwrap();
+            remaining = cvar.wait(remaining).map_err(|_| {
+                NetworkError::ThreadPoolError("Threadpool failed to wait on condition variable".to_string())
+            })?;
         }
+        Ok(())
     }
 
     /// Returns a Receiver that yields one `()` per completed job
@@ -102,7 +112,9 @@ impl Drop for ThreadPool {
     fn drop(&mut self) {
         drop(self.job_sender.take());
         for worker in self.workers.drain(..) {
-            let _ = worker.join();
+            if let Err(err) = worker.join() {
+                eprintln!("Threadpool failed to join worker thread: {:?}", err);
+            }
         }
     }
 }
@@ -116,8 +128,8 @@ mod tests {
     #[test]
     fn test_basic_execution() {
         let pool = ThreadPool::new(4);
-        let receiver = pool.submit(|| 42);
-        pool.join();
+        let receiver = pool.submit(|| 42).expect("Failed to submit job");
+        pool.join().expect("Failed to join threads");
         let result = receiver.recv().unwrap();
         assert_eq!(result, 42);
     }
@@ -131,9 +143,11 @@ mod tests {
             receivers.push(pool.submit(move || i * 2));
         }
 
-        pool.join();
-        let results: Vec<_> = receivers.into_iter().map(|r| r.recv().unwrap()).collect();
-
+        pool.join().expect("Failed to join threads");
+        let results: Vec<_> = receivers
+            .into_iter()
+            .map(|r| r.expect("Failed to submit job").recv().unwrap())
+            .collect();
         for (i, val) in results.iter().enumerate() {
             assert_eq!(*val, (i as i32) * 2);
         }
@@ -152,11 +166,14 @@ mod tests {
             }));
         }
 
-        pool.join();
+        let _res = pool.join();
         let elapsed = now.elapsed();
 
         assert!(elapsed < Duration::from_millis(800), "Tasks were not parallelized");
-        let sum: i32 = receivers.into_iter().map(|r| r.recv().unwrap()).sum();
+        let sum: i32 = receivers
+            .into_iter()
+            .map(|r| r.expect("Failed to submit job").recv().unwrap())
+            .sum();
         assert_eq!(sum, 4);
     }
 
@@ -168,11 +185,11 @@ mod tests {
         let r2 = pool.submit(|| String::from("hello").to_uppercase());
         let r3 = pool.submit(|| vec![1, 2, 3].into_iter().sum::<i32>());
 
-        pool.join();
+        pool.join().expect("Failed to join threads");
 
-        assert_eq!(r1.recv().unwrap(), 100);
-        assert_eq!(r2.recv().unwrap(), "HELLO");
-        assert_eq!(r3.recv().unwrap(), 6);
+        assert_eq!(r1.expect("Failed to submit job").recv().unwrap(), 100);
+        assert_eq!(r2.expect("Failed to submit job").recv().unwrap(), "HELLO");
+        assert_eq!(r3.expect("Failed to submit job").recv().unwrap(), 6);
     }
 
     #[test]
@@ -186,7 +203,7 @@ mod tests {
             let results = Arc::clone(&results);
             let handle = thread::spawn(move || {
                 let recv = pool.submit(move || i * i);
-                let res = recv.recv().unwrap();
+                let res = recv.expect("Failed to submit job").recv().unwrap();
                 results.lock().unwrap().push(res);
             });
             handles.push(handle);
@@ -196,7 +213,7 @@ mod tests {
             h.join().unwrap();
         }
 
-        pool.join();
+        let _res = pool.join();
 
         let results = results.lock().unwrap();
         assert_eq!(results.len(), 10);

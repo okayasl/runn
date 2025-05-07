@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{matrix::DMat, util};
 
-use super::{MetricEvaluator, MetricResult};
+use super::{MetricEvaluator, Metrics};
 
 pub struct ClassificationMetrics {
     pub accuracy: f32,
@@ -57,9 +57,9 @@ impl ClassificationMetrics {
 pub(crate) struct ClassificationEvaluator;
 
 impl MetricEvaluator for ClassificationEvaluator {
-    fn evaluate(&self, targets: &DMat, predictions: &DMat) -> MetricResult {
+    fn evaluate(&self, targets: &DMat, predictions: &DMat) -> Metrics {
         let classification_metrics = calculate_classification_metrics(targets, predictions);
-        MetricResult::Classification(classification_metrics)
+        Metrics::Classification(classification_metrics)
     }
 }
 

@@ -1,7 +1,6 @@
 use std::{
     collections::BTreeMap,
     fs::{self, File},
-    io,
     sync::Arc,
     time::Instant,
 };
@@ -11,7 +10,7 @@ use log::info;
 use rand::{seq::SliceRandom, thread_rng};
 
 use crate::{
-    dense_layer::Dense, error::NetworkError, matrix::DMat, parallel::ThreadPool, ActivationFunction, MetricResult,
+    dense_layer::Dense, error::NetworkError, matrix::DMat, parallel::ThreadPool, ActivationFunction, Metrics,
     Normalization,
 };
 
@@ -162,6 +161,19 @@ impl NetworkSearchBuilder {
                 "Mismatch between activation functions and hidden layer sizes".into(),
             ));
         }
+        if self.batch_sizes.iter().any(|&bs| bs == 0) {
+            return Err(NetworkError::ConfigError("Batch size must be greater than 0".into()));
+        }
+        if self
+            .hidden_layer_sizes
+            .iter()
+            .any(|sizes| sizes.iter().any(|&size| size == 0))
+        {
+            return Err(NetworkError::ConfigError("Dense layer size must be greater than 0".into()));
+        }
+        if self.learning_rates.iter().any(|&lr| lr <= 0.0) {
+            return Err(NetworkError::ConfigError("Learning rate must be greater than 0".into()));
+        }
         Ok(())
     }
 
@@ -169,22 +181,12 @@ impl NetworkSearchBuilder {
     ///
     /// Validates the configuration and creates a `NetworkSearch` instance that will evaluate all specified hyperparameter combinations.
     fn generate_network_combinations(&self) -> Result<Vec<Network>, NetworkError> {
-        // let mut activation_functions: Vec<Box<dyn ActivationFunction>> = Vec::new();
-        // for activation_function in &self.activation_functions {
-        //     match activation_function {
-        //         Ok(activation_function) => activation_functions.push(activation_function.clone_box()),
-        //         Err(e) => return Err(e.clone()),
-        //     }
-        // }
-
         let activation_functions: Vec<Box<dyn ActivationFunction>> = self
             .activation_functions
             .iter()
             .map(|af| af.as_ref().map(|f| f.clone_box()))
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.clone())?; // Convert &NetworkError to NetworkError
-
-        // let activation_functions: Vec<Box<dyn ActivationFunction>> = self.activation_functions.into_iter().collect::<Result<Vec<_>, _>>()?; // Fix: Use into_iter() instead of iter()
 
         let mut networks = Vec::new();
         let nw = self.network.as_ref().unwrap();
@@ -208,7 +210,7 @@ impl NetworkSearchBuilder {
                     .from(output_layer_size, output_layer.activation_function().clone_box())
                     .build(),
             );
-            let mut network = new_nwb.build().unwrap();
+            let mut network = new_nwb.build()?;
             network.search = true;
             networks.push(network);
         }
@@ -250,7 +252,7 @@ fn generate_layer_size_combinations(layer_sizes: &Vec<Vec<usize>>) -> Vec<Vec<us
 
 /// Each combination of (hidden_layers, batch_size, learning_rate)
 /// is grouped and interleaved based on a simple cost metric.
-pub fn balance_network_configs(
+fn balance_network_configs(
     hidden_layer_groups: &[Vec<usize>], batch_sizes: &[usize], learning_rates: &[f32],
 ) -> Vec<(Vec<usize>, usize, f32)> {
     let mut rng = thread_rng();
@@ -290,13 +292,13 @@ pub fn balance_network_configs(
     balanced
 }
 
-pub struct NetworkSearchConfig {
+pub struct NetworkConfig {
     learning_rate: f32,
     batch_size: usize,
     layer_sizes: Vec<usize>,
 }
 
-fn extract_config_from_network(nw: &Network) -> NetworkSearchConfig {
+fn extract_config_from_network(nw: &Network) -> NetworkConfig {
     let learning_rate = nw.optimizer_config.learning_rate();
     let batch_size = nw.batch_size;
     let mut layer_sizes = Vec::new();
@@ -306,7 +308,7 @@ fn extract_config_from_network(nw: &Network) -> NetworkSearchConfig {
         layer_sizes.push(output_size);
     }
 
-    NetworkSearchConfig {
+    NetworkConfig {
         learning_rate,
         batch_size,
         layer_sizes,
@@ -322,9 +324,43 @@ pub struct NetworkSearch {
 }
 
 impl NetworkSearch {
+    fn validate(
+        &self, training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat, validation_targets: &DMat,
+    ) -> Result<(), NetworkError> {
+        if training_inputs.rows() != training_targets.rows() {
+            return Err(NetworkError::ConfigError(format!(
+                "Training inputs and targets must have the same number of rows, but was {} and {}",
+                training_inputs.rows(),
+                training_targets.rows()
+            )));
+        }
+        if validation_inputs.rows() != validation_targets.rows() {
+            return Err(NetworkError::ConfigError(format!(
+                "Validation inputs and targets must have the same number of rows, but was {} and {}",
+                validation_inputs.rows(),
+                validation_targets.rows()
+            )));
+        }
+        if let Some(last_layer) = self.networks[0].layers.last() {
+            let last_layer = last_layer.read().unwrap();
+            let (_, outs) = last_layer.input_output_size();
+            if outs != training_targets.cols() {
+                return Err(NetworkError::ConfigError(format!(
+                    "Output size of the last layer must match the number of target columns, but was {} and {}",
+                    outs,
+                    training_targets.cols()
+                )));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Perform the hyperparameter search.
     pub fn search(
         &mut self, training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat, validation_targets: &DMat,
-    ) -> Vec<SearchResult> {
+    ) -> Result<Vec<SearchResult>, NetworkError> {
+        self.validate(training_inputs, training_targets, validation_inputs, validation_targets)?;
         let (training_inputs, training_targets) = self.prepare_data(training_inputs, training_targets);
         let (validation_inputs, validation_targets) = self.prepare_data(validation_inputs, validation_targets);
 
@@ -344,20 +380,42 @@ impl NetworkSearch {
             let validation_inputs = Arc::clone(&validation_inputs);
             let validation_targets = Arc::clone(&validation_targets);
 
-            receivers.push(pool.submit(move || {
-                run(network, &training_inputs, &training_targets, &validation_inputs, &validation_targets)
-            }));
+            // Handle errors from ThreadPool::submit
+            let receiver = pool
+                .submit(move || {
+                    run(network, &training_inputs, &training_targets, &validation_inputs, &validation_targets)
+                })
+                .map_err(|e| NetworkError::SearchError(format!("Failed to submit search job: {}", e)))?;
+            receivers.push(receiver);
         }
+
         let tracker = track_progress(number_of_networks, pool.progress());
 
-        pool.join();
-        tracker.join().unwrap();
-        let search_results: Vec<_> = receivers.into_iter().map(|r| r.recv().unwrap()).collect();
-        if !search_results.is_empty() && !self.filename.is_empty() {
-            write_search_results(&self.filename, &search_results).unwrap();
-        }
+        // Handle errors from ThreadPool::join
+        pool.join()
+            .map_err(|e| NetworkError::SearchError(format!("Failed to join search threads: {}", e)))?;
 
-        search_results
+        tracker
+            .join()
+            .map_err(|e| NetworkError::SearchError(format!("Failed to track progress during search: {:?}", e)))?;
+
+        // Handle errors from Receiver::recv
+        let search_results: Result<Vec<_>, _> = receivers
+            .into_iter()
+            .map(|receiver| {
+                receiver
+                    .recv()
+                    .map_err(|e| NetworkError::SearchError(format!("Failed to receive search result: {}", e)))
+            })
+            .collect();
+
+        let search_results = search_results?;
+
+        if !search_results.is_empty() && !self.filename.is_empty() {
+            write_search_results(&self.filename, &search_results)
+                .map_err(|e| NetworkError::SearchError(format!("Failed to write search results: {}", e)))?;
+        }
+        Ok(search_results)
     }
 
     fn prepare_data(&mut self, inputs: &DMat, targets: &DMat) -> (DMat, DMat) {
@@ -461,12 +519,12 @@ fn run(
 }
 
 pub struct SearchResult {
-    elapsed_time: f32,
-    config: NetworkSearchConfig,
-    training_metrics: MetricResult,
-    validation_metrics: MetricResult,
-    t_loss: f32,
-    v_loss: f32,
+    pub elapsed_time: f32,
+    pub config: NetworkConfig,
+    pub training_metrics: Metrics,
+    pub validation_metrics: Metrics,
+    pub t_loss: f32,
+    pub v_loss: f32,
 }
 
 impl SearchResult {
@@ -513,21 +571,32 @@ impl SearchResult {
     }
 }
 
-pub fn write_search_results(name: &str, results: &[SearchResult]) -> io::Result<()> {
+pub fn write_search_results(name: &str, results: &[SearchResult]) -> Result<(), NetworkError> {
     if !std::path::Path::new(".out").exists() {
-        fs::create_dir(".out")?;
+        fs::create_dir(".out")
+            .map_err(|e| NetworkError::IoError(format!("Failed to create output directory: {}", e)))?;
     }
+
     let file_path = format!(".out/{}-result.csv", name);
-    let file = File::create(file_path)?;
+    let file = File::create(&file_path)
+        .map_err(|e| NetworkError::IoError(format!("Failed to create file '{}': {}", file_path, e)))?;
+
     let mut writer = Writer::from_writer(file);
 
-    writer.write_record(results[0].default_headers())?;
+    writer
+        .write_record(results[0].default_headers())
+        .map_err(|e| NetworkError::IoError(format!("Failed to write headers to '{}': {}", file_path, e)))?;
 
     for result in results {
-        writer.write_record(result.values())?;
+        writer
+            .write_record(result.values())
+            .map_err(|e| NetworkError::IoError(format!("Failed to write result to '{}': {}", file_path, e)))?;
     }
 
-    writer.flush()?;
+    writer
+        .flush()
+        .map_err(|e| NetworkError::IoError(format!("Failed to flush writer for '{}': {}", file_path, e)))?;
+
     Ok(())
 }
 
@@ -628,6 +697,115 @@ mod tests {
         assert!(search.is_err());
         if let Err(e) = search {
             assert_eq!(e.to_string(), "Configuration error: Alpha for ELU must be greater than 0.0, but was -1");
+        }
+    }
+
+    #[test]
+    fn validate_network_search_with_invalid_hidden_layer_size() {
+        let network = get_network().unwrap();
+        let search = NetworkSearchBuilder::new()
+            .network(network)
+            .hidden_layer(vec![0], ReLU::new())
+            .batch_sizes(vec![32])
+            .learning_rates(vec![0.01])
+            .build();
+
+        assert!(search.is_err());
+        if let Err(e) = search {
+            assert_eq!(e.to_string(), "Configuration error: Dense layer size must be greater than 0");
+        }
+    }
+
+    #[test]
+    fn validate_network_search_with_invalid_batch_size() {
+        let network = get_network().unwrap();
+        let search = NetworkSearchBuilder::new()
+            .network(network)
+            .hidden_layer(vec![10], ReLU::new())
+            .batch_sizes(vec![0])
+            .learning_rates(vec![0.01])
+            .build();
+
+        assert!(search.is_err());
+        if let Err(e) = search {
+            assert_eq!(e.to_string(), "Configuration error: Batch size must be greater than 0");
+        }
+    }
+    #[test]
+    fn validate_network_search_with_invalid_parallelize() {
+        let network = get_network().unwrap();
+        let search = NetworkSearchBuilder::new()
+            .network(network)
+            .hidden_layer(vec![10], ReLU::new())
+            .batch_sizes(vec![32])
+            .learning_rates(vec![0.01])
+            .parallelize(0)
+            .build();
+
+        assert!(search.is_err());
+        if let Err(e) = search {
+            assert_eq!(
+                e.to_string(),
+                "Configuration error: Parallelize value for network search must be greater than zero, but was 0"
+            );
+        }
+    }
+    #[test]
+    fn validate_network_search_with_invalid_hidden_layer_sizes() {
+        let network = get_network().unwrap();
+        let search = NetworkSearchBuilder::new()
+            .network(network)
+            .hidden_layer(vec![10], ReLU::new())
+            .hidden_layer(vec![0], ReLU::new())
+            .batch_sizes(vec![32])
+            .learning_rates(vec![0.01])
+            .build();
+
+        assert!(search.is_err());
+        if let Err(e) = search {
+            assert_eq!(e.to_string(), "Configuration error: Dense layer size must be greater than 0");
+        }
+    }
+
+    #[test]
+    fn validate_network_search_with_invalid_learning_rate() {
+        let network = get_network().unwrap();
+        let search = NetworkSearchBuilder::new()
+            .network(network)
+            .hidden_layer(vec![10], ReLU::new())
+            .batch_sizes(vec![32])
+            .learning_rates(vec![0.0])
+            .build();
+
+        assert!(search.is_err());
+        if let Err(e) = search {
+            assert_eq!(e.to_string(), "Configuration error: Learning rate must be greater than 0");
+        }
+    }
+
+    #[test]
+    fn validate_network_search_with_invalid_target_columns() {
+        let network = get_network().unwrap();
+        let net_search = NetworkSearchBuilder::new()
+            .network(network)
+            .hidden_layer(vec![10], ReLU::new())
+            .batch_sizes(vec![32])
+            .learning_rates(vec![0.01])
+            .build();
+        assert!(net_search.is_ok());
+
+        let training_inputs = DMat::new(3, 1, &[1.0, 2.0, 3.0]);
+        let training_targets = DMat::new(3, 2, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+
+        if let Err(e) =
+            net_search
+                .unwrap()
+                .search(&training_inputs, &training_targets, &training_inputs, &training_targets)
+        {
+            assert_eq!(
+                e.to_string(),
+                "Configuration error: Output size of the last layer must match the number of target columns, but was 3 and 2"
+            );
         }
     }
 }

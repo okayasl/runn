@@ -1,6 +1,6 @@
 use crate::matrix::DMat;
 
-use super::{MetricEvaluator, MetricResult};
+use super::{MetricEvaluator, Metrics};
 
 pub struct RegressionMetrics {
     pub rmse: f32,
@@ -28,11 +28,11 @@ impl RegressionMetrics {
 pub(crate) struct RegressionEvaluator;
 
 impl MetricEvaluator for RegressionEvaluator {
-    fn evaluate(&self, targets: &DMat, predictions: &DMat) -> MetricResult {
+    fn evaluate(&self, targets: &DMat, predictions: &DMat) -> Metrics {
         let rmse = rmse(targets, predictions);
         let r2 = r2_score(targets, predictions);
 
-        MetricResult::Regression(RegressionMetrics { rmse, r2 })
+        Metrics::Regression(RegressionMetrics { rmse, r2 })
     }
 }
 

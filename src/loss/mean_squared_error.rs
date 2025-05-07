@@ -1,6 +1,4 @@
-use crate::{
-    common::matrix::DMat, error::NetworkError, regression::RegressionEvaluator, MetricEvaluator, MetricResult,
-};
+use crate::{common::matrix::DMat, error::NetworkError, regression::RegressionEvaluator, MetricEvaluator, Metrics};
 use serde::{Deserialize, Serialize};
 use typetag;
 
@@ -75,7 +73,7 @@ impl LossFunction for MeanSquaredErrorLoss {
         gradient
     }
 
-    fn calculate_metrics(&self, targets: &DMat, predictions: &DMat) -> MetricResult {
+    fn calculate_metrics(&self, targets: &DMat, predictions: &DMat) -> Metrics {
         RegressionEvaluator.evaluate(targets, predictions)
     }
 }

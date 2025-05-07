@@ -46,7 +46,7 @@ fn main() {
     // let mut loaded_network = Network::load("model.json", SerializationFormat::Json);
     // let results = loaded_network.predict(&validation_inputs, &validation_targets);
 
-    let network_search = NetworkSearchBuilder::new()
+    let _network_search = NetworkSearchBuilder::new()
         .network(network)
         .parallelize(4)
         .learning_rates(vec![0.0025, 0.0035])
@@ -58,7 +58,7 @@ fn main() {
 
     // let ns=     network_search.unwrap().search(training_inputs, training_targets, validation_inputs, validation_targets);
 
-    let network = NetworkBuilder::new(5, 3)
+    let _network = NetworkBuilder::new(5, 3)
         .layer(Dense::new().size(12).activation(ELU::new().alpha(0.9).build()).build())
         .layer(Dense::new().size(24).activation(Swish::new().beta(1.0).build()).build())
         .layer(Dense::new().size(3).activation(Softmax::new()).build())

@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use crate::{
-    classification::ClassificationEvaluator, error::NetworkError, matrix::DMat, MetricEvaluator, MetricResult,
-};
+use crate::{classification::ClassificationEvaluator, error::NetworkError, matrix::DMat, MetricEvaluator, Metrics};
 
 use super::{LossFunction, LossFunctionClone};
 
@@ -94,16 +92,6 @@ impl LossFunction for CrossEntropyLoss {
         let mut total_loss = 0.0;
         let (rows, cols) = (predicted.rows(), predicted.cols());
 
-        let (pred_rows, pred_cols) = (predicted.rows(), predicted.cols());
-        let (targ_rows, targ_cols) = (target.rows(), target.cols());
-        // Ensure the dimensions of predicted and target matrices match
-        if pred_rows != targ_rows || pred_cols != targ_cols {
-            panic!(
-                "Dimension mismatch: predicted matrix is {}x{}, but target matrix is {}x{}",
-                pred_rows, pred_cols, targ_rows, targ_cols
-            );
-        }
-
         for i in 0..rows {
             for j in 0..cols {
                 let mut v = predicted.at(i, j);
@@ -132,7 +120,7 @@ impl LossFunction for CrossEntropyLoss {
 
         gradient
     }
-    fn calculate_metrics(&self, targets: &DMat, predictions: &DMat) -> MetricResult {
+    fn calculate_metrics(&self, targets: &DMat, predictions: &DMat) -> Metrics {
         ClassificationEvaluator.evaluate(targets, predictions)
     }
 }

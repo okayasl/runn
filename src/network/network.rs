@@ -1,7 +1,4 @@
-use std::{
-    error::Error,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 use log::{error, info};
 
@@ -13,7 +10,7 @@ use crate::{
     parallel::ThreadPool,
     random::Randomizer,
     regularization::Regularization,
-    EarlyStopper, LossFunction, MetricResult, Normalization, OptimizerConfig, SummaryWriter,
+    EarlyStopper, LossFunction, Metrics, Normalization, OptimizerConfig, SummaryWriter,
 };
 
 use super::network_io::{load_network, save_network, NetworkIO, SerializationFormat};
@@ -254,7 +251,10 @@ impl NetworkBuilder {
 
     fn validate(&self) -> Result<(), NetworkError> {
         if self.input_size == 0 || self.output_size == 0 {
-            return Err(NetworkError::ConfigError("Input and output sizes must be greater than zero".to_string()));
+            return Err(NetworkError::ConfigError(format!(
+                "Input:{} and output:{} sizes must be greater than zero",
+                self.input_size, self.output_size
+            )));
         }
         if let Some(err) = self.loss_function.as_ref().err() {
             return Err(err.clone());
@@ -270,22 +270,40 @@ impl NetworkBuilder {
             }
         }
         if self.epochs == 0 {
-            return Err(NetworkError::ConfigError("Epochs must be greater than zero".to_string()));
+            return Err(NetworkError::ConfigError(format!(
+                "Epochs must be greater than zero, but was: {}",
+                self.epochs
+            )));
         }
         if self.parallelize <= 0 {
-            return Err(NetworkError::ConfigError("Parallelization factor must be greater than zero".to_string()));
+            return Err(NetworkError::ConfigError(format!(
+                "Parallelization factor must be greater than zero, but was: {}",
+                self.parallelize
+            )));
         }
         if self.batch_size <= 0 {
-            return Err(NetworkError::ConfigError("Batch size must be greater than zero".to_string()));
+            return Err(NetworkError::ConfigError(format!(
+                "Batch size must be greater than zero, but was: {}",
+                self.batch_size
+            )));
         }
         if self.batch_group_size <= 0 {
-            return Err(NetworkError::ConfigError("Batch group size must be greater than zero".to_string()));
+            return Err(NetworkError::ConfigError(format!(
+                "Batch group size must be greater than zero, but was: {}",
+                self.batch_group_size
+            )));
         }
         if self.clip_threshold < 0.0 {
-            return Err(NetworkError::ConfigError("Clip threshold must be non-negative".to_string()));
+            return Err(NetworkError::ConfigError(format!(
+                "Clip threshold must be non-negative, but was: {}",
+                self.clip_threshold
+            )));
         }
         if self.layer_configs.is_empty() {
             return Err(NetworkError::ConfigError("At least one layer must be added".to_string()));
+        }
+        if self.layer_configs.len() == 1 {
+            return Err(NetworkError::ConfigError("At least two layers are required".to_string()));
         }
         Ok(())
     }
@@ -298,7 +316,6 @@ impl NetworkBuilder {
 
         let layer_configs = self.layer_configs.into_iter().collect::<Result<Vec<_>, _>>()?;
         let regularizations = self.regularization.into_iter().collect::<Result<Vec<_>, _>>()?;
-
         let randomizer = Randomizer::new(Some(self.seed));
         let mut layers: Vec<Arc<RwLock<Box<dyn Layer + Send + Sync>>>> = Vec::new();
         let mut input_size = self.input_size; // Initialize with input_size
@@ -309,6 +326,12 @@ impl NetworkBuilder {
             let mut name = format!("Hidden {}", i);
             if i == layer_count - 1 {
                 name = String::from("Output");
+                if size != self.output_size {
+                    return Err(NetworkError::ConfigError(format!(
+                        "Output size of the last layer must match the network output size: {}",
+                        self.output_size
+                    )));
+                }
             }
             let layer = layer_config.create_layer(name, input_size, opt.create_optimizer(), &randomizer);
             input_size = size; // Update input_size for the next layer
@@ -345,7 +368,7 @@ impl NetworkBuilder {
 pub struct NetworkResult {
     pub predictions: DMat,
     pub loss: f32,
-    pub metrics: MetricResult,
+    pub metrics: Metrics,
 }
 
 impl NetworkResult {
@@ -379,7 +402,8 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn train(&mut self, inputs: &DMat, targets: &DMat) -> Result<NetworkResult, Box<dyn Error>> {
+    pub fn train(&mut self, inputs: &DMat, targets: &DMat) -> Result<NetworkResult, NetworkError> {
+        self.validate_input_target(inputs, targets)?;
         //let training_inputs = self.prepare_inputs(inputs);
         let (training_inputs, training_targets) = self.prepare_data(inputs, targets);
         let sample_size = training_inputs.rows();
@@ -399,9 +423,9 @@ impl Network {
             let (group_inputs, group_targets) = self.create_groups(&batch_inputs, &batch_targets);
 
             for (grp_id, (grp_inputs, grp_targets)) in group_inputs.iter().zip(group_targets.iter()).enumerate() {
-                let (grp_predictions, mut grp_layer_params) = self.forward(grp_inputs);
+                let (grp_predictions, mut grp_layer_params) = self.forward(grp_inputs)?;
                 self.log_group_training_info(epoch, group_inputs.len(), grp_id, grp_targets, &grp_predictions);
-                self.backward(&grp_predictions, grp_targets, &mut grp_layer_params, epoch);
+                self.backward(&grp_predictions, grp_targets, &mut grp_layer_params, epoch)?;
             }
 
             if self.debug || self.summary_writer.is_some() || self.early_stopper.is_some() {
@@ -421,26 +445,41 @@ impl Network {
         Ok(final_result)
     }
 
-    fn forward(&self, group_inputs: &[DMat]) -> (Vec<DMat>, Vec<Arc<Vec<LayerParams>>>) {
+    fn forward(&self, group_inputs: &[DMat]) -> Result<(Vec<DMat>, Vec<Arc<Vec<LayerParams>>>), NetworkError> {
         let mut receivers = Vec::new();
         let base_layers: Vec<_> = self.layers.iter().map(Arc::clone).collect();
         for input in group_inputs.iter() {
             let layers = base_layers.clone();
             let input = input.clone();
             let regularizations = Arc::clone(&self.regularizations);
-            receivers.push(
-                self.forward_pool
-                    .submit(move || forward_job(&input, &layers, &regularizations)),
-            );
+            let receiver = self
+                .forward_pool
+                .submit(move || forward_job(&input, &layers, &regularizations))
+                .map_err(|e| NetworkError::TrainingError(format!("Failed to submit forward job: {}", e)))?;
+            receivers.push(receiver);
         }
-        self.forward_pool.join();
-        receivers.into_iter().map(|res| res.recv().unwrap()).unzip()
+        self.forward_pool
+            .join()
+            .map_err(|e| NetworkError::TrainingError(format!("Failed to join forward pool: {}", e)))?;
+
+        let results: Result<Vec<_>, _> = receivers
+            .into_iter()
+            .map(|receiver| {
+                match receiver.recv() {
+                    Ok(result) => Ok(result), // Successfully received the result
+                    Err(err) => Err(NetworkError::TrainingError(format!("Forward job error: {}", err))), // Inner error
+                }
+            })
+            .collect();
+
+        let (outputs, layer_params): (Vec<_>, Vec<_>) = results?.into_iter().unzip();
+        Ok((outputs, layer_params))
     }
 
     fn backward(
         &mut self, group_predictions: &[DMat], group_targets: &[DMat],
         group_layer_params: &mut [Arc<Vec<LayerParams>>], epoch: usize,
-    ) {
+    ) -> Result<(), NetworkError> {
         // clone layer handles once
         let base_layers = self.layers.iter().cloned().collect::<Vec<_>>();
 
@@ -455,7 +494,7 @@ impl Network {
             .collect::<Vec<_>>();
 
         // spawn one job per batch
-        let receivers = group_predictions
+        let receivers: Vec<_> = group_predictions
             .iter()
             .zip(group_targets)
             .zip(group_layer_params.iter_mut())
@@ -463,15 +502,26 @@ impl Network {
                 let d_out = self.loss_function.backward(pred, tgt);
                 let params = Arc::clone(params);
                 let layers = base_layers.clone();
-                self.backward_pool.submit(move || backward_job(&layers, d_out, &params))
-            })
-            .collect::<Vec<_>>();
 
-        self.backward_pool.join();
+                // Handle errors from ThreadPool::submit
+                self.backward_pool
+                    .submit(move || backward_job(&layers, d_out, &params))
+                    .map_err(|e| NetworkError::TrainingError(format!("Failed to submit backward job: {}", e)))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Handle errors from ThreadPool::join
+        self.backward_pool
+            .join()
+            .map_err(|e| NetworkError::TrainingError(format!("Failed to join backward pool: {}", e)))?;
 
         // accumulate per-batch grads into our `grads` vec
         for recv in receivers {
-            let (w_batch, b_batch) = recv.recv().unwrap().unwrap();
+            let (w_batch, b_batch) = recv
+                .recv()
+                .map_err(|e| NetworkError::TrainingError(format!("Failed to receive backward result: {}", e)))?
+                .map_err(|e| NetworkError::TrainingError(format!("Backward job error: {}", e)))?;
+
             for ((acc_weight, acc_bias), (weight, bias)) in grads.iter_mut().zip(w_batch.into_iter().zip(b_batch)) {
                 acc_weight.add(&weight);
                 acc_bias.add(&bias);
@@ -500,6 +550,8 @@ impl Network {
                 layer.visualize();
             }
         }
+
+        Ok(())
     }
 
     pub(crate) fn predict_internal(&mut self, training_inputs: &DMat, training_targets: &DMat) -> NetworkResult {
@@ -518,7 +570,34 @@ impl Network {
         }
     }
 
-    pub fn predict(&mut self, inputs: &DMat, targets: &DMat) -> NetworkResult {
+    fn validate_input_target(&self, inputs: &DMat, targets: &DMat) -> Result<(), NetworkError> {
+        if inputs.rows() != targets.rows() {
+            return Err(NetworkError::ConfigError(format!(
+                "Input and target matrices must have the same number of rows. Inputs: {}, Targets: {}",
+                inputs.rows(),
+                targets.rows()
+            )));
+        }
+        if inputs.cols() != self.input_size {
+            return Err(NetworkError::ConfigError(format!(
+                "Input matrix must have {} columns. Found: {}",
+                self.input_size,
+                inputs.cols()
+            )));
+        }
+        if targets.cols() != self.output_size {
+            return Err(NetworkError::ConfigError(format!(
+                "Target matrix must have {} columns. Found: {}",
+                self.output_size,
+                targets.cols()
+            )));
+        }
+        Ok(())
+    }
+
+    /// Predict the output for given inputs and targets.
+    pub fn predict(&mut self, inputs: &DMat, targets: &DMat) -> Result<NetworkResult, NetworkError> {
+        self.validate_input_target(inputs, targets)?;
         let (inputs, targets) = self.prepare_data(inputs, targets);
         let mut output = inputs;
         self.layers.iter().for_each(|layer| {
@@ -528,11 +607,11 @@ impl Network {
         let loss = self.loss_function.forward(&output, &targets);
         let metrics = self.loss_function.calculate_metrics(&targets, &output);
 
-        NetworkResult {
+        Ok(NetworkResult {
             predictions: output,
             loss,
             metrics,
-        }
+        })
     }
 
     fn close_summary_writer(&mut self) {
@@ -543,13 +622,7 @@ impl Network {
         }
     }
 
-    pub fn reset(&mut self) {
-        if let Some(early_stopper) = &mut self.early_stopper {
-            early_stopper.reset();
-        }
-    }
-
-    pub fn visualize_layers(&mut self) {
+    fn visualize_layers(&mut self) {
         if !self.debug {
             return;
         }
@@ -591,7 +664,7 @@ impl Network {
         self.get_all_batch_inputs_targets(sample_size, batch_size, batch_count, inputs, targets)
     }
 
-    fn log_epoch_training_info(&mut self, epoch: usize, epoch_loss: f32, metric_result: &MetricResult) {
+    fn log_epoch_training_info(&mut self, epoch: usize, epoch_loss: f32, metric_result: &Metrics) {
         if self.debug {
             info!("Epoch [{}/{}], Loss:{:.4}, {}%", epoch, self.epochs, epoch_loss, metric_result.display());
         }
@@ -691,7 +764,7 @@ impl Network {
         all_losses
     }
 
-    fn summarize(&mut self, epoch: usize, epoch_loss: f32, metric_result: &MetricResult) {
+    fn summarize(&mut self, epoch: usize, epoch_loss: f32, metric_result: &Metrics) {
         if self.search {
             return;
         }
@@ -714,7 +787,7 @@ impl Network {
         }
     }
 
-    fn early_stopped(&mut self, epoch: usize, val_loss: f32, metric_result: &MetricResult) -> bool {
+    fn early_stopped(&mut self, epoch: usize, val_loss: f32, metric_result: &Metrics) -> bool {
         if let Some(early_stopper) = &mut self.early_stopper {
             early_stopper.update(epoch, val_loss, metric_result);
             if early_stopper.is_training_stopped() {
@@ -1093,5 +1166,65 @@ mod tests {
 
         let loss = result.unwrap().loss;
         assert!(loss < 0.11, "Network should achieve reasonable loss with early stopping.Test loss: {}", loss);
+    }
+
+    #[test]
+    fn test_network_prediction() {
+        let mut network = NetworkBuilder::new(4, 3)
+            .layer(Dense::new().size(8).activation(ReLU::new()).build())
+            .layer(Dense::new().size(8).activation(ReLU::new()).build())
+            .layer(Dense::new().size(3).activation(Softmax::new()).build())
+            .loss_function(MeanSquared::new())
+            .optimizer(SGD::new().learning_rate(0.01).build())
+            .seed(42)
+            .epochs(10)
+            .batch_size(2)
+            .build()
+            .unwrap();
+
+        let input_data = RandomNumbers::new()
+            .lower_limit(0.0)
+            .upper_limit(1.0)
+            .size(100)
+            .seed(42)
+            .floats();
+        let target_data = RandomNumbers::new()
+            .lower_limit(0.0)
+            .upper_limit(1.0)
+            .size(75)
+            .seed(42)
+            .floats();
+
+        let inputs = DMat::new(25, 4, &input_data);
+        let targets = DMat::new(25, 3, &target_data);
+
+        let result = network.predict(&inputs, &targets);
+        assert!(result.is_ok(), "Prediction should complete without errors");
+    }
+
+    #[test]
+    fn test_prediction_with_invalid_input_target() {
+        let mut network = NetworkBuilder::new(4, 3)
+            .layer(Dense::new().size(8).activation(ReLU::new()).build())
+            .layer(Dense::new().size(8).activation(ReLU::new()).build())
+            .layer(Dense::new().size(3).activation(Softmax::new()).build())
+            .loss_function(MeanSquared::new())
+            .optimizer(SGD::new().learning_rate(0.01).build())
+            .seed(42)
+            .epochs(10)
+            .batch_size(2)
+            .build()
+            .unwrap();
+
+        let inputs = DMat::zeros(25, 4);
+        let targets = DMat::zeros(25, 5); // Invalid target size
+
+        let result = network.predict(&inputs, &targets);
+        assert!(result.is_err(), "Prediction should fail with invalid input/target sizes");
+        if let Err(NetworkError::ConfigError(msg)) = result {
+            assert_eq!(msg, "Target matrix must have 3 columns. Found: 5");
+        } else {
+            panic!("Expected ConfigError");
+        }
     }
 }
