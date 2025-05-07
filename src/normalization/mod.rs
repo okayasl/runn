@@ -1,12 +1,12 @@
-use crate::matrix::DenseMatrix;
+use crate::matrix::DMat;
 
 pub mod min_max;
 pub mod zscore;
 
 #[typetag::serde]
 pub trait Normalization: NormalizationClone + Send + Sync {
-    fn normalize(&mut self, matrix: &mut DenseMatrix) -> Result<(), String>;
-    fn denormalize(&self, matrix: &mut DenseMatrix) -> Result<(), String>;
+    fn normalize(&mut self, matrix: &mut DMat) -> Result<(), String>;
+    fn denormalize(&self, matrix: &mut DMat) -> Result<(), String>;
 }
 
 pub trait NormalizationClone {

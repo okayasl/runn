@@ -9,7 +9,7 @@ use crate::{
     dropout::DropoutRegularization,
     error::NetworkError,
     layer::{Layer, LayerConfig},
-    matrix::DenseMatrix,
+    matrix::DMat,
     parallel::ThreadPool,
     random::Randomizer,
     regularization::Regularization,
@@ -343,7 +343,7 @@ impl NetworkBuilder {
 }
 
 pub struct NetworkResult {
-    pub predictions: DenseMatrix,
+    pub predictions: DMat,
     pub loss: f32,
     pub metrics: MetricResult,
 }
@@ -379,13 +379,13 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn train(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> Result<NetworkResult, Box<dyn Error>> {
+    pub fn train(&mut self, inputs: &DMat, targets: &DMat) -> Result<NetworkResult, Box<dyn Error>> {
         //let training_inputs = self.prepare_inputs(inputs);
         let (training_inputs, training_targets) = self.prepare_data(inputs, targets);
         let sample_size = training_inputs.rows();
         self.log_start_info(sample_size);
-        let mut shuffled_inputs = DenseMatrix::zeros(sample_size, self.input_size);
-        let mut shuffled_targets = DenseMatrix::zeros(sample_size, self.output_size);
+        let mut shuffled_inputs = DMat::zeros(sample_size, self.input_size);
+        let mut shuffled_targets = DMat::zeros(sample_size, self.output_size);
         // let (backward_pool, forward_pool) = self.create_thread_pools();
 
         //        self.initialize_threadpool();
@@ -421,7 +421,7 @@ impl Network {
         Ok(final_result)
     }
 
-    fn forward(&self, group_inputs: &[DenseMatrix]) -> (Vec<DenseMatrix>, Vec<Arc<Vec<LayerParams>>>) {
+    fn forward(&self, group_inputs: &[DMat]) -> (Vec<DMat>, Vec<Arc<Vec<LayerParams>>>) {
         let mut receivers = Vec::new();
         let base_layers: Vec<_> = self.layers.iter().map(Arc::clone).collect();
         for input in group_inputs.iter() {
@@ -438,7 +438,7 @@ impl Network {
     }
 
     fn backward(
-        &mut self, group_predictions: &[DenseMatrix], group_targets: &[DenseMatrix],
+        &mut self, group_predictions: &[DMat], group_targets: &[DMat],
         group_layer_params: &mut [Arc<Vec<LayerParams>>], epoch: usize,
     ) {
         // clone layer handles once
@@ -450,7 +450,7 @@ impl Network {
             .iter()
             .map(|layer| {
                 let (input_size, output_size) = layer.read().unwrap().input_output_size();
-                (DenseMatrix::zeros(output_size, input_size), DenseMatrix::zeros(output_size, 1))
+                (DMat::zeros(output_size, input_size), DMat::zeros(output_size, 1))
             })
             .collect::<Vec<_>>();
 
@@ -502,9 +502,7 @@ impl Network {
         }
     }
 
-    pub(crate) fn predict_internal(
-        &mut self, training_inputs: &DenseMatrix, training_targets: &DenseMatrix,
-    ) -> NetworkResult {
+    pub(crate) fn predict_internal(&mut self, training_inputs: &DMat, training_targets: &DMat) -> NetworkResult {
         let mut output = training_inputs.clone();
         self.layers.iter().for_each(|layer| {
             (output, _) = layer.read().unwrap().forward(&output);
@@ -520,7 +518,7 @@ impl Network {
         }
     }
 
-    pub fn predict(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> NetworkResult {
+    pub fn predict(&mut self, inputs: &DMat, targets: &DMat) -> NetworkResult {
         let (inputs, targets) = self.prepare_data(inputs, targets);
         let mut output = inputs;
         self.layers.iter().for_each(|layer| {
@@ -560,10 +558,7 @@ impl Network {
         });
     }
 
-    fn shuffle(
-        &self, inputs: &DenseMatrix, targets: &DenseMatrix, shuffling_inputs: &mut DenseMatrix,
-        shuffling_targets: &mut DenseMatrix,
-    ) {
+    fn shuffle(&self, inputs: &DMat, targets: &DMat, shuffling_inputs: &mut DMat, shuffling_targets: &mut DMat) {
         let sample_size = inputs.rows();
         let shuffle_indices = self.randomizer.perm(sample_size);
 
@@ -573,7 +568,7 @@ impl Network {
         });
     }
 
-    fn prepare_data(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> (DenseMatrix, DenseMatrix) {
+    fn prepare_data(&mut self, inputs: &DMat, targets: &DMat) -> (DMat, DMat) {
         let mut training_inputs = inputs.clone();
 
         if self.normalize_input.is_some() {
@@ -590,9 +585,7 @@ impl Network {
         (training_inputs, training_targets)
     }
 
-    fn create_batches<'a>(
-        &mut self, inputs: &'a DenseMatrix, targets: &'a DenseMatrix,
-    ) -> (Vec<DenseMatrix>, Vec<DenseMatrix>) {
+    fn create_batches<'a>(&mut self, inputs: &'a DMat, targets: &'a DMat) -> (Vec<DMat>, Vec<DMat>) {
         let sample_size = inputs.rows();
         let (batch_size, batch_count) = self.calculate_batches(sample_size);
         self.get_all_batch_inputs_targets(sample_size, batch_size, batch_count, inputs, targets)
@@ -605,8 +598,8 @@ impl Network {
     }
 
     fn log_group_training_info(
-        &mut self, epoch: usize, group_count: usize, group_id: usize, group_targets: &&[DenseMatrix],
-        group_predictions: &Vec<DenseMatrix>,
+        &mut self, epoch: usize, group_count: usize, group_id: usize, group_targets: &&[DMat],
+        group_predictions: &Vec<DMat>,
     ) {
         if self.debug {
             let group_losses = self.forward_loss(group_predictions, group_targets);
@@ -636,8 +629,8 @@ impl Network {
     }
 
     fn create_groups<'a>(
-        &self, all_batch_inputs: &'a [DenseMatrix], all_batch_targets: &'a [DenseMatrix],
-    ) -> (Vec<&'a [DenseMatrix]>, Vec<&'a [DenseMatrix]>) {
+        &self, all_batch_inputs: &'a [DMat], all_batch_targets: &'a [DMat],
+    ) -> (Vec<&'a [DMat]>, Vec<&'a [DMat]>) {
         let batch_group_size = self.batch_group_size;
         let batch_count = all_batch_inputs.len();
         let mut all_group_batch_inputs = Vec::with_capacity((batch_count + batch_group_size - 1) / batch_group_size);
@@ -669,9 +662,9 @@ impl Network {
     }
 
     fn get_all_batch_inputs_targets(
-        &mut self, sample_size: usize, batch_size: usize, batch_count: usize, shuffled_inputs: &DenseMatrix,
-        shuffled_targets: &DenseMatrix,
-    ) -> (Vec<DenseMatrix>, Vec<DenseMatrix>) {
+        &mut self, sample_size: usize, batch_size: usize, batch_count: usize, shuffled_inputs: &DMat,
+        shuffled_targets: &DMat,
+    ) -> (Vec<DMat>, Vec<DMat>) {
         let mut all_batch_inputs = Vec::with_capacity(batch_count);
         let mut all_batch_targets = Vec::with_capacity(batch_count);
 
@@ -687,7 +680,7 @@ impl Network {
         (all_batch_inputs, all_batch_targets)
     }
 
-    fn forward_loss(&mut self, group_predictions: &[DenseMatrix], group_targets: &[DenseMatrix]) -> Vec<f32> {
+    fn forward_loss(&mut self, group_predictions: &[DMat], group_targets: &[DMat]) -> Vec<f32> {
         let mut all_losses = Vec::with_capacity(group_predictions.len());
 
         for (predicted, target) in group_predictions.iter().zip(group_targets.iter()) {
@@ -817,11 +810,11 @@ impl Network {
 }
 
 fn forward_job(
-    input: &DenseMatrix, layers: &Vec<Arc<RwLock<Box<dyn Layer + Send + Sync>>>>,
+    input: &DMat, layers: &Vec<Arc<RwLock<Box<dyn Layer + Send + Sync>>>>,
     regularizations: &Vec<Box<dyn Regularization>>,
-) -> (DenseMatrix, Arc<Vec<LayerParams>>) {
+) -> (DMat, Arc<Vec<LayerParams>>) {
     let mut layer_params = Vec::with_capacity(layers.len());
-    let mut current_input: DenseMatrix = input.clone();
+    let mut current_input: DMat = input.clone();
 
     layers.into_iter().for_each(|layer| {
         let layer = layer.read().unwrap();
@@ -846,9 +839,8 @@ fn forward_job(
 }
 
 fn backward_job(
-    layers: &Vec<Arc<RwLock<Box<dyn Layer + Send + Sync>>>>, d_output: DenseMatrix,
-    layer_params: &Arc<Vec<LayerParams>>,
-) -> Result<(Vec<DenseMatrix>, Vec<DenseMatrix>), String> {
+    layers: &Vec<Arc<RwLock<Box<dyn Layer + Send + Sync>>>>, d_output: DMat, layer_params: &Arc<Vec<LayerParams>>,
+) -> Result<(Vec<DMat>, Vec<DMat>), String> {
     let mut d_output = d_output;
     let mut batch_d_weights = Vec::new();
     let mut batch_d_biases = Vec::new();
@@ -870,12 +862,12 @@ fn backward_job(
 }
 
 struct LayerParams {
-    pub(crate) layer_input: DenseMatrix,
-    pub(crate) pre_activated_output: DenseMatrix,
-    pub(crate) activated_output: DenseMatrix,
+    pub(crate) layer_input: DMat,
+    pub(crate) pre_activated_output: DMat,
+    pub(crate) activated_output: DMat,
 }
 impl LayerParams {
-    pub fn new(layer_input: DenseMatrix, pre_activated_output: DenseMatrix, activated_output: DenseMatrix) -> Self {
+    pub fn new(layer_input: DMat, pre_activated_output: DMat, activated_output: DMat) -> Self {
         LayerParams {
             layer_input,
             pre_activated_output,
@@ -884,7 +876,7 @@ impl LayerParams {
     }
 }
 
-pub fn clip_gradients(grads: &mut [&mut DenseMatrix], clip_threshold: f32) {
+pub fn clip_gradients(grads: &mut [&mut DMat], clip_threshold: f32) {
     if clip_threshold > 0.0 {
         for grad in grads {
             grad.clip(clip_threshold);
@@ -903,7 +895,7 @@ mod tests {
         flexible::{Flexible, MonitorMetric},
         l1::L1,
         l2::L2,
-        matrix::DenseMatrix,
+        matrix::DMat,
         mean_squared_error::MeanSquared,
         numbers::{Numbers, RandomNumbers},
         relu::ReLU,
@@ -973,8 +965,8 @@ mod tests {
             .build()
             .unwrap();
 
-        let inputs = DenseMatrix::new(4, 2, &[0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]);
-        let targets = DenseMatrix::new(4, 1, &[0.0, 1.0, 1.0, 0.0]);
+        let inputs = DMat::new(4, 2, &[0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]);
+        let targets = DMat::new(4, 1, &[0.0, 1.0, 1.0, 0.0]);
 
         let result = network.train(&inputs, &targets);
         assert!(result.is_ok(), "Training should complete without errors");
@@ -1009,8 +1001,8 @@ mod tests {
             .seed(42)
             .floats();
 
-        let inputs = DenseMatrix::new(25, 4, &input_data);
-        let targets = DenseMatrix::new(25, 3, &target_data);
+        let inputs = DMat::new(25, 4, &input_data);
+        let targets = DMat::new(25, 3, &target_data);
 
         let result = network.train(&inputs, &targets);
         assert!(result.is_ok(), "Training should complete without errors");
@@ -1047,8 +1039,8 @@ mod tests {
             .seed(42)
             .floats();
 
-        let inputs = DenseMatrix::new(25, 4, &input_data);
-        let targets = DenseMatrix::new(25, 3, &target_data);
+        let inputs = DMat::new(25, 4, &input_data);
+        let targets = DMat::new(25, 3, &target_data);
 
         let result = network.train(&inputs, &targets);
         assert!(result.is_ok(), "Training should complete without errors");
@@ -1093,8 +1085,8 @@ mod tests {
             .seed(42)
             .floats();
 
-        let inputs = DenseMatrix::new(25, 4, &input_data);
-        let targets = DenseMatrix::new(25, 3, &target_data);
+        let inputs = DMat::new(25, 4, &input_data);
+        let targets = DMat::new(25, 3, &target_data);
 
         let result = network.train(&inputs, &targets);
         assert!(result.is_ok(), "Training should complete without errors");

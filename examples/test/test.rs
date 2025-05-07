@@ -3,7 +3,6 @@ use runn::{
     cross_entropy::CrossEntropy,
     dense_layer::Dense,
     dropout::Dropout,
-    earlystop::loss::Loss,
     elu::ELU,
     exponential::Exponential,
     flexible::{Flexible, MonitorMetric},
@@ -30,8 +29,11 @@ fn main() {
         .build()
         .unwrap();
 
-    let inputs = DenseMatrix::new(4, 2, &[0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]);
-    let targets = DenseMatrix::new(4, 1, &[0.0, 1.0, 1.0, 0.0]);
+    let inputs = DenseMatrix::new(4, 2)
+        .data(&[0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0])
+        .build()
+        .unwrap();
+    let targets = DenseMatrix::new(4, 1).data(&[0.0, 1.0, 1.0, 0.0]).build().unwrap();
 
     let result = network.train(&inputs, &targets);
 

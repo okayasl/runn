@@ -1,4 +1,4 @@
-use crate::common::matrix::DenseMatrix;
+use crate::common::matrix::DMat;
 use crate::{activation::ActivationFunction, error::NetworkError};
 use serde::{Deserialize, Serialize};
 use typetag;
@@ -35,12 +35,12 @@ impl Tanh {
 #[typetag::serde]
 impl ActivationFunction for TanhActivation {
     // Forward pass: Apply Tanh element-wise to the input matrix
-    fn forward(&self, input: &mut DenseMatrix) {
+    fn forward(&self, input: &mut DMat) {
         input.apply(|x| x.tanh());
     }
 
     // Backward pass: Compute the derivative of Tanh
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, _output: &DenseMatrix) {
+    fn backward(&self, d_output: &DMat, input: &mut DMat, _output: &DMat) {
         input.apply(|x| {
             //let tanh_x = x.tanh();
             x * (1.0 - x * x) // derivative of tanh is 1 - tanh^2
@@ -63,26 +63,26 @@ impl ActivationFunctionClone for TanhActivation {
 mod tanh_tests {
 
     use super::*;
-    use crate::{common::matrix::DenseMatrix, util::equal_approx};
+    use crate::{common::matrix::DMat, util::equal_approx};
 
     #[test]
     fn test_tanh_forward_zero_input() {
-        let mut input = DenseMatrix::new(1, 1, &[0.0f32]);
+        let mut input = DMat::new(1, 1, &[0.0f32]);
         let tanh = TanhActivation;
         tanh.forward(&mut input);
 
-        let expected = DenseMatrix::new(1, 1, &[0.0f32]);
+        let expected = DMat::new(1, 1, &[0.0f32]);
         assert!(equal_approx(&input, &expected, 1e-6), "Tanh forward pass with zero input failed");
     }
 
     #[test]
     fn test_tanh_forward_mixed_values() {
-        let mut input = DenseMatrix::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
+        let mut input = DMat::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
         let tanh = TanhActivation;
         tanh.forward(&mut input);
 
         // Expected outputs using tanh function
-        let expected = DenseMatrix::new(
+        let expected = DMat::new(
             2,
             3,
             &[
@@ -100,17 +100,17 @@ mod tanh_tests {
 
     #[test]
     fn test_tanh_backward() {
-        let mut input = DenseMatrix::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
-        let d_output = DenseMatrix::new(2, 3, &[0.5f32, 1.0, 0.7, 0.2, 0.3, 0.1]);
+        let mut input = DMat::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
+        let d_output = DMat::new(2, 3, &[0.5f32, 1.0, 0.7, 0.2, 0.3, 0.1]);
         let tanh = TanhActivation;
 
         tanh.forward(&mut input); // First apply forward pass
         let original_input = input.clone();
-        let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
+        let output: DMat = DMat::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
         tanh.backward(&d_output, &mut input, &output);
 
         // Compute expected gradient: (1 - tanh(x)^2) * d_output
-        let expected = DenseMatrix::new(
+        let expected = DMat::new(
             2,
             3,
             &[
@@ -133,10 +133,10 @@ mod tanh_tests {
         let tanh = TanhActivation;
 
         for (input_value, expected_output) in test_cases {
-            let mut input = DenseMatrix::new(1, 1, &[input_value]);
+            let mut input = DMat::new(1, 1, &[input_value]);
             tanh.forward(&mut input);
 
-            let expected = DenseMatrix::new(1, 1, &[expected_output]);
+            let expected = DMat::new(1, 1, &[expected_output]);
             assert!(equal_approx(&input, &expected, 1e-6), "Tanh forward pass at extreme bounds failed");
         }
     }
@@ -153,10 +153,10 @@ mod tanh_tests {
         let tanh = TanhActivation;
 
         for (input_value, expected_output) in test_cases {
-            let mut input = DenseMatrix::new(1, 1, &[input_value]);
+            let mut input = DMat::new(1, 1, &[input_value]);
             tanh.forward(&mut input);
 
-            let expected = DenseMatrix::new(1, 1, &[expected_output]);
+            let expected = DMat::new(1, 1, &[expected_output]);
             assert!(equal_approx(&input, &expected, 1e-6), "Tanh forward pass symmetry test failed");
         }
     }

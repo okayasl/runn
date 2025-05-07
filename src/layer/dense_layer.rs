@@ -4,7 +4,7 @@ use std::fmt::Write;
 use typetag;
 
 use crate::{
-    error::NetworkError, matrix::DenseMatrix, random::Randomizer, util, ActivationFunction, Optimizer, Regularization,
+    error::NetworkError, matrix::DMat, random::Randomizer, util, ActivationFunction, Optimizer, Regularization,
 };
 
 use super::{Layer, LayerConfig};
@@ -14,8 +14,8 @@ struct DenseLayer {
     name: String,
     input_size: usize,
     output_size: usize,
-    weights: DenseMatrix,
-    biases: DenseMatrix,
+    weights: DMat,
+    biases: DMat,
     activation: Box<dyn ActivationFunction>,
     optimizer: Box<dyn Optimizer>,
 }
@@ -25,8 +25,8 @@ impl DenseLayer {
         name: String, input_size: usize, output_size: usize, activation: Box<dyn ActivationFunction>,
         mut optimizer: Box<dyn Optimizer>, randomizer: &Randomizer,
     ) -> Self {
-        let mut weights = DenseMatrix::zeros(output_size, input_size);
-        let biases = DenseMatrix::zeros(output_size, 1);
+        let mut weights = DMat::zeros(output_size, input_size);
+        let biases = DMat::zeros(output_size, 1);
         // Initialize weights with random values
         weights.apply(|_| randomizer.float32() * activation.weight_initialization_factor()(output_size, input_size));
         optimizer.initialize(&weights, &biases);
@@ -44,8 +44,8 @@ impl DenseLayer {
 
 #[typetag::serde]
 impl Layer for DenseLayer {
-    fn forward(&self, input: &DenseMatrix) -> (DenseMatrix, DenseMatrix) {
-        let mut weighted_sum = DenseMatrix::mul_new(input, &self.weights.transpose());
+    fn forward(&self, input: &DMat) -> (DMat, DMat) {
+        let mut weighted_sum = DMat::mul_new(input, &self.weights.transpose());
 
         // Add the biases to the weighted sum using the Apply function
         // This approach avoids the need for broadcasting the biases and performs the addition in-place
@@ -58,9 +58,8 @@ impl Layer for DenseLayer {
     }
 
     fn backward(
-        &self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &DenseMatrix,
-        activated_output: &DenseMatrix,
-    ) -> (DenseMatrix, DenseMatrix, DenseMatrix) {
+        &self, d_output: &DMat, input: &DMat, pre_activated_output: &DMat, activated_output: &DMat,
+    ) -> (DMat, DMat, DMat) {
         // Compute the gradient of the loss with respect to the activation (dZ)
         // This line computes the local gradient (also known as the derivative) of the loss
         // with respect to the pre-activation output of the dense layer.
@@ -74,27 +73,25 @@ impl Layer for DenseLayer {
         // after backward method pao becomes gradient of activation function
         let act_grad = &pre_activated_output;
 
-        let d_weights = DenseMatrix::mul_new(&act_grad.transpose(), input);
+        let d_weights = DMat::mul_new(&act_grad.transpose(), input);
 
         // The gradient of the biases (dB) is computed by summing the gradients over the batch dimension,
         // resulting in the gradient of the loss with respect to
         // each bias being the sum of the corresponding gradient across the entire batch.
         // This operation is performed because the biases are shared across all the examples in a batch.
-        let mut d_biases = DenseMatrix::zeros(self.biases.rows(), 1);
+        let mut d_biases = DMat::zeros(self.biases.rows(), 1);
         d_biases.set_column_sum(act_grad);
 
-        let d_input: DenseMatrix = DenseMatrix::mul_new(act_grad, &self.weights);
+        let d_input: DMat = DMat::mul_new(act_grad, &self.weights);
         (d_input, d_weights, d_biases)
     }
 
-    fn regulate(
-        &mut self, d_weights: &mut DenseMatrix, d_biases: &mut DenseMatrix, regularization: &Box<dyn Regularization>,
-    ) {
+    fn regulate(&mut self, d_weights: &mut DMat, d_biases: &mut DMat, regularization: &Box<dyn Regularization>) {
         // Apply the single regularization technique
         regularization.apply(&mut [&mut self.weights, &mut self.biases], &mut [&mut *d_weights, &mut *d_biases]);
     }
 
-    fn update(&mut self, d_weights: &DenseMatrix, d_biases: &DenseMatrix, epoch: usize) {
+    fn update(&mut self, d_weights: &DMat, d_biases: &DMat, epoch: usize) {
         self.optimizer
             .update(&mut self.weights, &mut self.biases, d_weights, d_biases, epoch);
     }
@@ -129,7 +126,7 @@ impl Layer for DenseLayer {
 }
 
 /// Returns a pretty-printed single-matrix string with Unicode borders.
-fn format_matrix(matrix: &DenseMatrix) -> String {
+fn format_matrix(matrix: &DMat) -> String {
     let rows = matrix.rows();
     let cols = matrix.cols();
     let mut out = String::with_capacity(rows * (cols * 10 + 4));
@@ -237,7 +234,7 @@ impl Dense {
 mod tests {
     use super::*;
     use crate::adam::Adam;
-    use crate::common::matrix::DenseMatrix;
+    use crate::common::matrix::DMat;
     use crate::random::Randomizer;
     use crate::relu::ReLU;
     use crate::sigmoid::Sigmoid;
@@ -258,7 +255,7 @@ mod tests {
         let layer =
             DenseLayer::new("layer".to_owned(), 3, 2, activation, optimizer_config.create_optimizer(), &randomizer);
 
-        let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
+        let input = DMat::new(1, 3, &[1.0, 2.0, 3.0]);
         let (output, pre_activated_output) = layer.forward(&input);
 
         assert_eq!(output.rows(), 1);
@@ -282,10 +279,10 @@ mod tests {
         let layer =
             DenseLayer::new("layer".to_owned(), 3, 2, activation, optimizer_config.create_optimizer(), &randomizer);
 
-        let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
+        let input = DMat::new(1, 3, &[1.0, 2.0, 3.0]);
         let (output, mut pre_activated_output) = layer.forward(&input);
 
-        let d_output = DenseMatrix::new(1, 2, &[0.1, 0.2]);
+        let d_output = DMat::new(1, 2, &[0.1, 0.2]);
         let (d_input, d_weights, d_biases) = layer.backward(&d_output, &input, &mut pre_activated_output, &output);
 
         assert_eq!(d_input.rows(), 1);
@@ -311,10 +308,10 @@ mod tests {
         let mut layer =
             DenseLayer::new("layer".to_owned(), 3, 2, activation, optimizer_config.create_optimizer(), &randomizer);
 
-        let input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
+        let input = DMat::new(1, 3, &[1.0, 2.0, 3.0]);
         let (output, mut pre_activated_output) = layer.forward(&input);
 
-        let d_output = DenseMatrix::new(1, 2, &[0.1, 0.2]);
+        let d_output = DMat::new(1, 2, &[0.1, 0.2]);
         let (_d_input, d_weights, d_biases) = layer.backward(&d_output, &input, &mut pre_activated_output, &output);
 
         layer.update(&d_weights, &d_biases, 1);

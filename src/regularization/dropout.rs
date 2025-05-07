@@ -1,5 +1,5 @@
 use super::{Regularization, RegularizationClone};
-use crate::common::matrix::DenseMatrix;
+use crate::common::matrix::DMat;
 use crate::common::random::Randomizer;
 use crate::error::NetworkError;
 
@@ -28,7 +28,7 @@ pub(crate) struct DropoutRegularization {
 
 #[typetag::serde]
 impl Regularization for DropoutRegularization {
-    fn apply(&self, params: &mut [&mut DenseMatrix], _grads: &mut [&mut DenseMatrix]) {
+    fn apply(&self, params: &mut [&mut DMat], _grads: &mut [&mut DMat]) {
         for param in params.iter_mut() {
             param.apply_with_indices(|_, _, v| {
                 if self.randomizer.float32() < self.dropout_rate {
@@ -122,17 +122,17 @@ impl Dropout {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::matrix::DenseMatrix;
+    use crate::common::matrix::DMat;
     use crate::util;
 
     #[test]
     fn test_dropout_regularization() {
-        let mut params = vec![DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0])];
-        let mut grads = vec![DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1])];
+        let mut params = vec![DMat::new(2, 2, &[1.0, 2.0, 3.0, 4.0])];
+        let mut grads = vec![DMat::new(2, 2, &[0.1, 0.1, 0.1, 0.1])];
         let dropout = Dropout::new().dropout_rate(0.5).seed(42).build().unwrap();
 
-        let mut params_refs: Vec<&mut DenseMatrix> = params.iter_mut().collect();
-        let mut grads_refs: Vec<&mut DenseMatrix> = grads.iter_mut().collect();
+        let mut params_refs: Vec<&mut DMat> = params.iter_mut().collect();
+        let mut grads_refs: Vec<&mut DMat> = grads.iter_mut().collect();
         dropout.apply(&mut params_refs, &mut grads_refs);
 
         // Since dropout is random, we can't assert exact values, but we can check if some values are zero

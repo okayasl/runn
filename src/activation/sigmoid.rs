@@ -1,4 +1,4 @@
-use crate::common::matrix::DenseMatrix;
+use crate::common::matrix::DMat;
 use crate::{activation::ActivationFunction, error::NetworkError};
 
 use serde::{Deserialize, Serialize};
@@ -36,12 +36,12 @@ impl Sigmoid {
 #[typetag::serde]
 impl ActivationFunction for SigmoidActivation {
     // Forward pass: Apply Sigmoid element-wise to the input matrix
-    fn forward(&self, input: &mut DenseMatrix) {
+    fn forward(&self, input: &mut DMat) {
         input.apply(|x| 1.0 / (1.0 + (-x).exp()));
     }
 
     // Backward pass: Compute the derivative of Sigmoid
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, _output: &DenseMatrix) {
+    fn backward(&self, d_output: &DMat, input: &mut DMat, _output: &DMat) {
         input.apply(|x| x * (1.0 - x));
         input.mul_elem(d_output);
     }
@@ -60,26 +60,26 @@ impl ActivationFunctionClone for SigmoidActivation {
 #[cfg(test)]
 mod sigmoid_tests {
     use super::*;
-    use crate::{common::matrix::DenseMatrix, util::equal_approx};
+    use crate::{common::matrix::DMat, util::equal_approx};
 
     #[test]
     fn test_sigmoid_forward_zero_input() {
-        let mut input = DenseMatrix::new(1, 1, &[0.0f32]);
+        let mut input = DMat::new(1, 1, &[0.0f32]);
         let sigmoid = Sigmoid::new().unwrap();
         sigmoid.forward(&mut input);
 
-        let expected = DenseMatrix::new(1, 1, &[0.5f32]);
+        let expected = DMat::new(1, 1, &[0.5f32]);
         assert!(equal_approx(&input, &expected, 1e-6), "Sigmoid forward pass with zero input failed");
     }
 
     #[test]
     fn test_sigmoid_forward_mixed_values() {
-        let mut input = DenseMatrix::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
+        let mut input = DMat::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
         let sigmoid = Sigmoid::new().unwrap();
         sigmoid.forward(&mut input);
 
         // Expected outputs calculated manually for verification
-        let expected = DenseMatrix::new(
+        let expected = DMat::new(
             2,
             3,
             &[
@@ -97,9 +97,9 @@ mod sigmoid_tests {
 
     #[test]
     fn test_sigmoid_backward() {
-        let mut input = DenseMatrix::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
-        let d_output = DenseMatrix::new(2, 3, &[0.5f32, 1.0, 0.7, 0.2, 0.3, 0.1]);
-        let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
+        let mut input = DMat::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
+        let d_output = DMat::new(2, 3, &[0.5f32, 1.0, 0.7, 0.2, 0.3, 0.1]);
+        let output: DMat = DMat::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
         let sigmoid = Sigmoid::new().unwrap();
         sigmoid.forward(&mut input); // First apply forward pass
@@ -108,7 +108,7 @@ mod sigmoid_tests {
         sigmoid.backward(&d_output, &mut input, &output);
 
         // Compute expected gradient: sigmoid(x) * (1 - sigmoid(x)) * d_output
-        let expected = DenseMatrix::new(
+        let expected = DMat::new(
             2,
             3,
             &[
@@ -131,10 +131,10 @@ mod sigmoid_tests {
         let sigmoid = Sigmoid::new().unwrap();
 
         for (input_value, expected_output) in test_cases {
-            let mut input = DenseMatrix::new(1, 1, &[input_value]);
+            let mut input = DMat::new(1, 1, &[input_value]);
             sigmoid.forward(&mut input);
 
-            let expected = DenseMatrix::new(1, 1, &[expected_output]);
+            let expected = DMat::new(1, 1, &[expected_output]);
             assert!(equal_approx(&input, &expected, 1e-6), "Sigmoid forward pass at extreme bounds failed");
         }
     }

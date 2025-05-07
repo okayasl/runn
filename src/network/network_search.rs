@@ -11,8 +11,8 @@ use log::info;
 use rand::{seq::SliceRandom, thread_rng};
 
 use crate::{
-    dense_layer::Dense, error::NetworkError, matrix::DenseMatrix, parallel::ThreadPool, ActivationFunction,
-    MetricResult, Normalization,
+    dense_layer::Dense, error::NetworkError, matrix::DMat, parallel::ThreadPool, ActivationFunction, MetricResult,
+    Normalization,
 };
 
 use super::network::{Network, NetworkBuilder};
@@ -323,8 +323,7 @@ pub struct NetworkSearch {
 
 impl NetworkSearch {
     pub fn search(
-        &mut self, training_inputs: &DenseMatrix, training_targets: &DenseMatrix, validation_inputs: &DenseMatrix,
-        validation_targets: &DenseMatrix,
+        &mut self, training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat, validation_targets: &DMat,
     ) -> Vec<SearchResult> {
         let (training_inputs, training_targets) = self.prepare_data(training_inputs, training_targets);
         let (validation_inputs, validation_targets) = self.prepare_data(validation_inputs, validation_targets);
@@ -361,7 +360,7 @@ impl NetworkSearch {
         search_results
     }
 
-    fn prepare_data(&mut self, inputs: &DenseMatrix, targets: &DenseMatrix) -> (DenseMatrix, DenseMatrix) {
+    fn prepare_data(&mut self, inputs: &DMat, targets: &DMat) -> (DMat, DMat) {
         let mut inputs = inputs.clone();
 
         if self.normalize_input.is_some() {
@@ -442,8 +441,8 @@ fn track_progress(
 }
 
 fn run(
-    mut network: Network, training_inputs: &DenseMatrix, training_targets: &DenseMatrix,
-    validation_inputs: &DenseMatrix, validation_targets: &DenseMatrix,
+    mut network: Network, training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat,
+    validation_targets: &DMat,
 ) -> SearchResult {
     let start_time = Instant::now();
     let train_res = network.train(training_inputs, training_targets).unwrap();

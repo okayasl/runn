@@ -7,7 +7,7 @@ use runn::{
     flexible::{Flexible, MonitorMetric},
     helper,
     linear::Linear,
-    matrix::DenseMatrix,
+    matrix::{DMat, DenseMatrix},
     mean_squared_error::MeanSquared,
     min_max::MinMax,
     network::network::{Network, NetworkBuilder},
@@ -41,8 +41,7 @@ fn main() {
 }
 
 fn train_and_validate(
-    training_inputs: &DenseMatrix, training_targets: &DenseMatrix, validation_inputs: &DenseMatrix,
-    validation_targets: &DenseMatrix,
+    training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat, validation_targets: &DMat,
 ) {
     let een_file = String::from("energy_efficiency_network.json");
 
@@ -118,10 +117,7 @@ fn energy_efficiency_network(inp_size: usize, targ_size: usize) -> Network {
     }
 }
 
-fn test_search(
-    training_inputs: &DenseMatrix, training_targets: &DenseMatrix, validation_inputs: &DenseMatrix,
-    validation_targets: &DenseMatrix,
-) {
+fn test_search(training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat, validation_targets: &DMat) {
     let start_time = std::time::Instant::now();
     info!("Energy Efficieny network search started.");
     let network = energy_efficiency_network(training_inputs.cols(), training_targets.cols());
@@ -179,7 +175,7 @@ fn test_search(
 
 pub fn energy_efficiency_inputs_targets(
     name: &str, fields_count: usize, input_count: usize,
-) -> Result<(DenseMatrix, DenseMatrix, DenseMatrix, DenseMatrix), Box<dyn Error>> {
+) -> Result<(DMat, DMat, DMat, DMat), Box<dyn Error>> {
     let target_count = fields_count - input_count;
 
     let file_path = format!("./examples/energy_efficiency/{}.csv", name);
@@ -217,8 +213,14 @@ pub fn energy_efficiency_inputs_targets(
         }
     }
 
-    let all_inputs = DenseMatrix::new(inputs_data.len() / input_count, input_count, &inputs_data);
-    let all_targets = DenseMatrix::new(targets_data.len() / target_count, target_count, &targets_data);
+    let all_inputs = DenseMatrix::new(inputs_data.len() / input_count, input_count)
+        .data(&inputs_data)
+        .build()
+        .unwrap();
+    let all_targets = DenseMatrix::new(targets_data.len() / target_count, target_count)
+        .data(&targets_data)
+        .build()
+        .unwrap();
 
     let (training_inputs, training_targets, validation_inputs, validation_targets) =
         helper::random_split(&all_inputs, &all_targets, 0.2, 55);

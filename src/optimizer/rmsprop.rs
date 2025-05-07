@@ -1,5 +1,5 @@
 use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
-use crate::{common::matrix::DenseMatrix, error::NetworkError, LearningRateScheduler};
+use crate::{common::matrix::DMat, error::NetworkError, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
@@ -12,31 +12,28 @@ use typetag;
 #[derive(Serialize, Deserialize, Clone)]
 struct RMSPropOptimizer {
     config: RMSPropConfig,
-    accumulated_squared_grad_weights: DenseMatrix,
-    accumulated_squared_grad_biases: DenseMatrix,
+    accumulated_squared_grad_weights: DMat,
+    accumulated_squared_grad_biases: DMat,
 }
 
 impl RMSPropOptimizer {
     pub fn new(config: RMSPropConfig) -> Self {
         Self {
             config,
-            accumulated_squared_grad_weights: DenseMatrix::zeros(0, 0),
-            accumulated_squared_grad_biases: DenseMatrix::zeros(0, 0),
+            accumulated_squared_grad_weights: DMat::zeros(0, 0),
+            accumulated_squared_grad_biases: DMat::zeros(0, 0),
         }
     }
 }
 
 #[typetag::serde]
 impl Optimizer for RMSPropOptimizer {
-    fn initialize(&mut self, weights: &DenseMatrix, biases: &DenseMatrix) {
-        self.accumulated_squared_grad_weights = DenseMatrix::zeros(weights.rows(), weights.cols());
-        self.accumulated_squared_grad_biases = DenseMatrix::zeros(biases.rows(), biases.cols());
+    fn initialize(&mut self, weights: &DMat, biases: &DMat) {
+        self.accumulated_squared_grad_weights = DMat::zeros(weights.rows(), weights.cols());
+        self.accumulated_squared_grad_biases = DMat::zeros(biases.rows(), biases.cols());
     }
 
-    fn update(
-        &mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, d_weights: &DenseMatrix,
-        d_biases: &DenseMatrix, epoch: usize,
-    ) {
+    fn update(&mut self, weights: &mut DMat, biases: &mut DMat, d_weights: &DMat, d_biases: &DMat, epoch: usize) {
         if self.config.scheduler.is_some() {
             let scheduler = self.config.scheduler.as_ref().unwrap();
             self.config.learning_rate = scheduler.schedule(epoch, self.config.learning_rate);
@@ -215,8 +212,8 @@ mod tests {
             scheduler: None,
         };
         let mut optimizer = RMSPropOptimizer::new(config);
-        let weights = DenseMatrix::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
-        let biases = DenseMatrix::new(2, 1, &[0.1, 0.2]);
+        let weights = DMat::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
+        let biases = DMat::new(2, 1, &[0.1, 0.2]);
         optimizer.initialize(&weights, &biases);
         assert_eq!(optimizer.accumulated_squared_grad_weights.rows(), 2);
         assert_eq!(optimizer.accumulated_squared_grad_weights.cols(), 2);
@@ -233,10 +230,10 @@ mod tests {
             scheduler: None,
         };
         let mut optimizer = RMSPropOptimizer::new(config);
-        let mut weights = DenseMatrix::new(2, 2, &[1.0, 1.0, 1.0, 1.0]);
-        let mut biases = DenseMatrix::new(2, 1, &[1.0, 1.0]);
-        let d_weights = DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
-        let d_biases = DenseMatrix::new(2, 1, &[0.1, 0.1]);
+        let mut weights = DMat::new(2, 2, &[1.0, 1.0, 1.0, 1.0]);
+        let mut biases = DMat::new(2, 1, &[1.0, 1.0]);
+        let d_weights = DMat::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
+        let d_biases = DMat::new(2, 1, &[0.1, 0.1]);
         optimizer.initialize(&weights, &biases);
 
         optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
@@ -260,12 +257,12 @@ mod tests {
     #[test]
     fn test_rmsprop_optimizer() {
         // Create mock parameter matrices
-        let mut weights = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        let mut biases = DenseMatrix::new(2, 1, &[1.0, 2.0]);
+        let mut weights = DMat::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        let mut biases = DMat::new(2, 1, &[1.0, 2.0]);
 
         // Create mock gradient matrices
-        let d_weights = DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
-        let d_biases = DenseMatrix::new(2, 1, &[0.1, 0.1]);
+        let d_weights = DMat::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
+        let d_biases = DMat::new(2, 1, &[0.1, 0.1]);
 
         // Create an instance of the RMSProp optimizer
         let config = RMSPropConfig {
@@ -280,7 +277,7 @@ mod tests {
         // Update the parameters using the mock gradients
         optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
 
-        let expected_weights = DenseMatrix::new(2, 2, &[0.96837723, 1.9683772, 2.9683774, 3.9683774]);
+        let expected_weights = DMat::new(2, 2, &[0.96837723, 1.9683772, 2.9683774, 3.9683774]);
 
         assert!(equal_approx(&weights, &expected_weights, 1e-6));
     }

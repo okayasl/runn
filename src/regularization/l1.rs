@@ -1,5 +1,5 @@
 use super::{Regularization, RegularizationClone};
-use crate::{common::matrix::DenseMatrix, error::NetworkError};
+use crate::{common::matrix::DMat, error::NetworkError};
 
 use serde::{Deserialize, Serialize};
 use typetag;
@@ -27,7 +27,7 @@ pub(crate) struct L1Regularization {
 
 #[typetag::serde]
 impl Regularization for L1Regularization {
-    fn apply(&self, params: &mut [&mut DenseMatrix], grads: &mut [&mut DenseMatrix]) {
+    fn apply(&self, params: &mut [&mut DMat], grads: &mut [&mut DMat]) {
         for (param, grad) in params.iter().zip(grads.iter_mut()) {
             grad.apply_with_indices(|i, j, v| {
                 let p = param.at(i, j);
@@ -105,20 +105,20 @@ impl L1 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::matrix::DenseMatrix;
+    use crate::common::matrix::DMat;
     use crate::util::equal_approx;
 
     #[test]
     fn test_l1_regularization() {
-        let mut params = vec![DenseMatrix::new(2, 2, &[1.0, -2.0, 3.0, -4.0])];
-        let mut grads = vec![DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1])];
+        let mut params = vec![DMat::new(2, 2, &[1.0, -2.0, 3.0, -4.0])];
+        let mut grads = vec![DMat::new(2, 2, &[0.1, 0.1, 0.1, 0.1])];
         let l1 = L1::new().lambda(0.01).build().unwrap();
 
-        let mut params_refs: Vec<&mut DenseMatrix> = params.iter_mut().collect();
-        let mut grads_refs: Vec<&mut DenseMatrix> = grads.iter_mut().collect();
+        let mut params_refs: Vec<&mut DMat> = params.iter_mut().collect();
+        let mut grads_refs: Vec<&mut DMat> = grads.iter_mut().collect();
         l1.apply(&mut params_refs, &mut grads_refs);
 
-        let expected_grads = DenseMatrix::new(2, 2, &[0.11, 0.12, 0.13, 0.14]);
+        let expected_grads = DMat::new(2, 2, &[0.11, 0.12, 0.13, 0.14]);
         equal_approx(&grads[0], &expected_grads, 1e-6);
     }
 

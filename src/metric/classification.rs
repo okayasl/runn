@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{matrix::DenseMatrix, util};
+use crate::{matrix::DMat, util};
 
 use super::{MetricEvaluator, MetricResult};
 
@@ -57,13 +57,13 @@ impl ClassificationMetrics {
 pub(crate) struct ClassificationEvaluator;
 
 impl MetricEvaluator for ClassificationEvaluator {
-    fn evaluate(&self, targets: &DenseMatrix, predictions: &DenseMatrix) -> MetricResult {
+    fn evaluate(&self, targets: &DMat, predictions: &DMat) -> MetricResult {
         let classification_metrics = calculate_classification_metrics(targets, predictions);
         MetricResult::Classification(classification_metrics)
     }
 }
 
-fn calculate_classification_metrics(targets: &DenseMatrix, predictions: &DenseMatrix) -> ClassificationMetrics {
+fn calculate_classification_metrics(targets: &DMat, predictions: &DMat) -> ClassificationMetrics {
     let (true_positives_map, false_positives_map, false_negatives_map) =
         calculate_confusion_matrix(targets, predictions);
 
@@ -123,7 +123,7 @@ fn calculate_classification_metrics(targets: &DenseMatrix, predictions: &DenseMa
 }
 
 /// Calculate accuracy by comparing max values in each row
-fn calculate_accuracy(predictions: &DenseMatrix, targets: &DenseMatrix) -> f32 {
+fn calculate_accuracy(predictions: &DMat, targets: &DMat) -> f32 {
     let rows = predictions.rows();
     if rows == 0 || predictions.rows() != targets.rows() || predictions.cols() != targets.cols() {
         return 0.0;
@@ -142,7 +142,7 @@ fn calculate_accuracy(predictions: &DenseMatrix, targets: &DenseMatrix) -> f32 {
 }
 
 fn calculate_confusion_matrix(
-    targets: &DenseMatrix, predictions: &DenseMatrix,
+    targets: &DMat, predictions: &DMat,
 ) -> (HashMap<usize, usize>, HashMap<usize, usize>, HashMap<usize, usize>) {
     let mut true_positives: HashMap<usize, usize> = HashMap::new();
     let mut false_positives: HashMap<usize, usize> = HashMap::new();
@@ -201,8 +201,8 @@ mod tests {
 
     #[test]
     fn test_calculate_accuracy() {
-        let predictions = DenseMatrix::new(2, 2, &[0.9f32, 0.1, 0.2, 0.8]);
-        let targets = DenseMatrix::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
+        let predictions = DMat::new(2, 2, &[0.9f32, 0.1, 0.2, 0.8]);
+        let targets = DMat::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
         let accuracy = calculate_accuracy(&predictions, &targets);
         assert!((accuracy - 1.0).abs() < 1e-6);
     }

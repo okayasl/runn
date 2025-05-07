@@ -1,5 +1,4 @@
 pub mod flexible;
-pub mod loss;
 
 use typetag;
 

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use typetag;
 
 use crate::{
-    classification::ClassificationEvaluator, error::NetworkError, matrix::DenseMatrix, MetricEvaluator, MetricResult,
+    classification::ClassificationEvaluator, error::NetworkError, matrix::DMat, MetricEvaluator, MetricResult,
 };
 
 use super::{LossFunction, LossFunctionClone};
@@ -90,7 +90,7 @@ impl LossFunctionClone for CrossEntropyLoss {
 
 #[typetag::serde]
 impl LossFunction for CrossEntropyLoss {
-    fn forward(&self, predicted: &DenseMatrix, target: &DenseMatrix) -> f32 {
+    fn forward(&self, predicted: &DMat, target: &DMat) -> f32 {
         let mut total_loss = 0.0;
         let (rows, cols) = (predicted.rows(), predicted.cols());
 
@@ -119,9 +119,9 @@ impl LossFunction for CrossEntropyLoss {
         total_loss / rows as f32
     }
 
-    fn backward(&self, predicted: &DenseMatrix, target: &DenseMatrix) -> DenseMatrix {
+    fn backward(&self, predicted: &DMat, target: &DMat) -> DMat {
         let (rows, cols) = (predicted.rows(), predicted.cols());
-        let mut gradient = DenseMatrix::zeros(rows, cols);
+        let mut gradient = DMat::zeros(rows, cols);
 
         gradient.apply_with_indices(|i, j, v| {
             let t = target.at(i, j);
@@ -132,7 +132,7 @@ impl LossFunction for CrossEntropyLoss {
 
         gradient
     }
-    fn calculate_metrics(&self, targets: &DenseMatrix, predictions: &DenseMatrix) -> MetricResult {
+    fn calculate_metrics(&self, targets: &DMat, predictions: &DMat) -> MetricResult {
         ClassificationEvaluator.evaluate(targets, predictions)
     }
 }
@@ -140,13 +140,13 @@ impl LossFunction for CrossEntropyLoss {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{common::matrix::DenseMatrix, util};
+    use crate::{common::matrix::DMat, util};
 
     #[test]
     fn test_forward() {
         let loss = CrossEntropy::new().epsilon(1e-7).build().unwrap();
-        let predicted = DenseMatrix::new(2, 2, &[0.9, 0.1, 0.2, 0.8]);
-        let target = DenseMatrix::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
+        let predicted = DMat::new(2, 2, &[0.9, 0.1, 0.2, 0.8]);
+        let target = DMat::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
         let result = loss.forward(&predicted, &target);
         assert!((result - 0.164252033486018).abs() < 1e-6);
     }
@@ -154,10 +154,10 @@ mod tests {
     #[test]
     fn test_backward() {
         let loss = CrossEntropy::new().epsilon(1e-7).build().unwrap();
-        let predicted = DenseMatrix::new(2, 2, &[0.9, 0.1, 0.2, 0.8]);
-        let target = DenseMatrix::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
+        let predicted = DMat::new(2, 2, &[0.9, 0.1, 0.2, 0.8]);
+        let target = DMat::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
         let gradient = loss.backward(&predicted, &target);
-        let expected_gradient = DenseMatrix::new(2, 2, &[-0.1, 0.1, 0.2, -0.2]);
+        let expected_gradient = DMat::new(2, 2, &[-0.1, 0.1, 0.2, -0.2]);
         assert!(util::equal_approx(&gradient, &expected_gradient, 1e-6));
     }
 

@@ -5,17 +5,14 @@ pub mod momentum;
 pub mod rmsprop;
 pub mod sgd;
 
-use crate::common::matrix::DenseMatrix;
+use crate::common::matrix::DMat;
 
 use typetag;
 
 #[typetag::serde]
 pub trait Optimizer: OptimizerClone + Send + Sync {
-    fn initialize(&mut self, weights: &DenseMatrix, biases: &DenseMatrix);
-    fn update(
-        &mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, d_weights: &DenseMatrix,
-        d_biases: &DenseMatrix, epoch: usize,
-    );
+    fn initialize(&mut self, weights: &DMat, biases: &DMat);
+    fn update(&mut self, weights: &mut DMat, biases: &mut DMat, d_weights: &DMat, d_biases: &DMat, epoch: usize);
     fn update_learning_rate(&mut self, learning_rate: f32);
 }
 

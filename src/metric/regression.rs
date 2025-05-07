@@ -1,4 +1,4 @@
-use crate::matrix::DenseMatrix;
+use crate::matrix::DMat;
 
 use super::{MetricEvaluator, MetricResult};
 
@@ -28,7 +28,7 @@ impl RegressionMetrics {
 pub(crate) struct RegressionEvaluator;
 
 impl MetricEvaluator for RegressionEvaluator {
-    fn evaluate(&self, targets: &DenseMatrix, predictions: &DenseMatrix) -> MetricResult {
+    fn evaluate(&self, targets: &DMat, predictions: &DMat) -> MetricResult {
         let rmse = rmse(targets, predictions);
         let r2 = r2_score(targets, predictions);
 
@@ -36,7 +36,7 @@ impl MetricEvaluator for RegressionEvaluator {
     }
 }
 
-fn rmse(y_true: &DenseMatrix, y_pred: &DenseMatrix) -> f32 {
+fn rmse(y_true: &DMat, y_pred: &DMat) -> f32 {
     let mut sum = 0.0;
     let n = y_true.rows();
 
@@ -50,7 +50,7 @@ fn rmse(y_true: &DenseMatrix, y_pred: &DenseMatrix) -> f32 {
     (sum / (n as f32)).sqrt()
 }
 
-fn r2_score(y_true: &DenseMatrix, y_pred: &DenseMatrix) -> f32 {
+fn r2_score(y_true: &DMat, y_pred: &DMat) -> f32 {
     let n = y_true.rows();
     let m = y_true.cols();
 

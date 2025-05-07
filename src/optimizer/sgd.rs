@@ -1,4 +1,4 @@
-use crate::{common::matrix::DenseMatrix, error::NetworkError, LearningRateScheduler};
+use crate::{common::matrix::DMat, error::NetworkError, LearningRateScheduler};
 
 use serde::{Deserialize, Serialize};
 use typetag;
@@ -24,14 +24,11 @@ impl SGDOptimizer {
 
 #[typetag::serde]
 impl Optimizer for SGDOptimizer {
-    fn initialize(&mut self, _weights: &DenseMatrix, _biases: &DenseMatrix) {
+    fn initialize(&mut self, _weights: &DMat, _biases: &DMat) {
         // No initialization needed for basic SGD
     }
 
-    fn update(
-        &mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, d_weights: &DenseMatrix,
-        d_biases: &DenseMatrix, epoch: usize,
-    ) {
+    fn update(&mut self, weights: &mut DMat, biases: &mut DMat, d_weights: &DMat, d_biases: &DMat, epoch: usize) {
         if self.config.scheduler.is_some() {
             let scheduler = self.config.scheduler.as_ref().unwrap();
             self.config.learning_rate = scheduler.schedule(epoch, self.config.learning_rate);
@@ -155,8 +152,8 @@ mod tests {
             scheduler: None,
         };
         let mut optimizer = SGDOptimizer::new(config);
-        let weights = DenseMatrix::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
-        let biases = DenseMatrix::new(2, 1, &[0.1, 0.2]);
+        let weights = DMat::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
+        let biases = DMat::new(2, 1, &[0.1, 0.2]);
         optimizer.initialize(&weights, &biases);
         // No specific assertions needed for initialization
     }
@@ -168,10 +165,10 @@ mod tests {
             scheduler: None,
         };
         let mut optimizer = SGDOptimizer::new(config);
-        let mut weights = DenseMatrix::new(2, 2, &[1.0, 1.0, 1.0, 1.0]);
-        let mut biases = DenseMatrix::new(2, 1, &[1.0, 1.0]);
-        let d_weights = DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
-        let d_biases = DenseMatrix::new(2, 1, &[0.1, 0.1]);
+        let mut weights = DMat::new(2, 2, &[1.0, 1.0, 1.0, 1.0]);
+        let mut biases = DMat::new(2, 1, &[1.0, 1.0]);
+        let d_weights = DMat::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
+        let d_biases = DMat::new(2, 1, &[0.1, 0.1]);
         optimizer.initialize(&weights, &biases);
 
         optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
@@ -197,12 +194,12 @@ mod tests {
             scheduler: None,
         };
         // Create mock parameter matrices
-        let mut weights = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        let mut biases = DenseMatrix::new(2, 1, &[1.0, 2.0]);
+        let mut weights = DMat::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        let mut biases = DMat::new(2, 1, &[1.0, 2.0]);
 
         // Create mock gradient matrices
-        let d_weights = DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
-        let d_biases = DenseMatrix::new(2, 1, &[0.1, 0.1]);
+        let d_weights = DMat::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
+        let d_biases = DMat::new(2, 1, &[0.1, 0.1]);
 
         // Create an instance of the SGD optimizer
         let mut optimizer = SGDOptimizer::new(config);
@@ -211,7 +208,7 @@ mod tests {
         // Update the parameters using the mock gradients
         optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
 
-        let expected_weights = DenseMatrix::new(2, 2, &[0.999, 1.999, 2.999, 3.999]);
+        let expected_weights = DMat::new(2, 2, &[0.999, 1.999, 2.999, 3.999]);
 
         assert!(equal_approx(&weights, &expected_weights, 1e-6));
     }

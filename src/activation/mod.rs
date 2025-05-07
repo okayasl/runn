@@ -9,14 +9,14 @@ pub mod softplus;
 pub mod swish;
 pub mod tanh;
 
-use crate::common::matrix::DenseMatrix;
+use crate::common::matrix::DMat;
 
 use typetag;
 
 #[typetag::serde]
 pub trait ActivationFunction: ActivationFunctionClone + Send + Sync {
-    fn forward(&self, input: &mut DenseMatrix);
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, output: &DenseMatrix);
+    fn forward(&self, input: &mut DMat);
+    fn backward(&self, d_output: &DMat, input: &mut DMat, output: &DMat);
     fn weight_initialization_factor(&self) -> fn(usize, usize) -> f32 {
         he_initialization
     }
@@ -24,11 +24,11 @@ pub trait ActivationFunction: ActivationFunctionClone + Send + Sync {
 
 #[typetag::serde]
 impl ActivationFunction for Box<dyn ActivationFunction> {
-    fn forward(&self, input: &mut DenseMatrix) {
+    fn forward(&self, input: &mut DMat) {
         (**self).forward(input); // Dereference the Box to call the method
     }
 
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, output: &DenseMatrix) {
+    fn backward(&self, d_output: &DMat, input: &mut DMat, output: &DMat) {
         (**self).backward(d_output, input, output); // Dereference the Box to call the method
     }
 

@@ -1,9 +1,9 @@
-use matrix::DenseMatrix;
+use matrix::DMat;
 
 use super::matrix;
 
 /// Helper function to find index of maximum value in a row
-pub(crate) fn find_max_index_in_row(matrix: &DenseMatrix, row: usize) -> usize {
+pub(crate) fn find_max_index_in_row(matrix: &DMat, row: usize) -> usize {
     let cols = matrix.cols();
     if cols == 0 {
         return 0;
@@ -25,7 +25,7 @@ pub(crate) fn find_max_index_in_row(matrix: &DenseMatrix, row: usize) -> usize {
 
 /// Check if two matrices are approximately equal within a tolerance
 #[cfg(test)]
-pub(crate) fn equal_approx(a: &DenseMatrix, b: &DenseMatrix, tolerance: f32) -> bool {
+pub(crate) fn equal_approx(a: &DMat, b: &DMat, tolerance: f32) -> bool {
     if a.rows() != b.rows() || a.cols() != b.cols() {
         return false;
     }
@@ -46,7 +46,7 @@ pub(crate) fn equal_approx(a: &DenseMatrix, b: &DenseMatrix, tolerance: f32) -> 
 }
 
 /// Flatten matrix into a vector in row-major order
-pub(crate) fn flatten(matrix: &DenseMatrix) -> Vec<f32> {
+pub(crate) fn flatten(matrix: &DMat) -> Vec<f32> {
     let (rows, cols) = (matrix.rows(), matrix.cols());
     let mut result = Vec::with_capacity(rows * cols);
 
@@ -66,7 +66,7 @@ mod tests {
 
     #[test]
     fn test_flatten() {
-        let matrix = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let matrix = DMat::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         assert_eq!(flatten(&matrix), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     }
 }

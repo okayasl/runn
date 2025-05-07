@@ -1,19 +1,16 @@
-use crate::{matrix::DenseMatrix, random::Randomizer, ActivationFunction, Optimizer, Regularization, SummaryWriter};
+use crate::{matrix::DMat, random::Randomizer, ActivationFunction, Optimizer, Regularization, SummaryWriter};
 
 pub mod dense_layer;
 
 #[typetag::serde]
 pub trait Layer: LayerClone + Send + Sync {
-    fn forward(&self, input: &DenseMatrix) -> (DenseMatrix, DenseMatrix);
+    fn forward(&self, input: &DMat) -> (DMat, DMat);
     fn backward(
-        &self, d_output: &DenseMatrix, input: &DenseMatrix, pre_activated_output: &DenseMatrix,
-        activated_output: &DenseMatrix,
-    ) -> (DenseMatrix, DenseMatrix, DenseMatrix);
+        &self, d_output: &DMat, input: &DMat, pre_activated_output: &DMat, activated_output: &DMat,
+    ) -> (DMat, DMat, DMat);
     fn activation_function(&self) -> &dyn ActivationFunction;
-    fn regulate(
-        &mut self, d_weights: &mut DenseMatrix, d_biases: &mut DenseMatrix, regularization: &Box<dyn Regularization>,
-    );
-    fn update(&mut self, d_weights: &DenseMatrix, d_biases: &DenseMatrix, epoch: usize);
+    fn regulate(&mut self, d_weights: &mut DMat, d_biases: &mut DMat, regularization: &Box<dyn Regularization>);
+    fn update(&mut self, d_weights: &DMat, d_biases: &DMat, epoch: usize);
     fn summarize(&self, epoch: usize, summary_writer: &mut dyn SummaryWriter);
     fn visualize(&self);
     fn input_output_size(&self) -> (usize, usize);

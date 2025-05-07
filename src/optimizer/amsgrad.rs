@@ -1,4 +1,4 @@
-use crate::{common::matrix::DenseMatrix, error::NetworkError, LearningRateScheduler};
+use crate::{common::matrix::DMat, error::NetworkError, LearningRateScheduler};
 use serde::{Deserialize, Serialize};
 use typetag;
 
@@ -24,12 +24,12 @@ use super::{Optimizer, OptimizerConfig, OptimizerConfigClone};
 #[derive(Serialize, Deserialize, Clone)]
 struct AMSGradOptimizer {
     config: AMSGradConfig,
-    moment1_weights: DenseMatrix,
-    moment2_weights: DenseMatrix,
-    max_moment2_weights: DenseMatrix,
-    moment1_biases: DenseMatrix,
-    moment2_biases: DenseMatrix,
-    max_moment2_biases: DenseMatrix,
+    moment1_weights: DMat,
+    moment2_weights: DMat,
+    max_moment2_weights: DMat,
+    moment1_biases: DMat,
+    moment2_biases: DMat,
+    max_moment2_biases: DMat,
     t: usize,
 }
 
@@ -37,17 +37,17 @@ impl AMSGradOptimizer {
     pub fn new(config: AMSGradConfig) -> Self {
         Self {
             config,
-            moment1_weights: DenseMatrix::zeros(0, 0),
-            moment2_weights: DenseMatrix::zeros(0, 0),
-            max_moment2_weights: DenseMatrix::zeros(0, 0),
-            moment1_biases: DenseMatrix::zeros(0, 0),
-            moment2_biases: DenseMatrix::zeros(0, 0),
-            max_moment2_biases: DenseMatrix::zeros(0, 0),
+            moment1_weights: DMat::zeros(0, 0),
+            moment2_weights: DMat::zeros(0, 0),
+            max_moment2_weights: DMat::zeros(0, 0),
+            moment1_biases: DMat::zeros(0, 0),
+            moment2_biases: DMat::zeros(0, 0),
+            max_moment2_biases: DMat::zeros(0, 0),
             t: 0,
         }
     }
 
-    fn update_moments(&mut self, d_weights: &DenseMatrix, d_biases: &DenseMatrix) {
+    fn update_moments(&mut self, d_weights: &DMat, d_biases: &DMat) {
         self.moment1_weights.apply_with_indices(|i, j, v| {
             *v = self.config.beta1 * *v + (1.0 - self.config.beta1) * d_weights.at(i, j);
         });
@@ -75,7 +75,7 @@ impl AMSGradOptimizer {
         });
     }
 
-    fn update_parameters(&mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, step_size: f32) {
+    fn update_parameters(&mut self, weights: &mut DMat, biases: &mut DMat, step_size: f32) {
         weights.apply_with_indices(|i, j, v| {
             let m_hat = self.moment1_weights.at(i, j) / (1.0 - self.config.beta1.powi(self.t as i32));
             let v_hat = self.max_moment2_weights.at(i, j) / (1.0 - self.config.beta2.powi(self.t as i32));
@@ -92,19 +92,16 @@ impl AMSGradOptimizer {
 
 #[typetag::serde]
 impl Optimizer for AMSGradOptimizer {
-    fn initialize(&mut self, weights: &DenseMatrix, biases: &DenseMatrix) {
-        self.moment1_weights = DenseMatrix::zeros(weights.rows(), weights.cols());
-        self.moment2_weights = DenseMatrix::zeros(weights.rows(), weights.cols());
-        self.max_moment2_weights = DenseMatrix::zeros(weights.rows(), weights.cols());
-        self.moment1_biases = DenseMatrix::zeros(biases.rows(), biases.cols());
-        self.moment2_biases = DenseMatrix::zeros(biases.rows(), biases.cols());
-        self.max_moment2_biases = DenseMatrix::zeros(biases.rows(), biases.cols());
+    fn initialize(&mut self, weights: &DMat, biases: &DMat) {
+        self.moment1_weights = DMat::zeros(weights.rows(), weights.cols());
+        self.moment2_weights = DMat::zeros(weights.rows(), weights.cols());
+        self.max_moment2_weights = DMat::zeros(weights.rows(), weights.cols());
+        self.moment1_biases = DMat::zeros(biases.rows(), biases.cols());
+        self.moment2_biases = DMat::zeros(biases.rows(), biases.cols());
+        self.max_moment2_biases = DMat::zeros(biases.rows(), biases.cols());
     }
 
-    fn update(
-        &mut self, weights: &mut DenseMatrix, biases: &mut DenseMatrix, d_weights: &DenseMatrix,
-        d_biases: &DenseMatrix, epoch: usize,
-    ) {
+    fn update(&mut self, weights: &mut DMat, biases: &mut DMat, d_weights: &DMat, d_biases: &DMat, epoch: usize) {
         if self.config.scheduler.is_some() {
             let scheduler = self.config.scheduler.as_ref().unwrap();
             self.config.learning_rate = scheduler.schedule(epoch, self.config.learning_rate);
@@ -293,7 +290,7 @@ impl OptimizerConfigClone for AMSGradConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{common::matrix::DenseMatrix, util::equal_approx};
+    use crate::{common::matrix::DMat, util::equal_approx};
 
     #[test]
     fn test_initialize() {
@@ -305,8 +302,8 @@ mod tests {
             scheduler: None,
         };
         let mut optimizer = AMSGradOptimizer::new(config);
-        let weights = DenseMatrix::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
-        let biases = DenseMatrix::new(2, 1, &[0.1, 0.2]);
+        let weights = DMat::new(2, 2, &[0.1, 0.2, 0.3, 0.4]);
+        let biases = DMat::new(2, 1, &[0.1, 0.2]);
         optimizer.initialize(&weights, &biases);
         assert_eq!(optimizer.moment1_weights.rows(), 2);
         assert_eq!(optimizer.moment1_weights.cols(), 2);
@@ -324,10 +321,10 @@ mod tests {
             scheduler: None,
         };
         let mut optimizer = AMSGradOptimizer::new(config);
-        let mut weights = DenseMatrix::new(2, 2, &[1.0, 1.0, 1.0, 1.0]);
-        let mut biases = DenseMatrix::new(2, 1, &[1.0, 1.0]);
-        let d_weights = DenseMatrix::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
-        let d_biases = DenseMatrix::new(2, 1, &[0.1, 0.1]);
+        let mut weights = DMat::new(2, 2, &[1.0, 1.0, 1.0, 1.0]);
+        let mut biases = DMat::new(2, 1, &[1.0, 1.0]);
+        let d_weights = DMat::new(2, 2, &[0.1, 0.1, 0.1, 0.1]);
+        let d_biases = DMat::new(2, 1, &[0.1, 0.1]);
         optimizer.initialize(&weights, &biases);
 
         optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
@@ -352,12 +349,12 @@ mod tests {
     #[test]
     fn test_amsgrad_optimizer() {
         // Create mock parameter matrices
-        let mut weights = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        let mut biases = DenseMatrix::new(2, 1, &[1.0, 2.0]);
+        let mut weights = DMat::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        let mut biases = DMat::new(2, 1, &[1.0, 2.0]);
 
         // Create mock gradient matrices
-        let d_weights = DenseMatrix::new(2, 2, &[10.0, 11.0, 12.0, 13.0]);
-        let d_biases = DenseMatrix::new(2, 1, &[10.0, 11.0]);
+        let d_weights = DMat::new(2, 2, &[10.0, 11.0, 12.0, 13.0]);
+        let d_biases = DMat::new(2, 1, &[10.0, 11.0]);
 
         // Create an instance of the AMSGrad optimizer
         let config = AMSGradConfig {
@@ -374,7 +371,7 @@ mod tests {
         optimizer.update(&mut weights, &mut biases, &d_weights, &d_biases, 1);
 
         // Manually compute the expected values with the AMSGrad update rule
-        let mut expected_params = DenseMatrix::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        let mut expected_params = DMat::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
 
         let (rows, cols) = (weights.rows(), weights.cols());
         let mut m_t;
@@ -390,7 +387,7 @@ mod tests {
 
         v_t = optimizer.moment2_weights.clone();
         v_t.scale(optimizer.config.beta2);
-        let mut v_tmp = DenseMatrix::zeros(rows, cols);
+        let mut v_tmp = DMat::zeros(rows, cols);
         v_tmp.apply_with_indices(|r, c, v| {
             let g = d_weights.at(r, c);
             *v = g * g;

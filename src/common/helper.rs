@@ -4,7 +4,7 @@ use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 
 use crate::util::find_max_index_in_row;
 
-use super::matrix::DenseMatrix;
+use super::matrix::DMat;
 
 /// A mode flag so we know whether to do classification or regression
 pub enum CompareMode {
@@ -13,9 +13,7 @@ pub enum CompareMode {
 }
 
 /// Pretty print three matrices side-by-side as an ASCII-art comparison and return as a String.
-pub fn pretty_compare_matrices(
-    input: &DenseMatrix, target: &DenseMatrix, prediction: &DenseMatrix, mode: CompareMode,
-) -> String {
+pub fn pretty_compare_matrices(input: &DMat, target: &DMat, prediction: &DMat, mode: CompareMode) -> String {
     let rows = input.rows();
     let mut buf = String::new();
 
@@ -45,7 +43,7 @@ pub fn pretty_compare_matrices(
     }
 
     // Helper to format one row of any matrix with given border chars
-    let format_row = |mat: &DenseMatrix, i: usize, left: char, right: char| {
+    let format_row = |mat: &DMat, i: usize, left: char, right: char| {
         let mut s = String::new();
         s.push(left);
         for j in 0..mat.cols() {
@@ -103,7 +101,7 @@ pub fn pretty_compare_matrices(
     buf
 }
 
-pub fn one_hot_encode(targets: &DenseMatrix) -> DenseMatrix {
+pub fn one_hot_encode(targets: &DMat) -> DMat {
     // Find the unique values in the target matrix to determine the number of classes
     let mut unique_values: Vec<f32> = Vec::new();
 
@@ -121,7 +119,7 @@ pub fn one_hot_encode(targets: &DenseMatrix) -> DenseMatrix {
     let num_classes = unique_values.len();
 
     // Initialize the one-hot encoded matrix with `num_classes` columns for each target
-    let mut one_hot_targets = DenseMatrix::zeros(targets.rows(), targets.cols() * num_classes);
+    let mut one_hot_targets = DMat::zeros(targets.rows(), targets.cols() * num_classes);
 
     for i in 0..targets.rows() {
         for j in 0..targets.cols() {
@@ -145,9 +143,7 @@ pub fn one_hot_encode(targets: &DenseMatrix) -> DenseMatrix {
 ///
 /// # Returns
 /// `(train_inputs, train_targets, val_inputs, val_targets)`
-pub fn random_split(
-    inputs: &DenseMatrix, targets: &DenseMatrix, validation_ratio: f32, seed: u64,
-) -> (DenseMatrix, DenseMatrix, DenseMatrix, DenseMatrix) {
+pub fn random_split(inputs: &DMat, targets: &DMat, validation_ratio: f32, seed: u64) -> (DMat, DMat, DMat, DMat) {
     let n = inputs.rows();
     assert_eq!(n, targets.rows(), "Row count of inputs and targets must match");
     assert!((0.0..=1.0).contains(&validation_ratio), "validation_ratio must be in [0,1]");
@@ -177,10 +173,10 @@ pub fn random_split(
         val_targets_data.extend(targets.get_row(i));
     }
 
-    let train_inputs = DenseMatrix::new(train_idx.len(), input_cols, &train_inputs_data);
-    let train_targets = DenseMatrix::new(train_idx.len(), target_cols, &train_targets_data);
-    let val_inputs = DenseMatrix::new(val_idx.len(), input_cols, &val_inputs_data);
-    let val_targets = DenseMatrix::new(val_idx.len(), target_cols, &val_targets_data);
+    let train_inputs = DMat::new(train_idx.len(), input_cols, &train_inputs_data);
+    let train_targets = DMat::new(train_idx.len(), target_cols, &train_targets_data);
+    let val_inputs = DMat::new(val_idx.len(), input_cols, &val_inputs_data);
+    let val_targets = DMat::new(val_idx.len(), target_cols, &val_targets_data);
 
     (train_inputs, train_targets, val_inputs, val_targets)
 }
@@ -195,9 +191,7 @@ pub fn random_split(
 ///
 /// # Returns
 /// `(train_inputs, train_targets, val_inputs, val_targets)`
-pub fn stratified_split(
-    inputs: &DenseMatrix, targets: &DenseMatrix, validation_ratio: f32, seed: u64,
-) -> (DenseMatrix, DenseMatrix, DenseMatrix, DenseMatrix) {
+pub fn stratified_split(inputs: &DMat, targets: &DMat, validation_ratio: f32, seed: u64) -> (DMat, DMat, DMat, DMat) {
     let n = inputs.rows();
     assert_eq!(n, targets.rows(), "Row count of inputs and targets must match");
     assert!(targets.cols() == 1, "Targets must be a single-column matrix");
@@ -246,10 +240,10 @@ pub fn stratified_split(
         val_t_flat.push(targets.at(i, 0));
     }
 
-    let train_inputs = DenseMatrix::new(train_idx.len(), n_features, &train_flat);
-    let train_targets = DenseMatrix::new(train_idx.len(), 1, &train_t_flat);
-    let val_inputs = DenseMatrix::new(val_idx.len(), n_features, &val_flat);
-    let val_targets = DenseMatrix::new(val_idx.len(), 1, &val_t_flat);
+    let train_inputs = DMat::new(train_idx.len(), n_features, &train_flat);
+    let train_targets = DMat::new(train_idx.len(), 1, &train_t_flat);
+    let val_inputs = DMat::new(val_idx.len(), n_features, &val_flat);
+    let val_targets = DMat::new(val_idx.len(), 1, &val_t_flat);
 
     (train_inputs, train_targets, val_inputs, val_targets)
 }
@@ -262,10 +256,10 @@ mod tests {
     fn test_matrix_split_shapes() {
         // 6 samples, 2 features
         let flat_in = vec![1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.];
-        let inputs = DenseMatrix::new(6, 2, &flat_in);
+        let inputs = DMat::new(6, 2, &flat_in);
         // targets: three classes 0,1,2 twice each
         let t = vec![0., 0., 1., 1., 2., 2.];
-        let targets = DenseMatrix::new(6, 1, &t);
+        let targets = DMat::new(6, 1, &t);
         let (ti, tt, vi, vt) = stratified_split(&inputs, &targets, 0.5, 1234);
         // 50% => one of each class in val => 3 val, 3 train
         assert_eq!(ti.rows(), 3);
@@ -279,12 +273,12 @@ mod tests {
     #[test]
     fn test_matrix_split_stratify() {
         let flat_in: Vec<f32> = (0..20).map(|x| x as f32).collect();
-        let inputs = DenseMatrix::new(10, 2, &flat_in); // 10 samples
-                                                        // classes: 0 for first 5, 1 for next 5
+        let inputs = DMat::new(10, 2, &flat_in); // 10 samples
+                                                 // classes: 0 for first 5, 1 for next 5
         let mut t = Vec::new();
         t.extend(vec![0.; 5]);
         t.extend(vec![1.; 5]);
-        let targets = DenseMatrix::new(10, 1, &t);
+        let targets = DMat::new(10, 1, &t);
         let (_ti, _tt, _vi, vt) = stratified_split(&inputs, &targets, 0.4, 42);
         // 40% of each class => 2 from class0 and 2 from class1 in val
         let mut count0 = 0;
@@ -304,12 +298,12 @@ mod tests {
     fn test_matrix_reproducibility() {
         // 8 samples, 3 features, classes 0/1 repeated
         let flat_in: Vec<f32> = (0..24).map(|x| x as f32).collect();
-        let inputs = DenseMatrix::new(8, 3, &flat_in);
+        let inputs = DMat::new(8, 3, &flat_in);
         let mut t = Vec::new();
         for i in 0..8 {
             t.push((i % 4) as f32);
         }
-        let targets = DenseMatrix::new(8, 1, &t);
+        let targets = DMat::new(8, 1, &t);
         let seed = 2025;
         let (a_i1, a_t1, v_i1, v_t1) = stratified_split(&inputs, &targets, 0.25, seed);
         let (a_i2, a_t2, v_i2, v_t2) = stratified_split(&inputs, &targets, 0.25, seed);
@@ -327,9 +321,9 @@ mod tests {
         }
     }
 
-    fn create_dummy_matrix(rows: usize, cols: usize) -> DenseMatrix {
+    fn create_dummy_matrix(rows: usize, cols: usize) -> DMat {
         let data: Vec<f32> = (0..rows * cols).map(|x| x as f32).collect();
-        DenseMatrix::new(rows, cols, &data)
+        DMat::new(rows, cols, &data)
     }
 
     #[test]

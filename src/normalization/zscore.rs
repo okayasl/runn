@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::matrix::DenseMatrix;
+use crate::matrix::DMat;
 
 use super::Normalization;
 
@@ -21,7 +21,7 @@ impl ZScore {
         }
     }
 
-    fn compute_mean_std(&mut self, matrix: &DenseMatrix) {
+    fn compute_mean_std(&mut self, matrix: &DMat) {
         let (rows, cols) = (matrix.rows(), matrix.cols());
         let mut means = vec![0.0; cols];
         let mut std_devs = vec![0.0; cols];
@@ -52,7 +52,7 @@ impl ZScore {
 
 #[typetag::serde]
 impl Normalization for ZScore {
-    fn normalize(&mut self, matrix: &mut DenseMatrix) -> Result<(), String> {
+    fn normalize(&mut self, matrix: &mut DMat) -> Result<(), String> {
         if self.means.is_none() || self.std_devs.is_none() {
             self.compute_mean_std(matrix);
         }
@@ -85,7 +85,7 @@ impl Normalization for ZScore {
         Ok(())
     }
 
-    fn denormalize(&self, matrix: &mut DenseMatrix) -> Result<(), String> {
+    fn denormalize(&self, matrix: &mut DMat) -> Result<(), String> {
         let (rows, cols) = (matrix.rows(), matrix.cols());
 
         let means = self.means.as_ref().ok_or_else(|| "Means not initialized".to_string())?;
@@ -118,13 +118,13 @@ impl Normalization for ZScore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::matrix::DenseMatrix; // Import DenseMatrix
+    use crate::matrix::DMat; // Import DenseMatrix
 
     // Test for Z-Score normalization and denormalization
     #[test]
     fn test_z_score_normalization() {
         let matrix_data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
-        let mut matrix = DenseMatrix::new(3, 3, &matrix_data);
+        let mut matrix = DMat::new(3, 3, &matrix_data);
 
         // Z-Score Normalization
         let mut z_score = ZScore::new();

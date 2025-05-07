@@ -194,6 +194,7 @@ impl Flexible {
 
     /// Sets the smoothing factor for early stopping.
     /// The smoothing factor is used to smooth the monitored metric over epochs.
+    /// It uses exponential moving average (EMA) smoothing on the loss before comparing to best
     /// This is useful for scenarios where the monitored metric may fluctuate a lot.
     /// The smoothing factor should be in the range [0, 1].
     /// A value of 0 means no smoothing, and a value of 1 means maximum smoothing.

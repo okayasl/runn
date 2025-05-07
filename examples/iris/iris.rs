@@ -6,7 +6,7 @@ use runn::{
     cross_entropy::CrossEntropy,
     dense_layer::Dense,
     helper,
-    matrix::DenseMatrix,
+    matrix::{DMat, DenseMatrix},
     network::network::{Network, NetworkBuilder},
     network_search::NetworkSearchBuilder,
     numbers::{Numbers, SequentialNumbers},
@@ -164,7 +164,7 @@ fn test_search() {
 
 pub fn iris_inputs_outputs(
     name: &str, fields_count: usize, input_count: usize,
-) -> Result<(DenseMatrix, DenseMatrix), Box<dyn Error>> {
+) -> Result<(DMat, DMat), Box<dyn Error>> {
     let target_count = fields_count - input_count;
 
     let file_path = format!("./examples/iris/{}.csv", name);
@@ -188,8 +188,14 @@ pub fn iris_inputs_outputs(
 
     let data_length = inputs_data.len() / input_count;
 
-    let inputs = DenseMatrix::new(data_length, input_count, &inputs_data);
-    let labels = DenseMatrix::new(data_length, target_count, &labels_data);
+    let inputs = DenseMatrix::new(data_length, input_count)
+        .data(&inputs_data)
+        .build()
+        .unwrap();
+    let labels = DenseMatrix::new(data_length, target_count)
+        .data(&labels_data)
+        .build()
+        .unwrap();
 
     Ok((inputs, labels))
 }

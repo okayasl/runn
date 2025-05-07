@@ -4,9 +4,9 @@
 // predict 0,1,0 if only two of the input elements are same
 // predict 0,0,1 if none of the input elements are same
 
-use runn::matrix::DenseMatrix;
+use runn::matrix::{DMat, DenseMatrix};
 
-pub(crate) fn training_inputs() -> DenseMatrix {
+pub(crate) fn training_inputs() -> DMat {
     let inps = vec![
         5.0, 4.0, 4.0, 2.0, 5.0, 5.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 1.0, 6.0, 2.0, 1.0, 3.0, 6.0, 5.0, 5.0, 5.0, 3.0,
         2.0, 6.0, 4.0, 9.0, 4.0, 0.0, 0.0, 0.0, 2.0, 6.0, 4.0, 2.0, 6.0, 2.0, 8.0, 8.0, 8.0, 2.0, 7.0, 2.0, 0.0, 0.0,
@@ -38,10 +38,10 @@ pub(crate) fn training_inputs() -> DenseMatrix {
     ];
     let inp_size = 3;
     let inps_row = inps.len() / inp_size;
-    DenseMatrix::new(inps_row, inp_size, &inps)
+    DenseMatrix::new(inps_row, inp_size).data(&inps).build().unwrap()
 }
 
-pub(crate) fn training_targets() -> DenseMatrix {
+pub(crate) fn training_targets() -> DMat {
     let tar = vec![
         0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0,
         0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0,
@@ -74,10 +74,10 @@ pub(crate) fn training_targets() -> DenseMatrix {
 
     let targ_size = 3;
     let targ_row = tar.len() / targ_size;
-    DenseMatrix::new(targ_row, targ_size, &tar)
+    DenseMatrix::new(targ_row, targ_size).data(&tar).build().unwrap()
 }
 
-pub(crate) fn validation_inputs() -> DenseMatrix {
+pub(crate) fn validation_inputs() -> DMat {
     let inps = vec![
         1.0, 6.0, 5.0, 0.0, 8.0, 9.0, 7.0, 6.0, 6.0, 0.0, 9.0, 9.0, 0.0, 7.0, 0.0, 8.0, 3.0, 8.0, 4.0, 9.0, 5.0, 7.0,
         5.0, 6.0, 6.0, 5.0, 5.0, 0.0, 9.0, 8.0, 3.0, 0.0, 3.0, 2.0, 5.0, 7.0, 1.0, 1.0, 1.0, 6.0, 2.0, 0.0, 7.0, 5.0,
@@ -88,10 +88,10 @@ pub(crate) fn validation_inputs() -> DenseMatrix {
 
     let inp_size = 3;
     let inps_row = inps.len() / inp_size;
-    DenseMatrix::new(inps_row, inp_size, &inps)
+    DenseMatrix::new(inps_row, inp_size).data(&inps).build().unwrap()
 }
 
-pub(crate) fn validation_targets() -> DenseMatrix {
+pub(crate) fn validation_targets() -> DMat {
     let tar = vec![
         0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0,
         0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0,
@@ -102,5 +102,5 @@ pub(crate) fn validation_targets() -> DenseMatrix {
 
     let targ_size = 3;
     let targ_row = tar.len() / targ_size;
-    DenseMatrix::new(targ_row, targ_size, &tar)
+    DenseMatrix::new(targ_row, targ_size).data(&tar).build().unwrap()
 }

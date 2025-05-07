@@ -1,13 +1,13 @@
 use classification::ClassificationMetrics;
 use regression::RegressionMetrics;
 
-use crate::matrix::DenseMatrix;
+use crate::matrix::DMat;
 
 pub mod classification;
 pub mod regression;
 
 pub(crate) trait MetricEvaluator {
-    fn evaluate(&self, targets: &DenseMatrix, predictions: &DenseMatrix) -> MetricResult;
+    fn evaluate(&self, targets: &DMat, predictions: &DMat) -> MetricResult;
 }
 
 pub enum MetricResult {

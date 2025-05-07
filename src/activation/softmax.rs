@@ -1,4 +1,4 @@
-use crate::common::matrix::DenseMatrix;
+use crate::common::matrix::DMat;
 use crate::{activation::ActivationFunction, error::NetworkError};
 
 use serde::{Deserialize, Serialize};
@@ -37,9 +37,9 @@ impl Softmax {
 
 #[typetag::serde]
 impl ActivationFunction for SoftmaxActivation {
-    fn forward(&self, input: &mut DenseMatrix) {
+    fn forward(&self, input: &mut DMat) {
         let (rows, cols) = (input.rows(), input.cols());
-        let mut result = DenseMatrix::zeros(rows, cols);
+        let mut result = DMat::zeros(rows, cols);
 
         for i in 0..rows {
             // Step 1: Find the maximum value to stabilize the exponentials
@@ -62,9 +62,9 @@ impl ActivationFunction for SoftmaxActivation {
         *input = result;
     }
 
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, output: &DenseMatrix) {
+    fn backward(&self, d_output: &DMat, input: &mut DMat, output: &DMat) {
         let (rows, cols) = (input.rows(), input.cols());
-        let mut result = DenseMatrix::zeros(rows, cols);
+        let mut result = DMat::zeros(rows, cols);
 
         for i in 0..rows {
             for j in 0..cols {
@@ -97,11 +97,11 @@ impl ActivationFunctionClone for SoftmaxActivation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::matrix::DenseMatrix;
+    use crate::common::matrix::DMat;
 
     #[test]
     fn test_softmax_forward() {
-        let mut input = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 1.0, 2.0, 3.0]);
+        let mut input = DMat::new(2, 3, &[1.0, 2.0, 3.0, 1.0, 2.0, 3.0]);
         let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
@@ -113,16 +113,16 @@ mod tests {
     }
     #[test]
     fn test_softmax_backward() {
-        let mut input = DenseMatrix::new(2, 3, &[1.0, 2.0, 3.0, 1.0, 2.0, 3.0]);
-        let output = DenseMatrix::new(2, 3, &[0.1, 0.2, 0.7, 0.1, 0.2, 0.7]);
-        let d_output = DenseMatrix::new(2, 3, &[0.01, 0.02, 0.03, 0.01, 0.02, 0.03]);
+        let mut input = DMat::new(2, 3, &[1.0, 2.0, 3.0, 1.0, 2.0, 3.0]);
+        let output = DMat::new(2, 3, &[0.1, 0.2, 0.7, 0.1, 0.2, 0.7]);
+        let d_output = DMat::new(2, 3, &[0.01, 0.02, 0.03, 0.01, 0.02, 0.03]);
 
         let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
         softmax.backward(&d_output, &mut input, &output);
 
         // Compute expected gradients manually for verification
-        let expected_gradients = DenseMatrix::new(2, 3, &[-0.0016, -0.0011, 0.0028, -0.0016, -0.0011, 0.0028]);
+        let expected_gradients = DMat::new(2, 3, &[-0.0016, -0.0011, 0.0028, -0.0016, -0.0011, 0.0028]);
 
         for i in 0..input.rows() {
             for j in 0..input.cols() {
@@ -142,11 +142,11 @@ mod tests {
 
     #[test]
     fn test_softmax_small_input() {
-        let mut input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
+        let mut input = DMat::new(1, 3, &[1.0, 2.0, 3.0]);
         let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
-        let expected = DenseMatrix::new(1, 3, &[0.0900, 0.2447, 0.6652]);
+        let expected = DMat::new(1, 3, &[0.0900, 0.2447, 0.6652]);
 
         for j in 0..input.cols() {
             let computed = input.at(0, j);
@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_softmax_large_positive_values() {
-        let mut input = DenseMatrix::new(1, 3, &[100.0, 200.0, 300.0]);
+        let mut input = DMat::new(1, 3, &[100.0, 200.0, 300.0]);
         let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_softmax_large_negative_values() {
-        let mut input = DenseMatrix::new(1, 3, &[-100.0, -200.0, -300.0]);
+        let mut input = DMat::new(1, 3, &[-100.0, -200.0, -300.0]);
         let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_softmax_equal_values() {
-        let mut input = DenseMatrix::new(1, 3, &[1.0, 1.0, 1.0]);
+        let mut input = DMat::new(1, 3, &[1.0, 1.0, 1.0]);
         let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_softmax_empty_input() {
-        let mut input = DenseMatrix::new(0, 0, &[]);
+        let mut input = DMat::new(0, 0, &[]);
         let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn test_softmax_single_element() {
-        let mut input = DenseMatrix::new(1, 1, &[42.0]);
+        let mut input = DMat::new(1, 1, &[42.0]);
         let softmax = Softmax::new().unwrap();
         softmax.forward(&mut input);
 

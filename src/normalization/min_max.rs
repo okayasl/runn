@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::matrix::DenseMatrix;
+use crate::matrix::DMat;
 
 use super::Normalization;
 
@@ -19,7 +19,7 @@ impl MinMax {
         Self { mins: None, maxs: None }
     }
 
-    fn compute_min_max(&mut self, matrix: &DenseMatrix) {
+    fn compute_min_max(&mut self, matrix: &DMat) {
         let (rows, cols) = (matrix.rows(), matrix.cols());
         let mut mins = vec![f32::INFINITY; cols];
         let mut maxs = vec![f32::NEG_INFINITY; cols];
@@ -42,7 +42,7 @@ impl MinMax {
 
 #[typetag::serde]
 impl Normalization for MinMax {
-    fn normalize(&mut self, matrix: &mut DenseMatrix) -> Result<(), String> {
+    fn normalize(&mut self, matrix: &mut DMat) -> Result<(), String> {
         // If mins and maxs are not computed, do it now
         if self.mins.is_none() || self.maxs.is_none() {
             self.compute_min_max(matrix);
@@ -74,7 +74,7 @@ impl Normalization for MinMax {
         Ok(())
     }
 
-    fn denormalize(&self, matrix: &mut DenseMatrix) -> Result<(), String> {
+    fn denormalize(&self, matrix: &mut DMat) -> Result<(), String> {
         let (rows, cols) = (matrix.rows(), matrix.cols());
 
         // Check if dimensions match
@@ -105,13 +105,13 @@ impl Normalization for MinMax {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::matrix::DenseMatrix; // Import DenseMatrix
+    use crate::matrix::DMat; // Import DenseMatrix
 
     // Test for Min-Max normalization and denormalization
     #[test]
     fn test_min_max_normalization() {
         let matrix_data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
-        let mut matrix = DenseMatrix::new(3, 3, &matrix_data);
+        let mut matrix = DMat::new(3, 3, &matrix_data);
 
         // Min-Max Normalization
         let mut min_max = MinMax::new();

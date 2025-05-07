@@ -1,4 +1,4 @@
-use crate::common::matrix::DenseMatrix;
+use crate::common::matrix::DMat;
 use crate::{activation::ActivationFunction, error::NetworkError};
 
 use serde::{Deserialize, Serialize};
@@ -69,7 +69,7 @@ impl ELU {
 
 #[typetag::serde]
 impl ActivationFunction for ELUActivation {
-    fn forward(&self, input: &mut DenseMatrix) {
+    fn forward(&self, input: &mut DMat) {
         input.apply(|x| {
             if x > 0.0 {
                 x // ELU(x) = x for x > 0
@@ -79,7 +79,7 @@ impl ActivationFunction for ELUActivation {
         });
     }
 
-    fn backward(&self, d_output: &DenseMatrix, input: &mut DenseMatrix, _output: &DenseMatrix) {
+    fn backward(&self, d_output: &DMat, input: &mut DMat, _output: &DMat) {
         input.apply(|x| {
             if x > 0.0 {
                 1.0 // dELU(x) = 1 for x > 0
@@ -104,18 +104,18 @@ impl ActivationFunctionClone for ELUActivation {
 #[cfg(test)]
 mod elu_tests {
     use super::*;
-    use crate::{common::matrix::DenseMatrix, util::equal_approx};
+    use crate::{common::matrix::DMat, util::equal_approx};
 
     #[test]
     fn test_elu_forward_positive_values() {
         let elu = ELU::new().alpha(1.0).build().unwrap();
 
-        let mut input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
+        let mut input = DMat::new(1, 3, &[1.0, 2.0, 3.0]);
 
         elu.forward(&mut input);
 
         // Positive values should remain unchanged
-        let expected = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
+        let expected = DMat::new(1, 3, &[1.0, 2.0, 3.0]);
 
         assert!(equal_approx(&input, &expected, 1e-6), "ELU forward pass with positive values failed");
     }
@@ -126,14 +126,14 @@ mod elu_tests {
         let elu: Box<dyn ActivationFunction> = ELU::new().alpha(1.0).build().unwrap();
 
         // Create a matrix with mixed positive and negative values
-        let mut input = DenseMatrix::new(2, 3, &[-1.0, 0.0, 2.0, -3.5, 4.2, 0.0]);
+        let mut input = DMat::new(2, 3, &[-1.0, 0.0, 2.0, -3.5, 4.2, 0.0]);
 
         elu.forward(&mut input);
 
         // Expected output:
         // For x > 0: x remains unchanged
         // For x <= 0: alpha * (e^x - 1)
-        let expected = DenseMatrix::new(
+        let expected = DMat::new(
             2,
             3,
             &[
@@ -155,16 +155,16 @@ mod elu_tests {
         let elu = ELU::new().alpha(1.0).build().unwrap();
 
         // Original input matrix with positive values
-        let mut input = DenseMatrix::new(1, 3, &[1.0, 2.0, 3.0]);
+        let mut input = DMat::new(1, 3, &[1.0, 2.0, 3.0]);
 
         // Downstream gradient
-        let d_output = DenseMatrix::new(1, 3, &[0.5, 1.0, 0.7]);
-        let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
+        let d_output = DMat::new(1, 3, &[0.5, 1.0, 0.7]);
+        let output: DMat = DMat::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
         elu.backward(&d_output, &mut input, &output);
 
         // Expected output for positive values: gradient is 1.0
-        let expected = DenseMatrix::new(1, 3, &[0.5, 1.0, 0.7]);
+        let expected = DMat::new(1, 3, &[0.5, 1.0, 0.7]);
 
         assert!(equal_approx(&input, &expected, 1e-6), "ELU backward pass with positive values failed");
     }
@@ -172,10 +172,10 @@ mod elu_tests {
     #[test]
     fn test_elu_backward_mixed_values() {
         // Original input matrix
-        let mut input = DenseMatrix::new(2, 3, &[-1.0, 0.0, 2.0, -3.5, 4.2, 0.0]);
+        let mut input = DMat::new(2, 3, &[-1.0, 0.0, 2.0, -3.5, 4.2, 0.0]);
         // Downstream gradient
-        let d_output = DenseMatrix::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
-        let output: DenseMatrix = DenseMatrix::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
+        let d_output = DMat::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
+        let output: DMat = DMat::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
         // Create an ELU with default alpha (typically 1.0)
         let elu = ELU::new().alpha(1.0).build().unwrap();
@@ -184,7 +184,7 @@ mod elu_tests {
         // Expected output:
         // For x > 0: 1.0 * d_output
         // For x <= 0: alpha * e^x * d_output
-        let expected = DenseMatrix::new(
+        let expected = DMat::new(
             2,
             3,
             &[
@@ -212,11 +212,11 @@ mod elu_tests {
         for (alpha, input_value, expected_output) in test_cases {
             let elu = ELU::new().alpha(alpha).build().unwrap();
 
-            let mut input = DenseMatrix::new(1, 1, &[input_value]);
+            let mut input = DMat::new(1, 1, &[input_value]);
 
             elu.forward(&mut input);
 
-            let expected = DenseMatrix::new(1, 1, &[expected_output]);
+            let expected = DMat::new(1, 1, &[expected_output]);
 
             assert!(equal_approx(&input, &expected, 1e-6), "ELU forward pass with alpha failed");
         }
