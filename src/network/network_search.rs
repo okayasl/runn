@@ -610,7 +610,7 @@ impl Exportable for SearchResult {
 mod tests {
 
     use crate::{
-        adam::Adam, cross_entropy::CrossEntropy, cvs::CVS, elu::ELU, error::NetworkError, min_max::MinMax, relu::ReLU,
+        adam::Adam, cross_entropy::CrossEntropy, csv::CSV, elu::ELU, error::NetworkError, min_max::MinMax, relu::ReLU,
         softmax::Softmax,
     };
 
@@ -653,7 +653,7 @@ mod tests {
             .hidden_layer(vec![10], ReLU::new())
             .batch_sizes(vec![32, 64])
             .learning_rates(vec![0.01, 0.02])
-            .export(CVS::new().file_name("test_file").build())
+            .export(CSV::new().file_name("test_file").build())
             .normalize_input(MinMax::new())
             .parallelize(4);
 

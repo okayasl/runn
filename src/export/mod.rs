@@ -1,6 +1,6 @@
 use crate::error::NetworkError;
 
-pub mod cvs;
+pub mod csv;
 
 pub trait Exporter {
     fn export(&self, headers: Vec<String>, values: Vec<Vec<String>>) -> Result<(), NetworkError>;

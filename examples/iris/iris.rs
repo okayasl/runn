@@ -4,7 +4,7 @@ use log::{error, info};
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
-    cvs::CVS,
+    csv::CSV,
     dense_layer::Dense,
     helper,
     matrix::{DMat, DenseMatrix},
@@ -153,7 +153,7 @@ fn test_search() {
             ReLU::new(),
         )
         .export(
-            CVS::new()
+            CSV::new()
                 .directory(EXP_NAME)
                 .file_name(&format!("{}_search", EXP_NAME))
                 .build(),

@@ -43,6 +43,8 @@ runn = "0.1"
 
 ⚙️ Quickstart
 
+`runn` aims an easy to use library, so it adopts fluent interface design pattern.
+Most of the components initialized with their default values which can be overridden on demand.
 Here’s how to build and train a simple neural network:
 
 ```rust
@@ -59,10 +61,10 @@ fn main() {
         .loss_function(CrossEntropy::new().build()) // Cross-entropy loss function with default values
         .optimizer(Adam::new().build()) // Adam optimizer with default values
         .batch_size(2) // Number of batches
-        .seed(42) // Optional seed for reproducibiliy
+        .seed(42) // Optional seed for reproducibility
         .epochs(5)
         .build()
-        .unwrap();
+        .unwrap(); // Handle error in production use
 
     let inputs = DenseMatrix::new(4, 2).data(&[0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]).build().unwrap();
     let targets = DenseMatrix::new(4, 1).data(&[0.0, 1.0, 1.0, 0.0]).build().unwrap();
@@ -70,7 +72,7 @@ fn main() {
     let result = network.train(&inputs, &targets);
 
     match result {
-        Ok(_) => println!("Training completed successfully.\nResults: {}", result.unwrap().display_metrics()),
+        Ok(result) => println!("Training completed successfully.\nResults: {}", result.display_metrics()),
         Err(e) => eprintln!("Training failed: {}", e),
     }
 }
@@ -103,15 +105,19 @@ You can simply make hyper-parameter search for parameters learning rate, batch s
         .batch_sizes(vec![1,2,4,7]) // batch_size to be searched
         .hidden_layer(vec![1,3,4,7],ReLU::new()) // layer sizes to be searched for the first layer
         .hidden_layer(vec![1,3,7,9],ReLU::new()) // layer sizes to be searched for the second layer
-        .export(CVS::new().file_name("network_search").build()) // export results to network_search.cvs
-        .build();
+        .export(CSV::new().file_name("network_search").build()) // export results to network_search.csv
+        .build()
+        .unwrap(); // Handle error in production use
 
-    // search takes validation inputs, outpus as well to make predictions for simplicity
-    let ns = network_search.unwrap().search(training_inputs, training_targets, validation_inputs, validation_targets);
+    // search takes validation inputs, outputs as well to make predictions for simplicity
+    let ns = network_search.search(training_inputs, training_targets, validation_inputs, validation_targets);
 ```
-At the end of the search the results are exported to defined cvs file. It includes loss and training metrics.
+
+At the end of the search the results are exported to defined csv file. It includes loss and training metrics.
 
 ## ✨ Features
+
+`runn` has following features in which you can details in documents.
 
 
 | Feature               | Built in Support                                                            |
@@ -161,7 +167,7 @@ With `runn`, you can write fairly complex networks according to your needs:
         .batch_size(4) // number of batches 
         .batch_group_size(4) // number of batches to process in groups. Each batch_group can be trained independently in parallel.
         .parallelize(4) // number of threads to use for parallel process the batch groups
-        .summary(TensorBoard::new().logdir("summary").build()) // tensorboard summary
+        .summary(TensorBoard::new().directory("summary").build()) // tensorboard summary
         .normalize_input(MinMax::new()) // normalization of the input data
         .build() // Build network
         .unwrap();
@@ -186,7 +192,7 @@ Bonus:
 ```
 
 * **helper::random_split:**
-  Provides random split for matrix inputs and multi-columbn targets
+  Provides random split for matrix inputs and multi-column targets
 
 ```bash
     let (training_inputs, training_targets, validation_inputs, validation_targets) = helper::random(&all_inputs, &all_targets, 0.2, 11);
@@ -202,12 +208,12 @@ Bonus:
 See the examples/ directory for end‑to‑end demos:
 
 
-| example  | description                        | train                        | search                                  |
-| ---------- | ------------------------------------ | ------------------------------ | ----------------------------------------- |
-| triplets | Multi-class classification problem | **cargo run --example triplets** | **cargo run --example triplets -- -search** |
-| iris | Multi-class classification problem | **cargo run --example iris** | **cargo run --example iris -- -search** |
-| wine | Multi-class classification problem | **cargo run --example wine** | **cargo run --example wine -- -search** |
-| energy efficiency | Regression problem | **cargo run --example energy_efficiency** | **cargo run --example energy_efficiency -- -search** |
+| example              | description                        | train                                     | search                                               |
+| ---------------------- | ------------------------------------ | ------------------------------------------- | ------------------------------------------------------ |
+| [triplets](https://github.com/okayasl/runn/tree/main/examples/triplets) | Multi-class classification problem | **cargo run --example triplets**          | **cargo run --example triplets -- -search**          |
+| [iris](https://github.com/okayasl/runn/tree/main/examples/iris)                 | Multi-class classification problem | **cargo run --example iris**              | **cargo run --example iris -- -search**              |
+| [wine](https://github.com/okayasl/runn/tree/main/examples/wine)                 | Multi-class classification problem | **cargo run --example wine**              | **cargo run --example wine -- -search**              |
+| [energy efficiency](https://github.com/okayasl/runn/tree/main/examples/energy_efficiency)    | Regression problem                 | **cargo run --example energy_efficiency** | **cargo run --example energy_efficiency -- -search** |
 
 ## 📖 Documentation
 
@@ -218,6 +224,7 @@ For local docs
 ```bash
 cargo doc --open
 ```
+
 ## 🤝 Contributing
 
 We welcome all contributions! Please see CONTRIBUTING.md for:

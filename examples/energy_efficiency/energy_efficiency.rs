@@ -3,7 +3,7 @@ use env_logger::{Builder, Target};
 use log::{error, info};
 use runn::{
     adam::Adam,
-    cvs::CVS,
+    csv::CSV,
     dense_layer::Dense,
     flexible::{Flexible, MonitorMetric},
     helper,
@@ -163,7 +163,7 @@ fn test_search(training_inputs: &DMat, training_targets: &DMat, validation_input
             ReLU::new(),
         )
         .export(
-            CVS::new()
+            CSV::new()
                 .directory(EXP_NAME)
                 .file_name(&format!("{}_search", EXP_NAME))
                 .build(),

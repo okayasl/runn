@@ -46,16 +46,16 @@ impl Exporter for CSVExporter {
     }
 }
 
-pub struct CVS {
+pub struct CSV {
     delimiter: char,
     file_name: String,
     directory: String,
     file_extension: String,
 }
 
-impl CVS {
+impl CSV {
     pub fn new() -> Self {
-        CVS {
+        CSV {
             delimiter: ',',
             file_name: "result".to_string(),
             directory: ".".to_string(),

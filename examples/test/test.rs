@@ -1,7 +1,7 @@
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
-    cvs::CVS,
+    csv::CSV,
     dense_layer::Dense,
     dropout::Dropout,
     elu::ELU,
@@ -39,7 +39,7 @@ fn main() {
     let result = network.train(&inputs, &targets);
 
     match result {
-        Ok(_) => println!("Training completed successfully.\nResults: {}", result.unwrap().display_metrics()),
+        Ok(result) => println!("Training completed successfully.\nResults: {}", result.display_metrics()),
         Err(e) => eprintln!("Training failed: {}", e),
     }
 
@@ -54,7 +54,7 @@ fn main() {
         .batch_sizes(vec![1, 2, 4, 7])
         .hidden_layer(vec![1, 3, 4, 7], ReLU::new())
         .hidden_layer(vec![1, 3, 7, 9], ReLU::new())
-        .export(CVS::new().file_name("hp_search").build())
+        .export(CSV::new().file_name("hp_search").build())
         .build();
 
     // let ns=     network_search.unwrap().search(training_inputs, training_targets, validation_inputs, validation_targets);
