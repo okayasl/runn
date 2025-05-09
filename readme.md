@@ -1,4 +1,5 @@
 <!-- Badges -->
+
 [![Crates.io](https://img.shields.io/crates/v/runn)](https://crates.io/crates/runn)
 [![docs.rs](https://img.shields.io/docsrs/runn)](https://docs.rs/runn)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/okayasl/runn/ci.yml?branch=main)](https://github.com/okayasl/runn/actions)
@@ -8,7 +9,7 @@
 
 **A Compact Rust Neural Network Library**
 
-`runn` is a feature-rich, easy to use library for building, training, and evaluating feed forward neural networks in Rust. It supports a wide range of activation functions, optimizers, regularization techniques, fine grained parallelization, hyperparameter search and more, with a user friendly api.
+`runn` is a feature-rich, easy to use library for building, training, and evaluating feed forward neural networks in Rust. It supports a wide range of activation functions, optimizers, regularization techniques, fine-grained parallelization, hyperparameter search and more, with a user friendly api.
 
 ---
 
@@ -33,7 +34,6 @@ Add `runn` to your project:
 cargo add runn
 ```
 
-
 Or in Cargo.toml:
 
 ```bash
@@ -56,15 +56,16 @@ fn main() {
     let mut network = NetworkBuilder::new(2, 1)
         .layer(Dense::new().size(4).activation(ReLU::new()).build())
         .layer(Dense::new().size(1).activation(Softmax::new()).build())
-        .loss_function(CrossEntropy::new().build())
-        .optimizer(Adam::new().build())
+        .loss_function(CrossEntropy::new().build()) // Cross-entropy loss function with default values
+        .optimizer(Adam::new().build()) // Adam optimizer with default values
+        .batch_size(2) // Number of batches
+        .seed(42) // Optional seed for reproducibiliy
         .epochs(5)
-        .batch_size(2)
         .build()
         .unwrap();
 
-    let inputs = DenseMatrix::new(4, 2, &[0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]);
-    let targets = DenseMatrix::new(4, 1, &[0.0, 1.0, 1.0, 0.0]);
+    let inputs = DenseMatrix::new(4, 2).data(&[0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]).build().unwrap();
+    let targets = DenseMatrix::new(4, 1).data(&[0.0, 1.0, 1.0, 0.0]).build().unwrap();
 
     let result = network.train(&inputs, &targets);
 
@@ -74,6 +75,7 @@ fn main() {
     }
 }
 ```
+
 and you would see something like that:
 
 ```bash
@@ -83,45 +85,48 @@ Results: Loss:0.0000, Classification Metrics: Accuracy:100.0000, Micro Precision
     Class 0:    Precision:1.0000    Recall:1.0000    F1 Score:1.0000
 ```
 
-You can save & load networks like
+You can save & load your trained networks like:
 
 ```rust
-    network.save("model.json", SerializationFormat::Json);
-    let mut loaded_network = Network::load("model.json", SerializationFormat::Json);
+    network.save(JSON::new().filename("network").build().unwrap());
+    let mut loaded_network = Network::load(JSON::new().filename("network").build().unwrap());
     let results = loaded_network.predict(&validation_inputs, &validation_targets);
 ```
 
-You can simply search for parameters(learning rate, batch size, layer size) like:
+You can simply make hyper-parameter search for parameters learning rate, batch size and layer size like:
 
 ```rust
     let network_search = NetworkSearchBuilder::new()
-        .network(network)
+        .network(base_network)
         .parallelize(4) // run for 4 thread
-        .learning_rates(vec![0.0025,0.0035]) 
-        .batch_sizes(vec![1,2,4,7])
-        .hidden_layer(vec![1,3,4,7],ReLU::new())
-        .hidden_layer(vec![1,3,7,9],ReLU::new())
-        .export("hp_search".to_string()) // export results
+        .learning_rates(vec![0.0025,0.0035]) // learning rates to be searched
+        .batch_sizes(vec![1,2,4,7]) // batch_size to be searched
+        .hidden_layer(vec![1,3,4,7],ReLU::new()) // layer sizes to be searched for the first layer
+        .hidden_layer(vec![1,3,7,9],ReLU::new()) // layer sizes to be searched for the second layer
+        .export(CVS::new().file_name("network_search").build()) // export results to network_search.cvs
         .build();
 
-    // search takes validation inputs outpus as well to make predictions as well   
+    // search takes validation inputs, outpus as well to make predictions for simplicity
     let ns = network_search.unwrap().search(training_inputs, training_targets, validation_inputs, validation_targets);
 ```
+At the end of the search the results are exported to defined cvs file. It includes loss and training metrics.
 
 ## ✨ Features
-| Feature	|Built in Support|
-| ------------- | ------------- |
-Activations |	ELU, GeLU, ReLU, LeakyReLU, Linear, Sigmoid, Softmax, Softplus, Swish, Tanh
-Optimizers |	SGD, Momentum, RMSProp, Adam, AdamW, AMSGrad
-Loss Functions|	Cross-Entropy, Mean Squared Error
-Regularization|	L1, L2, Dropout
-Schedulers|	Exponential, Step
-Early Stopping|	Loss
-Save&load network | JSON & MessagePack
-Logging Summary | TensorBoard
-Hyperparameter Search | Layer size, batch size, learning rate
-Normalization | Minmax, Zscore
 
+
+| Feature               | Built in Support                                                            |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| Activations           | ELU, GeLU, ReLU, LeakyReLU, Linear, Sigmoid, Softmax, Softplus, Swish, Tanh |
+| Optimizers            | SGD, Momentum, RMSProp, Adam, AdamW, AMSGrad                                |
+| Loss Functions        | Cross-Entropy, Mean Squared Error                                           |
+| Regularization        | L1, L2, Dropout                                                             |
+| Schedulers            | Exponential, Step                                                           |
+| Early Stopping        | Loss, Accuracy, R2                                                          |
+| Save&load network     | JSON & MessagePack                                                          |
+| Logging Summary       | TensorBoard                                                                 |
+| Hyperparameter Search | Layer size, batch size, learning rate                                       |
+| Normalization         | Minmax, Zscore                                                              |
+| Parallelization       | Forward&Backward runs for batch groups                                      |
 
 ## 📂 Examples
 
@@ -154,7 +159,7 @@ With `runn`, you can write fairly complex networks according to your needs:
         .regularization(Dropout::new().dropout_rate(0.2).seed(42).build()) // Dropout regularization with seed for reproducibility
         .epochs(5000) // number of epoch to run
         .batch_size(4) // number of batches 
-        .batch_group_size(4) // number of batches to process in groups
+        .batch_group_size(4) // number of batches to process in groups. Each batch_group can be trained independently in parallel.
         .parallelize(4) // number of threads to use for parallel process the batch groups
         .summary(TensorBoard::new().logdir("summary").build()) // tensorboard summary
         .normalize_input(MinMax::new()) // normalization of the input data
@@ -166,53 +171,69 @@ With `runn`, you can write fairly complex networks according to your needs:
 Bonus:
 `runn` provides some handy utility methods:
 
-| method	|description| usage|
-| ------------- | ------------- | ------------- |
-helper::one_hot_encode |	Provides one hot encoding for target.  |   ```let training_targets = helper::one_hot_encode(&training_targets);```
-helper::stratified_split |	Provides stratified split for matrix inputs and single-column targets  |   ```let (training_inputs, training_targets, validation_inputs, validation_targets) = helper::stratified_split(&all_inputs, &all_targets, 0.2, 11);```
-helper::random_split |	Provides random split for matrix inputs and multi-columbn targets  |   ```let (training_inputs, training_targets, validation_inputs, validation_targets) = helper::random(&all_inputs, &all_targets, 0.2, 11);```
-helper::pretty_compare_matrices |	 Pretty prints three matrices side-by-side as an ASCII-art comparison  |   ```helper::pretty_compare_matrices(&training_inputs, &training_targets, &predictions, helper::CompareMode::Regression)```
+* **helper::one_hot_encode:**
+  Provides one hot encoding for target
 
+```bash
+    let training_targets = helper::one_hot_encode(&training_targets);
+```
 
+* **helper::stratified_split:**
+  Provides stratified split for matrix inputs and single-column targets
+
+```bash
+    let (training_inputs, training_targets, validation_inputs, validation_targets) = helper::stratified_split(&all_inputs, &all_targets, 0.2, 11);
+```
+
+* **helper::random_split:**
+  Provides random split for matrix inputs and multi-columbn targets
+
+```bash
+    let (training_inputs, training_targets, validation_inputs, validation_targets) = helper::random(&all_inputs, &all_targets, 0.2, 11);
+```
+
+* **helper::pretty_compare_matrices:**
+  Pretty prints three matrices side-by-side as an ASCII-art comparison
+
+```bash
+    helper::pretty_compare_matrices(&training_inputs, &training_targets, &predictions, helper::CompareMode::Regression)
+```
 
 See the examples/ directory for end‑to‑end demos:
 
-    - triplets: Metric learning with triplet loss
-    - iris: Iris classification
-    - wine: Wine quality regression
-    - energy_efficiency: Energy efficiency regression
 
-Run an example:
-
-```bash
-cargo run --example iris
-```
+| example  | description                        | train                        | search                                  |
+| ---------- | ------------------------------------ | ------------------------------ | ----------------------------------------- |
+| triplets | Multi-class classification problem | **cargo run --example triplets** | **cargo run --example triplets -- -search** |
+| iris | Multi-class classification problem | **cargo run --example iris** | **cargo run --example iris -- -search** |
+| wine | Multi-class classification problem | **cargo run --example wine** | **cargo run --example wine -- -search** |
+| energy efficiency | Regression problem | **cargo run --example energy_efficiency** | **cargo run --example energy_efficiency -- -search** |
 
 ## 📖 Documentation
 
 Full API docs on docs.rs/runn.
 
 For local docs
+
 ```bash
 cargo doc --open
 ```
-
 ## 🤝 Contributing
 
 We welcome all contributions! Please see CONTRIBUTING.md for:
 
-    Issue templates and PR guidelines
+Issue templates and PR guidelines
 
-    Code style (rustfmt, Clippy) and testing (cargo test)
+Code style (rustfmt, Clippy) and testing (cargo test)
 
-    Code of Conduct
+Code of Conduct
 
 ## 📜 License
 
-Dual‑licensed under MIT OR Apache‑2.0. See LICENSE-MIT and LICENSE-APACHE.    
+Dual‑licensed under MIT OR Apache‑2.0. See LICENSE-MIT and LICENSE-APACHE.
 
 ## 👤 Authors & Acknowledgments
 
-    Okay Aslan (okayasl) – Creator & maintainer
+Okay Aslan (okayasl) – Creator & maintainer
 
-    Thanks to the Rust community for nalgebra, serde, tensorboard-rs, and other tooling.
+Thanks to the Rust community for nalgebra, serde, tensorboard-rs, and other tooling.

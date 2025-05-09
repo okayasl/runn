@@ -1,17 +1,11 @@
-use std::{
-    collections::BTreeMap,
-    fs::{self, File},
-    sync::Arc,
-    time::Instant,
-};
+use std::{collections::BTreeMap, sync::Arc, time::Instant};
 
-use csv::Writer;
 use log::info;
 use rand::{seq::SliceRandom, thread_rng};
 
 use crate::{
-    dense_layer::Dense, error::NetworkError, matrix::DMat, parallel::ThreadPool, ActivationFunction, Metrics,
-    Normalization,
+    dense_layer::Dense, error::NetworkError, matrix::DMat, parallel::ThreadPool, ActivationFunction, Exportable,
+    Exporter, Metrics, Normalization,
 };
 
 use super::network::{Network, NetworkBuilder};
@@ -26,7 +20,7 @@ pub struct NetworkSearchBuilder {
     hidden_layer_sizes: Vec<Vec<usize>>,
     batch_sizes: Vec<usize>,
     learning_rates: Vec<f32>,
-    filename: String,
+    exporter: Option<Result<Box<dyn Exporter>, NetworkError>>,
     normalize_input: Option<Box<dyn Normalization>>,
     normalize_output: Option<Box<dyn Normalization>>,
     parallelize: usize,
@@ -43,10 +37,10 @@ impl NetworkSearchBuilder {
             hidden_layer_sizes: Vec::new(),
             batch_sizes: Vec::new(),
             learning_rates: Vec::new(),
-            filename: String::new(),
             normalize_input: None,
             normalize_output: None,
             parallelize: 1,
+            exporter: None,
         }
     }
 
@@ -99,10 +93,14 @@ impl NetworkSearchBuilder {
     /// If specified, search results (e.g., losses, metrics) are saved to a CSV file in the `.out` directory.
     /// # Parameters
     /// - `filename`: Name of the output CSV file (without path or extension).
-    pub fn export(mut self, filename: String) -> Self {
-        self.filename = filename;
+    pub fn export(mut self, exporter: Result<Box<dyn Exporter>, NetworkError>) -> Self {
+        self.exporter = Some(exporter);
         self
     }
+    // pub fn export(mut self, filename: String) -> Self {
+    //     self.filename = filename;
+    //     self
+    // }
 
     /// Set input data normalization.
     ///
@@ -174,6 +172,11 @@ impl NetworkSearchBuilder {
         if self.learning_rates.iter().any(|&lr| lr <= 0.0) {
             return Err(NetworkError::ConfigError("Learning rate must be greater than 0".into()));
         }
+
+        if let Some(ref exporter) = self.exporter {
+            exporter.as_ref().map_err(|e| e.clone())?;
+        }
+
         Ok(())
     }
 
@@ -223,10 +226,10 @@ impl NetworkSearchBuilder {
         let nc = self.generate_network_combinations()?;
         Ok(NetworkSearch {
             networks: nc,
-            filename: self.filename,
             normalize_input: self.normalize_input,
             normalize_output: self.normalize_output,
             parallelize: self.parallelize,
+            exporter: self.exporter.map(|e| e.unwrap()),
         })
     }
 }
@@ -317,10 +320,10 @@ fn extract_config_from_network(nw: &Network) -> NetworkConfig {
 
 pub struct NetworkSearch {
     networks: Vec<Network>,
-    filename: String,
     normalize_input: Option<Box<dyn Normalization>>,
     normalize_output: Option<Box<dyn Normalization>>,
     parallelize: usize,
+    exporter: Option<Box<dyn Exporter>>,
 }
 
 impl NetworkSearch {
@@ -411,9 +414,11 @@ impl NetworkSearch {
 
         let search_results = search_results?;
 
-        if !search_results.is_empty() && !self.filename.is_empty() {
-            write_search_results(&self.filename, &search_results)
-                .map_err(|e| NetworkError::SearchError(format!("Failed to write search results: {}", e)))?;
+        if !search_results.is_empty() && self.exporter.is_some() {
+            let exporter = self.exporter.as_mut().unwrap();
+            exporter
+                .export(search_results[0].header(), search_results.iter().map(|result| result.values()).collect())
+                .map_err(|e| NetworkError::SearchError(format!("Failed to export search results: {}", e)))?;
         }
         Ok(search_results)
     }
@@ -518,6 +523,7 @@ fn run(
     }
 }
 
+/// A struct representing the results of a single network search iteration.
 pub struct SearchResult {
     pub elapsed_time: f32,
     pub config: NetworkConfig,
@@ -527,7 +533,7 @@ pub struct SearchResult {
     pub v_loss: f32,
 }
 
-impl SearchResult {
+impl Exportable for SearchResult {
     fn values(&self) -> Vec<String> {
         let size_string: Vec<String> = self.config.layer_sizes.iter().map(|&size| size.to_string()).collect();
         vec![
@@ -542,7 +548,7 @@ impl SearchResult {
         ]
     }
 
-    fn default_headers(&self) -> Vec<String> {
+    fn header(&self) -> Vec<String> {
         vec![
             "Learning_Rate",
             "Batch_Size",
@@ -571,40 +577,40 @@ impl SearchResult {
     }
 }
 
-pub fn write_search_results(name: &str, results: &[SearchResult]) -> Result<(), NetworkError> {
-    if !std::path::Path::new(".out").exists() {
-        fs::create_dir(".out")
-            .map_err(|e| NetworkError::IoError(format!("Failed to create output directory: {}", e)))?;
-    }
+// pub fn write_search_results(name: &str, results: &[SearchResult]) -> Result<(), NetworkError> {
+//     if !std::path::Path::new(".out").exists() {
+//         fs::create_dir(".out")
+//             .map_err(|e| NetworkError::IoError(format!("Failed to create output directory: {}", e)))?;
+//     }
 
-    let file_path = format!(".out/{}-result.csv", name);
-    let file = File::create(&file_path)
-        .map_err(|e| NetworkError::IoError(format!("Failed to create file '{}': {}", file_path, e)))?;
+//     let file_path = format!(".out/{}-result.csv", name);
+//     let file = File::create(&file_path)
+//         .map_err(|e| NetworkError::IoError(format!("Failed to create file '{}': {}", file_path, e)))?;
 
-    let mut writer = Writer::from_writer(file);
+//     let mut writer = Writer::from_writer(file);
 
-    writer
-        .write_record(results[0].default_headers())
-        .map_err(|e| NetworkError::IoError(format!("Failed to write headers to '{}': {}", file_path, e)))?;
+//     writer
+//         .write_record(results[0].default_headers())
+//         .map_err(|e| NetworkError::IoError(format!("Failed to write headers to '{}': {}", file_path, e)))?;
 
-    for result in results {
-        writer
-            .write_record(result.values())
-            .map_err(|e| NetworkError::IoError(format!("Failed to write result to '{}': {}", file_path, e)))?;
-    }
+//     for result in results {
+//         writer
+//             .write_record(result.values())
+//             .map_err(|e| NetworkError::IoError(format!("Failed to write result to '{}': {}", file_path, e)))?;
+//     }
 
-    writer
-        .flush()
-        .map_err(|e| NetworkError::IoError(format!("Failed to flush writer for '{}': {}", file_path, e)))?;
+//     writer
+//         .flush()
+//         .map_err(|e| NetworkError::IoError(format!("Failed to flush writer for '{}': {}", file_path, e)))?;
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 #[cfg(test)]
 mod tests {
 
     use crate::{
-        adam::Adam, cross_entropy::CrossEntropy, elu::ELU, error::NetworkError, min_max::MinMax, relu::ReLU,
+        adam::Adam, cross_entropy::CrossEntropy, cvs::CVS, elu::ELU, error::NetworkError, min_max::MinMax, relu::ReLU,
         softmax::Softmax,
     };
 
@@ -647,13 +653,12 @@ mod tests {
             .hidden_layer(vec![10], ReLU::new())
             .batch_sizes(vec![32, 64])
             .learning_rates(vec![0.01, 0.02])
-            .export("test_file".to_string())
+            .export(CVS::new().file_name("test_file").build())
             .normalize_input(MinMax::new())
             .parallelize(4);
 
         let network_search = builder.build().unwrap();
 
-        assert_eq!(network_search.filename, "test_file");
         assert!(network_search.normalize_input.is_some());
         assert_eq!(network_search.parallelize, 4);
         assert!(!network_search.networks.is_empty());

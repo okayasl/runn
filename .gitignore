@@ -23,7 +23,12 @@ npm-debug.log*
 
 # === Project‑specific output ===
 /.out/
-/summary/ 
+/summary/
+/triplets/
+/iris/
+/wine/
+/energy_efficiency/
+ 
 
 # === Optional: dependency directories ===
 # If you vendor dependencies or use third‑party code, ignore their build outputs

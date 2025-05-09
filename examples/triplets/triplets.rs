@@ -1,20 +1,27 @@
 mod data;
 
-use std::{env, fs::File};
+use std::{
+    env,
+    fs::{self, File},
+};
 
 use env_logger::{Builder, Target};
 use log::{error, info};
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
+    cvs::CVS,
     dense_layer::Dense,
     helper,
     network::network::{Network, NetworkBuilder},
+    network_io::JSON,
     network_search::NetworkSearchBuilder,
     numbers::{Numbers, SequentialNumbers},
     relu::ReLU,
     softmax::Softmax,
 };
+
+const EXP_NAME: &str = "triplets";
 
 // Triplets is a Multi-class classification problem.
 // One-hot encoding problem with 3 classes.
@@ -22,7 +29,7 @@ use runn::{
 // predict 0,1,0 if only two of the input elements are same
 // predict 0,0,1 if none of the input elements are same
 fn main() {
-    initialize_logger();
+    initialize_logger(EXP_NAME);
 
     let args: Vec<String> = env::args().collect();
     if args.contains(&"-search".to_string()) {
@@ -33,7 +40,7 @@ fn main() {
 }
 
 fn train_and_validate() {
-    let triplets_file = String::from("triplets_network.json");
+    let network_file = String::from(format!("{}_network", EXP_NAME));
     let training_inputs = data::training_inputs();
     let training_targets = data::training_targets();
     let mut network = triplets_network(training_inputs.cols(), training_targets.cols());
@@ -42,7 +49,9 @@ fn train_and_validate() {
     match train_result {
         Ok(_) => {
             println!("Training completed successfully");
-            network.save(&triplets_file, runn::network_io::SerializationFormat::Json);
+            network
+                .save(JSON::new().directory(EXP_NAME).filename(&network_file).build().unwrap())
+                .unwrap();
             let net_results = network.predict(&training_inputs, &training_targets).unwrap();
             log::info!(
                 "{}",
@@ -60,7 +69,7 @@ fn train_and_validate() {
         }
     }
 
-    network = Network::load(&triplets_file, runn::network_io::SerializationFormat::Json);
+    network = Network::load(JSON::new().directory(EXP_NAME).filename(&network_file).build().unwrap()).unwrap();
     let validation_inputs = data::validation_inputs();
     let validation_targets = data::validation_targets();
     let net_results = network.predict(&validation_inputs, &validation_targets).unwrap();
@@ -110,7 +119,12 @@ fn search() {
                 .ints(),
             ReLU::new(),
         )
-        .export("triplets_search".to_string())
+        .export(
+            CVS::new()
+                .directory(EXP_NAME)
+                .file_name(&format!("{}_search", EXP_NAME))
+                .build(),
+        )
         .build();
 
     let mut network_search = match network_search {
@@ -161,16 +175,23 @@ fn triplets_network(inp_size: usize, targ_size: usize) -> Network {
 }
 
 /// Initializes the logger for the application.
-/// It creates a log file named "app.log" and sets the log level to "info" by default.
 /// The LOG environment variable is used to define the log level (e.g., info, debug, warn, error).
 /// If the LOG variable is not set, it defaults to info.
-fn initialize_logger() {
+fn initialize_logger(name: &str) {
+    // Check if the directory exists, and attempt to create it if it doesn't
+    if !std::path::Path::new(name).exists() {
+        let _res = fs::create_dir_all(name).map_err(|e| {
+            eprintln!("Failed to create log directory: {}", e);
+            return;
+        });
+    }
+
     // Attempt to create a log file
-    let log_file = match File::create("triplets.log") {
+    let log_file = match File::create(format!("./{}/{}.log", name, name)) {
         Ok(file) => file,
         Err(e) => {
             eprintln!("Failed to create log file: {}", e);
-            return; // Exit the function if the log file cannot be created
+            return;
         }
     };
 

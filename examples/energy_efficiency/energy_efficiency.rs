@@ -3,6 +3,7 @@ use env_logger::{Builder, Target};
 use log::{error, info};
 use runn::{
     adam::Adam,
+    cvs::CVS,
     dense_layer::Dense,
     flexible::{Flexible, MonitorMetric},
     helper,
@@ -11,13 +12,16 @@ use runn::{
     mean_squared_error::MeanSquared,
     min_max::MinMax,
     network::network::{Network, NetworkBuilder},
+    network_io::JSON,
     network_search::NetworkSearchBuilder,
     numbers::{Numbers, SequentialNumbers},
     relu::ReLU,
 };
-use std::env;
 use std::error::Error;
 use std::fs::File;
+use std::{env, fs};
+
+const EXP_NAME: &str = "energy_efficiency";
 
 /// This example demonstrates how to use the runn library to train a neural network on the energy efficiency dataset.
 /// The dataset is used for predicting the energy efficiency of buildings based on various features.
@@ -27,7 +31,7 @@ use std::fs::File;
 /// The dataset comprises 768 samples and 8 features, aiming to predict two real valued responses.
 /// It can also be used as a multi-class classification problem if the response is rounded to the nearest integer.
 fn main() {
-    initialize_logger();
+    initialize_logger(EXP_NAME);
 
     let (training_inputs, training_targets, validation_inputs, validation_targets) =
         energy_efficiency_inputs_targets("ENB2012_data", 10, 8).unwrap();
@@ -43,7 +47,7 @@ fn main() {
 fn train_and_validate(
     training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat, validation_targets: &DMat,
 ) {
-    let een_file = String::from("energy_efficiency_network.json");
+    let network_file = String::from(format!("{}_network", EXP_NAME));
 
     let mut network = energy_efficiency_network(training_inputs.cols(), training_targets.cols());
 
@@ -51,7 +55,9 @@ fn train_and_validate(
     match training_result {
         Ok(_) => {
             println!("Training completed successfully");
-            network.save(&een_file, runn::network_io::SerializationFormat::Json);
+            network
+                .save(JSON::new().directory(EXP_NAME).filename(&network_file).build().unwrap())
+                .unwrap();
             let net_results = network.predict(&training_inputs, &training_targets).unwrap();
             log::info!(
                 "{}",
@@ -69,7 +75,7 @@ fn train_and_validate(
         }
     }
 
-    network = Network::load(&een_file, runn::network_io::SerializationFormat::Json);
+    network = Network::load(JSON::new().directory(EXP_NAME).filename(&network_file).build().unwrap()).unwrap();
     let net_results = network.predict(&validation_inputs, &validation_targets).unwrap();
     log::info!(
         "{}",
@@ -102,7 +108,7 @@ fn energy_efficiency_network(inp_size: usize, targ_size: usize) -> Network {
         .batch_group_size(2)
         .parallelize(2)
         .normalize_input(MinMax::new())
-        .epochs(1500)
+        .epochs(500)
         .seed(55)
         //.summary(TensorBoard::new().logdir("energy_efficiency_summary").build())
         //.debug(true)
@@ -156,7 +162,12 @@ fn test_search(training_inputs: &DMat, training_targets: &DMat, validation_input
                 .ints(),
             ReLU::new(),
         )
-        .export("energy_efficiency_search".to_string())
+        .export(
+            CVS::new()
+                .directory(EXP_NAME)
+                .file_name(&format!("{}_search", EXP_NAME))
+                .build(),
+        )
         .build();
     let mut network_search = match network_search {
         Ok(ns) => ns,
@@ -230,16 +241,23 @@ pub fn energy_efficiency_inputs_targets(
 }
 
 /// Initializes the logger for the application.
-/// It creates a log file named "app.log" and sets the log level to "info" by default.
 /// The LOG environment variable is used to define the log level (e.g., info, debug, warn, error).
 /// If the LOG variable is not set, it defaults to info.
-fn initialize_logger() {
+fn initialize_logger(name: &str) {
+    // Check if the directory exists, and attempt to create it if it doesn't
+    if !std::path::Path::new(name).exists() {
+        let _res = fs::create_dir_all(name).map_err(|e| {
+            eprintln!("Failed to create log directory: {}", e);
+            return;
+        });
+    }
+
     // Attempt to create a log file
-    let log_file = match File::create("energy_efficiency.log") {
+    let log_file = match File::create(format!("./{}/{}.log", name, name)) {
         Ok(file) => file,
         Err(e) => {
             eprintln!("Failed to create log file: {}", e);
-            return; // Exit the function if the log file cannot be created
+            return;
         }
     };
 

@@ -13,7 +13,7 @@ use crate::{
     EarlyStopper, LossFunction, Metrics, Normalization, OptimizerConfig, SummaryWriter,
 };
 
-use super::network_io::{load_network, save_network, NetworkIO, SerializationFormat};
+use super::network_io::{NetworkIO, NetworkSerialized};
 
 /// A builder for constructing a neural network with customizable layers, loss functions, optimizers, and training parameters.
 ///
@@ -800,16 +800,15 @@ impl Network {
         false
     }
 
-    pub fn save(&self, filename: &str, format: SerializationFormat) {
-        save_network(&self.to_io(), filename, format);
+    pub fn save(&self, network_io: impl NetworkIO) -> Result<(), NetworkError> {
+        Ok(network_io.save(self.to_io())?)
     }
 
-    pub fn load(filename: &str, format: SerializationFormat) -> Self {
-        let network_io = load_network(filename, format);
-        Network::from_io(network_io)
+    pub fn load(network_io: impl NetworkIO) -> Result<Self, NetworkError> {
+        Ok(Network::from_io(network_io.load()?))
     }
 
-    fn from_io(network_io: NetworkIO) -> Self {
+    fn from_io(network_io: NetworkSerialized) -> Self {
         let layers = network_io
             .layers
             .into_iter()
@@ -844,7 +843,7 @@ impl Network {
         }
     }
 
-    fn to_io(&self) -> NetworkIO {
+    fn to_io(&self) -> NetworkSerialized {
         let layers: Vec<Box<dyn Layer>> = self
             .layers
             .iter()
@@ -854,7 +853,7 @@ impl Network {
             })
             .collect();
 
-        NetworkIO {
+        NetworkSerialized {
             input_size: self.input_size,
             output_size: self.output_size,
             layers: layers,

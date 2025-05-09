@@ -1,6 +1,7 @@
 pub mod activation;
 pub mod common;
 pub mod earlystop;
+pub mod export;
 pub mod layer;
 pub mod loss;
 pub mod metric;
@@ -14,6 +15,7 @@ pub mod summary;
 pub use activation::*;
 pub use common::*;
 pub use earlystop::*;
+pub use export::*;
 pub use layer::*;
 pub use loss::*;
 pub use metric::*;

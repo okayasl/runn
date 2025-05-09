@@ -1,6 +1,7 @@
 use runn::{
     adam::Adam,
     cross_entropy::CrossEntropy,
+    cvs::CVS,
     dense_layer::Dense,
     dropout::Dropout,
     elu::ELU,
@@ -23,9 +24,9 @@ fn main() {
         .layer(Dense::new().size(1).activation(Softmax::new()).build())
         .loss_function(CrossEntropy::new().build())
         .optimizer(Adam::new().build())
-        .seed(42)
         .epochs(5)
         .batch_size(2)
+        .seed(42)
         .build()
         .unwrap();
 
@@ -53,7 +54,7 @@ fn main() {
         .batch_sizes(vec![1, 2, 4, 7])
         .hidden_layer(vec![1, 3, 4, 7], ReLU::new())
         .hidden_layer(vec![1, 3, 7, 9], ReLU::new())
-        .export("hp_search".to_string())
+        .export(CVS::new().file_name("hp_search").build())
         .build();
 
     // let ns=     network_search.unwrap().search(training_inputs, training_targets, validation_inputs, validation_targets);
@@ -86,7 +87,7 @@ fn main() {
         .batch_size(4)
         .batch_group_size(4) // number of batches to process in groups
         .parallelize(4) // number of threads to use for parallel process the batch groups
-        .summary(TensorBoard::new().logdir("summary").build()) // tensorboard summary
+        .summary(TensorBoard::new().directory("summary").build()) // tensorboard summary
         .normalize_input(MinMax::new()) // normalization of the input data
         .build()
         .unwrap();

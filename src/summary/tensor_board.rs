@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, fs};
 
 use serde::{Deserialize, Serialize};
 use tensorboard_rs::summary_writer::SummaryWriter as InnerWriter;
@@ -50,59 +50,6 @@ impl TensorBoardSummaryWriter {
     }
 }
 
-impl SummaryWriterClone for TensorBoardSummaryWriter {
-    fn clone_box(&self) -> Box<dyn SummaryWriter> {
-        Box::new(self.clone())
-    }
-}
-
-impl Clone for TensorBoardSummaryWriter {
-    fn clone(&self) -> Self {
-        TensorBoardSummaryWriter {
-            logdir: self.logdir.clone(),
-            inner: None, // Recreate the `InnerWriter`
-        }
-    }
-}
-
-/// TensorBoard is builder for configuring a TensorBoard summary writer.
-///
-/// This struct sets up a TensorBoard logger to write training metrics (e.g., scalars, histograms) to a specified log directory for visualization.
-/// Default settings:
-/// - logdir: None (must be set before building)
-pub struct TensorBoard {
-    logdir: Option<String>,
-}
-
-impl TensorBoard {
-    pub fn new() -> Self {
-        TensorBoard { logdir: None }
-    }
-
-    /// Set the log directory for TensorBoard output.
-    ///
-    /// Specifies the directory where TensorBoard event files will be written for visualization.
-    /// # Parameters
-    /// - `logdir`: Path to the log directory (e.g., "./logs").
-    pub fn logdir(mut self, logdir: &str) -> Self {
-        self.logdir = Some(logdir.to_string());
-        self
-    }
-
-    fn validate(&self) -> Result<(), NetworkError> {
-        if self.logdir.is_none() {
-            return Err(NetworkError::ConfigError("logdir for Tensorboard must be set".to_string()));
-        }
-        Ok(())
-    }
-
-    pub fn build(self) -> Result<Box<dyn SummaryWriter>, NetworkError> {
-        self.validate()?;
-        let logdir = self.logdir.clone().unwrap();
-        Ok(Box::new(TensorBoardSummaryWriter::new(&logdir)))
-    }
-}
-
 #[typetag::serde]
 impl SummaryWriter for TensorBoardSummaryWriter {
     fn write_scalar(&mut self, tag: &str, step: usize, value: f32) -> Result<(), Box<dyn Error>> {
@@ -144,6 +91,70 @@ impl SummaryWriter for TensorBoardSummaryWriter {
     }
     fn init(&mut self) {
         self.inner = Some(InnerWriter::new(&self.logdir));
+    }
+}
+
+impl SummaryWriterClone for TensorBoardSummaryWriter {
+    fn clone_box(&self) -> Box<dyn SummaryWriter> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for TensorBoardSummaryWriter {
+    fn clone(&self) -> Self {
+        TensorBoardSummaryWriter {
+            logdir: self.logdir.clone(),
+            inner: None, // Recreate the `InnerWriter`
+        }
+    }
+}
+
+/// TensorBoard is builder for configuring a TensorBoard summary writer.
+///
+/// This struct sets up a TensorBoard logger to write training metrics (e.g., scalars, histograms) to a specified log directory for visualization.
+/// Default settings:
+/// - directory: `"."`
+pub struct TensorBoard {
+    directory: String,
+}
+
+impl TensorBoard {
+    pub fn new() -> Self {
+        TensorBoard {
+            directory: ".".to_string(),
+        }
+    }
+
+    /// Set the log directory for TensorBoard output.
+    ///
+    /// Specifies the directory where TensorBoard event files will be written for visualization.
+    /// # Parameters
+    /// - `directory`: Path to the log directory (e.g., "./logs").
+    pub fn directory(mut self, logdir: &str) -> Self {
+        self.directory = logdir.to_string();
+        self
+    }
+
+    fn validate(&self) -> Result<(), NetworkError> {
+        // Check if the directory is set
+        if self.directory.is_empty() {
+            return Err(NetworkError::ConfigError("Log directory cannot be empty".to_string()));
+        }
+
+        // Check if the directory exists, and attempt to create it if it doesn't
+        if !std::path::Path::new(&self.directory).exists() {
+            fs::create_dir_all(&self.directory).map_err(|e| {
+                NetworkError::IoError(format!("Failed to create output directory '{}': {}", self.directory, e))
+            })?;
+        }
+
+        Ok(())
+    }
+
+    pub fn build(self) -> Result<Box<dyn SummaryWriter>, NetworkError> {
+        self.validate()?;
+        let logdir = self.directory.clone();
+        Ok(Box::new(TensorBoardSummaryWriter::new(&logdir)))
     }
 }
 
@@ -226,14 +237,14 @@ mod tests {
     fn test_tensor_board() {
         let temp_dir = tempdir().unwrap();
         let logdir = temp_dir.path().to_str().unwrap();
-        let tensor_board = TensorBoard::new().logdir(logdir);
+        let tensor_board = TensorBoard::new().directory(logdir);
         let result = tensor_board.build();
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_tensor_board_invalid_logdir() {
-        let tensor_board = TensorBoard::new();
+        let tensor_board = TensorBoard::new().directory("");
         let result = tensor_board.build();
         assert!(result.is_err());
     }

@@ -10,10 +10,10 @@ pub struct ClassificationMetrics {
     pub micro_recall: f32,
     pub macro_f1_score: f32,
     pub micro_f1_score: f32,
-    pub metrics_by_class: Vec<Metric>,
+    pub metrics_by_class: Vec<ClassMetrics>,
 }
 
-pub struct Metric {
+pub struct ClassMetrics {
     pub f1_score: f32,
     pub recall: f32,
     pub precision: f32,
@@ -93,7 +93,7 @@ fn calculate_classification_metrics(targets: &DMat, predictions: &DMat) -> Class
         let recall = calculate_recall(tp, f_neg);
         let f1_score = calculate_f1_score(precision, recall);
 
-        let metric = Metric {
+        let metric = ClassMetrics {
             precision,
             recall,
             f1_score,
