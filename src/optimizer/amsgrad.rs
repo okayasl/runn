@@ -415,4 +415,33 @@ mod tests {
 
         assert!(equal_approx(&weights, &expected_params, 1e-2));
     }
+
+    #[test]
+    fn test_amsgrad_builder() {
+        let optimizer = AMSGrad::new()
+            .learning_rate(0.001)
+            .beta1(0.9)
+            .beta2(0.999)
+            .epsilon(1e-8)
+            .build()
+            .unwrap();
+
+        assert_eq!(optimizer.learning_rate(), 0.001);
+    }
+    #[test]
+    fn test_amsgrad_builder_invalid() {
+        let optimizer = AMSGrad::new()
+            .learning_rate(0.0)
+            .beta1(0.9)
+            .beta2(0.999)
+            .epsilon(1e-8)
+            .build();
+        assert!(optimizer.is_err(), "Expected error for invalid learning rate");
+        if let Err(err) = optimizer {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Learning rate for AMSGrad must be greater than 0.0, but was 0"
+            );
+        }
+    }
 }

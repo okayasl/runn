@@ -122,4 +122,29 @@ mod tests {
         assert_eq!(scheduler.schedule(15, 0.1), 0.1); // No decay
         assert_eq!(scheduler.schedule(20, 0.1), 0.05); // Decay applied
     }
+
+    #[test]
+    fn test_step_builder() {
+        let scheduler = Step::new()
+            .decay_rate(0.8)
+            .step_size(5)
+            .build()
+            .expect("Failed to build StepLRScheduler");
+
+        assert_eq!(scheduler.schedule(5, 0.1), 0.080000006); // Decay applied
+        assert_eq!(scheduler.schedule(6, 0.1), 0.1); // No decay
+        assert_eq!(scheduler.schedule(10, 0.1), 0.080000006); // Decay applied
+    }
+    #[test]
+    fn test_step_builder_invalid_decay_rate() {
+        let step = Step::new().decay_rate(1.0).step_size(5).build();
+        // Expect an error due to invalid decay rate
+        assert!(step.is_err());
+        if let Err(err) = step {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Decay rate for Step must be in the range (0, 1), but was 1"
+            );
+        }
+    }
 }

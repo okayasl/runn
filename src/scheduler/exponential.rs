@@ -135,4 +135,33 @@ mod tests {
         assert!((scheduler.schedule(1, 0.0) - 0.09486833).abs() < 1e-6);
         assert!((scheduler.schedule(2, 0.0) - 0.09).abs() < 1e-6);
     }
+    #[test]
+    fn test_exponential_lr_scheduler_builder() {
+        let scheduler = Exponential::new()
+            .initial_lr(0.1)
+            .decay_rate(0.9)
+            .decay_factor(0.5)
+            .build()
+            .unwrap();
+
+        assert!((scheduler.schedule(0, 0.0) - 0.1).abs() < 1e-6);
+        assert!((scheduler.schedule(1, 0.0) - 0.09486833).abs() < 1e-6);
+        assert!((scheduler.schedule(2, 0.0) - 0.09).abs() < 1e-6);
+    }
+    #[test]
+    fn test_exponential_lr_scheduler_invalid() {
+        let scheduler = Exponential::new()
+            .initial_lr(0.0)
+            .decay_rate(1.5)
+            .decay_factor(-0.5)
+            .build();
+
+        assert!(scheduler.is_err());
+        if let Err(err) = scheduler {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Initial learning rate for Exponential must be greater than 0.0, but was 0"
+            );
+        }
+    }
 }

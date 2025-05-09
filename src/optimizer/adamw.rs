@@ -414,4 +414,54 @@ mod tests {
         assert!(equal_approx(&weights, &expected_weights, 1e-2));
         assert!(equal_approx(&biases, &expected_biases, 1e-2));
     }
+
+    #[test]
+    fn test_adamw_config() {
+        let config = AdamWConfig {
+            learning_rate: 0.001,
+            beta1: 0.9,
+            beta2: 0.999,
+            epsilon: 1e-8,
+            weight_decay: 0.01,
+            scheduler: None,
+        };
+        assert_eq!(config.learning_rate, 0.001);
+        assert_eq!(config.beta1, 0.9);
+        assert_eq!(config.beta2, 0.999);
+        assert_eq!(config.epsilon, 1e-8);
+        assert_eq!(config.weight_decay, 0.01);
+    }
+
+    #[test]
+    fn test_adamw_builder() {
+        let optimizer = AdamW::new()
+            .learning_rate(0.001)
+            .beta1(0.9)
+            .beta2(0.999)
+            .epsilon(1e-8)
+            .weight_decay(0.01)
+            .build()
+            .unwrap();
+
+        assert_eq!(optimizer.learning_rate(), 0.001);
+    }
+
+    #[test]
+    fn test_adamw_builder_invalid() {
+        let result = AdamW::new()
+            .learning_rate(-0.001)
+            .beta1(0.9)
+            .beta2(0.999)
+            .epsilon(1e-8)
+            .weight_decay(0.01)
+            .build();
+
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert_eq!(
+                e.to_string(),
+                "Configuration error: Learning rate for AdamW must be greater than 0.0, but was -0.001"
+            );
+        }
+    }
 }

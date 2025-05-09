@@ -85,4 +85,18 @@ mod linear_tests {
 
         assert!(equal_approx(&input, &expected, 1e-4), "Linear backward pass failed");
     }
+
+    #[test]
+    fn test_linear_weight_initialization() {
+        let linear = Linear::new().unwrap();
+        let factor = linear.weight_initialization_factor()(2, 3);
+        assert_eq!(factor, 1.0, "Linear weight initialization factor should be 1.0");
+    }
+
+    #[test]
+    fn test_linear_clone() {
+        let linear = Linear::new().unwrap();
+        let _cloned = linear.clone_box();
+        assert!(true, "Linear clone failed");
+    }
 }

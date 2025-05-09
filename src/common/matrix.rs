@@ -205,16 +205,18 @@ impl DenseMatrix {
         Self {
             rows,
             cols,
-            data: vec![0.0; rows * cols],
+            data: Vec::new(),
         }
     }
 
     pub fn data(mut self, data: &[f32]) -> Self {
-        self.data.copy_from_slice(data);
+        self.data = data.to_vec();
         self
     }
 
     pub fn random(mut self) -> Self {
+        // Initialize the data vector with the correct size
+        self.data = vec![0.0; self.rows * self.cols];
         // Fill the data with random values
         for i in 0..self.rows * self.cols {
             self.data[i] = rand::random();
@@ -449,5 +451,59 @@ mod tests {
         let mut matrix = DMat::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
         matrix.apply(|x| x * 2.0);
         assert_eq!(util::flatten(&matrix), &[2.0, 4.0, 6.0, 8.0]);
+    }
+
+    #[test]
+    fn test_apply_with_indices() {
+        let mut matrix = DMat::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        matrix.apply_with_indices(|i, j, v| {
+            *v = (i + j) as f32;
+        });
+        assert_eq!(util::flatten(&matrix), &[0.0, 1.0, 1.0, 2.0]);
+    }
+    #[test]
+    fn test_set_row() {
+        let mut matrix = DMat::new(3, 3, &[0.0; 9]);
+        matrix.set_row(1, &[1.0, 2.0, 3.0]);
+        assert_eq!(matrix.get_row(1), vec![1.0, 2.0, 3.0]);
+    }
+    #[test]
+    fn test_get_row() {
+        let matrix = DMat::new(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
+        assert_eq!(matrix.get_row(1), vec![4.0, 5.0, 6.0]);
+    }
+
+    #[test]
+    fn test_mul_new() {
+        let matrix_a = DMat::new(2, 2, &[1.0, 2.0, 3.0, 4.0]);
+        let matrix_b = DMat::new(2, 2, &[5.0, 6.0, 7.0, 8.0]);
+        let result = DMat::mul_new(&matrix_a, &matrix_b);
+        assert_eq!(util::flatten(&result), &[19.0, 22.0, 43.0, 50.0]);
+    }
+
+    #[test]
+    fn test_dense_matrix() {
+        let matrix = DenseMatrix::new(2, 2).data(&[1.0, 2.0, 3.0, 4.0]);
+        assert_eq!(matrix.rows, 2);
+        assert_eq!(matrix.cols, 2);
+        assert_eq!(matrix.data, vec![1.0, 2.0, 3.0, 4.0]);
+    }
+    #[test]
+    fn test_dense_matrix_random() {
+        let matrix = DenseMatrix::new(2, 2).random().build().unwrap();
+        assert_eq!(matrix.rows(), 2);
+        assert_eq!(matrix.cols(), 2);
+        assert_eq!(matrix.data.len(), 4);
+    }
+    #[test]
+    fn test_dense_matrix_validate() {
+        let matrix = DenseMatrix::new(2, 2).data(&[1.0, 2.0, 3.0, 4.0]).build();
+        assert!(matrix.is_ok());
+
+        let invalid_matrix = DenseMatrix::new(2, 2).data(&[1.0, 2.0]).build();
+        assert!(invalid_matrix.is_err());
+        if let Err(err) = invalid_matrix {
+            assert_eq!(err.to_string(), "Configuration error: Data length:2 does not match matrix dimensions:4");
+        }
     }
 }

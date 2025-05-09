@@ -281,4 +281,29 @@ mod tests {
 
         assert!(equal_approx(&weights, &expected_weights, 1e-6));
     }
+
+    #[test]
+    fn test_rmsprop_builder() {
+        let optimizer = RMSProp::new()
+            .learning_rate(0.01)
+            .decay_rate(0.9)
+            .epsilon(1e-8)
+            .build()
+            .unwrap();
+
+        assert_eq!(optimizer.learning_rate(), 0.01);
+    }
+
+    #[test]
+    fn test_rmsprop_builder_invalid() {
+        let optimizer = RMSProp::new().learning_rate(0.0).decay_rate(1.5).epsilon(-1e-8).build();
+
+        assert!(optimizer.is_err());
+        if let Err(err) = optimizer {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Learning rate for RMSProp must be greater than 0.0, but was 0"
+            );
+        }
+    }
 }

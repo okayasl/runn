@@ -12,6 +12,7 @@ pub trait NetworkIO {
     fn load(&self) -> Result<NetworkSerialized, NetworkError>;
 }
 
+#[derive(Clone)]
 struct JSONNetworkIO {
     filename: String,
     directory: String,
@@ -86,6 +87,7 @@ impl JSON {
     }
 }
 
+#[derive(Clone)]
 struct MessagePackNetworkIO {
     filename: String,
     directory: String,
@@ -140,6 +142,7 @@ impl MessagePack {
         if self.directory.is_empty() {
             return Err(NetworkError::ConfigError("Directory cannot be empty".to_string()));
         }
+
         // Check if the directory exists, and attempt to create it if it doesn't
         if !std::path::Path::new(&self.directory).exists() {
             fs::create_dir_all(&self.directory).map_err(|e| {
@@ -205,29 +208,121 @@ pub struct NetworkSerialized {
     pub(crate) parallelize: usize,
 }
 
-// pub enum SerializationFormat {
-//     Json,
-//     MessagePack,
-// }
-// pub(crate) fn save_network(network_io: &NetworkSerialized, filename: &str, format: SerializationFormat) {
-//     let serialized_data = match format {
-//         SerializationFormat::Json => serde_json::to_vec(&network_io).expect("Failed to serialize to JSON"),
-//         SerializationFormat::MessagePack => encode::to_vec(&network_io).expect("Failed to serialize to MessagePack"),
-//     };
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dense_layer::Dense;
+    use crate::dropout::Dropout;
+    use crate::mean_squared_error::MeanSquared;
+    use crate::network::network::Network;
+    use crate::network::network::NetworkBuilder;
+    use crate::relu::ReLU;
+    use crate::sgd::SGD;
+    use crate::softmax::Softmax;
 
-//     let mut file = File::create(filename).expect("Failed to create file");
-//     file.write_all(&serialized_data).expect("Failed to write to file");
-// }
+    #[test]
+    fn test_json_io() {
+        let json_io = JSON::new()
+            .filename("test_network")
+            .directory("./test_dir_123")
+            .build()
+            .unwrap();
 
-// pub(crate) fn load_network(filename: &str, format: SerializationFormat) -> NetworkSerialized {
-//     let mut file = File::open(filename).expect("Failed to open file");
-//     let mut buffer = Vec::new();
-//     file.read_to_end(&mut buffer).expect("Failed to read file");
+        let network = NetworkBuilder::new(4, 3)
+            .layer(Dense::new().size(5).activation(ReLU::new()).build())
+            .layer(Dense::new().size(3).activation(Softmax::new()).build())
+            .loss_function(MeanSquared::new())
+            .optimizer(SGD::new().learning_rate(0.01).build())
+            .regularization(Dropout::new().dropout_rate(0.5).seed(42).build())
+            .seed(42)
+            .epochs(10)
+            .batch_size(2)
+            .build()
+            .unwrap();
 
-//     match format {
-//         SerializationFormat::Json => serde_json::from_slice(&buffer).expect("Failed to deserialize from JSON"),
-//         SerializationFormat::MessagePack => {
-//             decode::from_slice(&buffer).expect("Failed to deserialize from MessagePack")
-//         }
-//     }
-// }
+        let _res = network.save(json_io);
+        let loaded_network = Network::load(
+            JSON::new()
+                .filename("test_network")
+                .directory("./test_dir_123")
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(loaded_network.input_size, 4);
+        assert_eq!(loaded_network.output_size, 3);
+        //remove file and directory
+        let _res = fs::remove_dir_all("./test_dir_123");
+        assert!(_res.is_ok());
+    }
+
+    #[test]
+    fn test_message_pack_io() {
+        let msgpack_io = MessagePack::new()
+            .filename("test_network")
+            .directory("./test_dir_1234")
+            .build()
+            .unwrap();
+
+        let network = NetworkBuilder::new(4, 3)
+            .layer(Dense::new().size(5).activation(ReLU::new()).build())
+            .layer(Dense::new().size(3).activation(Softmax::new()).build())
+            .loss_function(MeanSquared::new())
+            .optimizer(SGD::new().learning_rate(0.01).build())
+            .regularization(Dropout::new().dropout_rate(0.5).seed(42).build())
+            .seed(42)
+            .epochs(10)
+            .batch_size(2)
+            .build()
+            .unwrap();
+
+        let _res = network.save(msgpack_io);
+        let loaded_network = Network::load(
+            MessagePack::new()
+                .filename("test_network")
+                .directory("./test_dir_1234")
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(loaded_network.input_size, 4);
+        assert_eq!(loaded_network.output_size, 3);
+        //remove file and directory
+        let _res = fs::remove_dir_all("./test_dir_1234");
+        assert!(_res.is_ok());
+    }
+
+    #[test]
+    fn test_save_load_invalid_file() {
+        let json_io = JSON::new()
+            .filename("invalid_network")
+            .directory("./invalid_dir")
+            .build()
+            .unwrap();
+
+        let result = json_io.load();
+        assert!(result.is_err());
+        if let Err(NetworkError::IoError(msg)) = result {
+            assert_eq!(msg, "Failed to open file");
+        } else {
+            panic!("Expected ConfigError");
+        }
+    }
+
+    #[test]
+    fn test_save_load_invalid_directory() {
+        let msgpack_io = MessagePack::new()
+            .filename("invalid_network")
+            .directory("./invalid_dir")
+            .build()
+            .unwrap();
+
+        let result = msgpack_io.load();
+        assert!(result.is_err());
+        if let Err(NetworkError::IoError(msg)) = result {
+            assert_eq!(msg, "Failed to open file");
+        } else {
+            panic!("Expected ConfigError");
+        }
+    }
+}

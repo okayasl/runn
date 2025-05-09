@@ -212,4 +212,21 @@ mod tests {
 
         assert!(equal_approx(&weights, &expected_weights, 1e-6));
     }
+
+    #[test]
+    fn test_sgd_builder() {
+        let optimizer = SGD::new().learning_rate(0.01).build().unwrap();
+        assert_eq!(optimizer.learning_rate(), 0.01);
+    }
+    #[test]
+    fn test_sgd_builder_invalid() {
+        let result = SGD::new().learning_rate(-0.01).build();
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Learning rate for SGD must be greater than 0.0, but was -0.01"
+            );
+        }
+    }
 }

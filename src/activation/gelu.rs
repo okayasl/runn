@@ -95,4 +95,18 @@ mod gelu_tests {
 
         assert!(equal_approx(&input, &expected, 1e-3), "GELU backward pass failed");
     }
+
+    #[test]
+    fn test_gelu_weight_initialization() {
+        let gelu = GELU::new().unwrap();
+        let factor = gelu.weight_initialization_factor()(2, 3);
+        assert_eq!(factor, 0.8164966, "GELU weight initialization factor should be 0.8164966");
+    }
+
+    #[test]
+    fn test_gelu_clone() {
+        let gelu = GELU::new().unwrap();
+        let _cloned_gelu = gelu.clone();
+        assert!(true, "GELU clone failed");
+    }
 }

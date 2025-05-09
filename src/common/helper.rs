@@ -391,4 +391,37 @@ mod tests {
         assert_eq!(val_targets.rows(), 0);
         assert_eq!(val_targets.cols(), 1);
     }
+
+    #[test]
+    fn test_pretty_compare_matrices() {
+        let input = create_dummy_matrix(3, 2);
+        let target = create_dummy_matrix(3, 2);
+        let prediction = create_dummy_matrix(3, 2);
+
+        let result = pretty_compare_matrices(&input, &target, &prediction, CompareMode::Classification);
+        assert!(!result.is_empty(), "Result should not be empty");
+    }
+    #[test]
+    fn test_one_hot_encode() {
+        let targets = DMat::new(4, 1, &[0.0, 1.0, 2.0, 1.0]);
+        let one_hot = one_hot_encode(&targets);
+        assert_eq!(one_hot.rows(), 4);
+        assert_eq!(one_hot.cols(), 3);
+        assert_eq!(one_hot.at(0, 0), 1.0);
+        assert_eq!(one_hot.at(1, 1), 1.0);
+        assert_eq!(one_hot.at(2, 2), 1.0);
+        assert_eq!(one_hot.at(3, 1), 1.0);
+    }
+    #[test]
+    fn test_random_split() {
+        let inputs = create_dummy_matrix(10, 2);
+        let targets = create_dummy_matrix(10, 1);
+
+        let (train_inputs, train_targets, val_inputs, val_targets) = random_split(&inputs, &targets, 0.2, 42);
+
+        assert_eq!(train_inputs.rows(), 8);
+        assert_eq!(train_targets.rows(), 8);
+        assert_eq!(val_inputs.rows(), 2);
+        assert_eq!(val_targets.rows(), 2);
+    }
 }

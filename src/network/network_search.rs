@@ -679,14 +679,26 @@ mod tests {
     #[test]
     fn validate_network_search() {
         let network = get_network().unwrap();
-        let search = NetworkSearchBuilder::new()
+        let net_search = NetworkSearchBuilder::new()
             .network(network)
             .hidden_layer(vec![10], ReLU::new())
             .batch_sizes(vec![32])
             .learning_rates(vec![0.01])
             .build();
+        assert!(net_search.is_ok());
 
-        assert!(search.is_ok());
+        let training_inputs = DMat::new(3, 1, &[1.0, 2.0, 3.0]);
+        let training_targets = DMat::new(3, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
+
+        let res = net_search
+            .unwrap()
+            .search(&training_inputs, &training_targets, &training_inputs, &training_targets);
+        assert!(res.is_ok());
+        let search_results = res.unwrap();
+        assert_eq!(search_results.len(), 1);
+        assert_eq!(search_results[0].config.learning_rate, 0.01);
+        assert_eq!(search_results[0].config.batch_size, 32);
+        assert_eq!(search_results[0].t_loss, 165.78612);
     }
 
     #[test]

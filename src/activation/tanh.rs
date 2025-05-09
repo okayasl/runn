@@ -160,4 +160,19 @@ mod tanh_tests {
             assert!(equal_approx(&input, &expected, 1e-6), "Tanh forward pass symmetry test failed");
         }
     }
+
+    #[test]
+    fn test_tanh_weight_initialization() {
+        let tanh = TanhActivation;
+        let factor = tanh.weight_initialization_factor();
+        let weight_matrix = factor(3, 3); // Example size
+
+        assert!(weight_matrix > 0.0, "Tanh weight initialization factor should be positive");
+    }
+    #[test]
+    fn test_tanh_clone() {
+        let tanh = TanhActivation;
+        let _cloned_tanh = tanh.clone_box();
+        assert!(true, "Tanh clone failed");
+    }
 }

@@ -28,6 +28,7 @@ npm-debug.log*
 /iris/
 /wine/
 /energy_efficiency/
+tarpaulin-report.html
  
 
 # === Optional: dependency directories ===

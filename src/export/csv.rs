@@ -127,3 +127,91 @@ impl CSV {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_csv_exporter() {
+        let exporter = CSVExporter {
+            delimiter: ',',
+            file_name: "test".to_string(),
+            directory: ".".to_string(),
+            file_extension: ".csv".to_string(),
+        };
+
+        let headers = vec!["Header1".to_string(), "Header2".to_string()];
+        let values = vec![vec!["Value1".to_string(), "Value2".to_string()]];
+
+        let result = exporter.export(headers, values);
+        assert!(result.is_ok());
+        //remove the test file after the test
+        let file_path = format!("{}/{}{}", ".", "test", ".csv");
+        let _res = fs::remove_file(&file_path);
+    }
+
+    #[test]
+    fn test_csv_exporter_invalid_directory() {
+        let exporter = CSVExporter {
+            delimiter: ',',
+            file_name: "test".to_string(),
+            directory: "/invalid/directory".to_string(),
+            file_extension: ".csv".to_string(),
+        };
+
+        let headers = vec!["Header1".to_string(), "Header2".to_string()];
+        let values = vec![vec!["Value1".to_string(), "Value2".to_string()]];
+
+        let result = exporter.export(headers, values);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_csv_exporter_invalid_headers() {
+        let exporter = CSVExporter {
+            delimiter: ',',
+            file_name: "test".to_string(),
+            directory: ".".to_string(),
+            file_extension: ".csv".to_string(),
+        };
+
+        let headers = vec![];
+        let values = vec![vec!["Value1".to_string(), "Value2".to_string()]];
+
+        let result = exporter.export(headers, values);
+        assert!(result.is_err());
+
+        //remove the test file after the test
+        let file_path = format!("{}/{}{}", ".", "test", ".csv");
+        let _res = fs::remove_file(&file_path);
+    }
+
+    #[test]
+    fn test_csv_builder() {
+        let csv = CSV::new()
+            .delimiter(',')
+            .file_name("test")
+            .directory(".")
+            .file_extension(".csv");
+
+        let result = csv.build();
+        assert!(result.is_ok());
+
+        //remove the test file after the test
+        let file_path = format!("{}/{}{}", ".", "test", ".csv");
+        let _res = fs::remove_file(&file_path);
+    }
+
+    #[test]
+    fn test_csv_builder_invalid_directory() {
+        let csv = CSV::new()
+            .delimiter(',')
+            .file_name("test")
+            .directory("/invalid/directory")
+            .file_extension(".csv");
+
+        let result = csv.build();
+        assert!(result.is_err());
+    }
+}
