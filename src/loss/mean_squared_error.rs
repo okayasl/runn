@@ -36,8 +36,18 @@ pub struct MeanSquared;
 
 impl MeanSquared {
     /// Creates a new builder for CrossEntropyLoss
-    pub fn new() -> Result<Box<dyn LossFunction>, NetworkError> {
+    fn new() -> Self {
+        Self {}
+    }
+
+    pub fn build(self) -> Result<Box<dyn LossFunction>, NetworkError> {
         Ok(Box::new(MeanSquaredErrorLoss {}))
+    }
+}
+
+impl Default for MeanSquared {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -85,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_forward() {
-        let loss = MeanSquared::new().unwrap();
+        let loss = MeanSquared.build().unwrap();
         let predicted = DMat::new(2, 1, &[0.9, 0.2]);
         let target = DMat::new(2, 1, &[1.0, 0.0]);
         let result = loss.forward(&predicted, &target);
@@ -94,7 +104,7 @@ mod tests {
 
     #[test]
     fn test_backward() {
-        let loss = MeanSquared::new().unwrap();
+        let loss = MeanSquared.build().unwrap();
         let predicted = DMat::new(2, 1, &[0.9, 0.2]);
         let target = DMat::new(2, 1, &[1.0, 0.0]);
         let gradient = loss.backward(&predicted, &target);

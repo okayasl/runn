@@ -24,10 +24,20 @@ struct SoftplusActivation;
 /// Best for: Situations where a non-zero gradient is beneficial, providing a smooth approximation to ReLU.
 pub struct Softplus;
 impl Softplus {
+    fn new() -> Self {
+        Self {}
+    }
+
     /// Creates a new Softplus activation function
     /// Softplus weight initialization factor is set to He initialization.
-    pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
+    pub fn build() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(SoftplusActivation {}))
+    }
+}
+
+impl Default for Softplus {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -58,7 +68,7 @@ mod softplus_tests {
     fn test_softplus_forward() {
         let mut input = DMat::new(2, 3, &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
 
-        let softplus = Softplus::new().unwrap();
+        let softplus = Softplus::build().unwrap();
         softplus.forward(&mut input);
 
         // Expected output: approximate values
@@ -73,7 +83,7 @@ mod softplus_tests {
         let d_output = DMat::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
         let output: DMat = DMat::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let softplus = Softplus::new().unwrap();
+        let softplus: Box<dyn ActivationFunction + 'static> = Softplus::build().unwrap();
         softplus.backward(&d_output, &mut input, &output);
 
         // Expected output: approximate values

@@ -8,7 +8,7 @@ use crate::{
     Exporter, Metrics, Normalization,
 };
 
-use super::network::{Network, NetworkBuilder};
+use super::network_model::{Network, NetworkBuilder};
 
 /// A builder for configuring a hyperparameter search over neural network architectures and training settings.
 ///
@@ -133,7 +133,7 @@ impl NetworkSearchBuilder {
     }
 
     fn validate(&self) -> Result<(), NetworkError> {
-        if self.parallelize <= 0 {
+        if self.parallelize == 0 {
             return Err(NetworkError::ConfigError(format!(
                 "Parallelize value for network search must be greater than zero, but was {}",
                 self.parallelize
@@ -202,14 +202,14 @@ impl NetworkSearchBuilder {
             balance_network_configs(&hidden_layer_sizes_groups, &self.batch_sizes, &self.learning_rates);
         for (hlsg, bs, lr) in balanced_configs {
             let mut new_nwb: NetworkBuilder = NetworkBuilder::new(nw_is, nw_os)
-                .from_network(nw)
+                .with_network(nw)
                 .batch_size(bs)
                 .update_learning_rate(lr);
             for (i, &size) in hlsg.iter().enumerate() {
-                new_nwb = new_nwb.layer(Dense::new().from(size, activation_functions[i].clone_box()).build());
+                new_nwb = new_nwb.layer(Dense::default().from(size, activation_functions[i].clone_box()).build());
             }
             new_nwb = new_nwb.layer(
-                Dense::new()
+                Dense::default()
                     .from(output_layer_size, output_layer.activation_function().clone_box())
                     .build(),
             );
@@ -234,13 +234,19 @@ impl NetworkSearchBuilder {
     }
 }
 
-fn generate_layer_size_combinations(layer_sizes: &Vec<Vec<usize>>) -> Vec<Vec<usize>> {
+impl Default for NetworkSearchBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+fn generate_layer_size_combinations(layer_sizes: &[Vec<usize>]) -> Vec<Vec<usize>> {
     if layer_sizes.is_empty() {
         return vec![vec![]];
     }
 
     let first_range = &layer_sizes[0];
-    let rest_combinations = generate_layer_size_combinations(&layer_sizes[1..].to_vec());
+    let rest_combinations = generate_layer_size_combinations(&layer_sizes[1..]);
 
     let mut combinations = Vec::new();
     for &v in first_range {
@@ -621,7 +627,7 @@ mod tests {
     fn test_build_no_batch_sizes() {
         let builder = NetworkSearchBuilder::new()
             .network(get_network().unwrap())
-            .hidden_layer(vec![10], ReLU::new())
+            .hidden_layer(vec![10], ReLU::build())
             .learning_rates(vec![0.01]);
         builder.build().unwrap();
     }
@@ -631,7 +637,7 @@ mod tests {
     fn test_build_no_learning_rates() {
         let builder = NetworkSearchBuilder::new()
             .network(get_network().unwrap())
-            .hidden_layer(vec![10], ReLU::new())
+            .hidden_layer(vec![10], ReLU::build())
             .batch_sizes(vec![32]);
         builder.build().unwrap();
     }
@@ -640,7 +646,7 @@ mod tests {
     #[should_panic(expected = "No network provided")]
     fn test_build_no_network() {
         let builder = NetworkSearchBuilder::new()
-            .hidden_layer(vec![10], ReLU::new())
+            .hidden_layer(vec![10], ReLU::build())
             .batch_sizes(vec![32])
             .learning_rates(vec![0.01]);
         builder.build().unwrap();
@@ -650,11 +656,11 @@ mod tests {
     fn test_build_success() {
         let builder = NetworkSearchBuilder::new()
             .network(get_network().unwrap())
-            .hidden_layer(vec![10], ReLU::new())
+            .hidden_layer(vec![10], ReLU::build())
             .batch_sizes(vec![32, 64])
             .learning_rates(vec![0.01, 0.02])
             .export(CSV::new().file_name("test_file").build())
-            .normalize_input(MinMax::new())
+            .normalize_input(MinMax::default())
             .parallelize(4);
 
         let network_search = builder.build().unwrap();
@@ -665,15 +671,14 @@ mod tests {
     }
 
     fn get_network() -> Result<Network, NetworkError> {
-        let network = NetworkBuilder::new(1, 3)
-            .layer(Dense::new().size(16).activation(ReLU::new()).build())
-            .layer(Dense::new().size(3).activation(Softmax::new()).build())
-            .loss_function(CrossEntropy::new().epsilon(1e-8).build())
-            .optimizer(Adam::new().beta1(0.99).beta2(0.999).learning_rate(0.0035).build())
+        NetworkBuilder::new(1, 3)
+            .layer(Dense::default().size(16).activation(ReLU::build()).build())
+            .layer(Dense::default().size(3).activation(Softmax::build()).build())
+            .loss_function(CrossEntropy::default().epsilon(1e-8).build())
+            .optimizer(Adam::default().beta1(0.99).beta2(0.999).learning_rate(0.0035).build())
             .batch_size(10)
             .epochs(300)
-            .build();
-        network
+            .build()
     }
 
     #[test]
@@ -681,7 +686,7 @@ mod tests {
         let network = get_network().unwrap();
         let net_search = NetworkSearchBuilder::new()
             .network(network)
-            .hidden_layer(vec![10], ReLU::new())
+            .hidden_layer(vec![10], ReLU::build())
             .batch_sizes(vec![32])
             .learning_rates(vec![0.01])
             .build();
@@ -706,7 +711,7 @@ mod tests {
         let network = get_network().unwrap();
         let search = NetworkSearchBuilder::new()
             .network(network)
-            .hidden_layer(vec![10], ELU::new().alpha(-1.0).build())
+            .hidden_layer(vec![10], ELU::default().alpha(-1.0).build())
             .batch_sizes(vec![32])
             .learning_rates(vec![0.01])
             .build();
@@ -722,7 +727,7 @@ mod tests {
         let network = get_network().unwrap();
         let search = NetworkSearchBuilder::new()
             .network(network)
-            .hidden_layer(vec![0], ReLU::new())
+            .hidden_layer(vec![0], ReLU::build())
             .batch_sizes(vec![32])
             .learning_rates(vec![0.01])
             .build();
@@ -738,7 +743,7 @@ mod tests {
         let network = get_network().unwrap();
         let search = NetworkSearchBuilder::new()
             .network(network)
-            .hidden_layer(vec![10], ReLU::new())
+            .hidden_layer(vec![10], ReLU::build())
             .batch_sizes(vec![0])
             .learning_rates(vec![0.01])
             .build();
@@ -753,7 +758,7 @@ mod tests {
         let network = get_network().unwrap();
         let search = NetworkSearchBuilder::new()
             .network(network)
-            .hidden_layer(vec![10], ReLU::new())
+            .hidden_layer(vec![10], ReLU::build())
             .batch_sizes(vec![32])
             .learning_rates(vec![0.01])
             .parallelize(0)
@@ -772,8 +777,8 @@ mod tests {
         let network = get_network().unwrap();
         let search = NetworkSearchBuilder::new()
             .network(network)
-            .hidden_layer(vec![10], ReLU::new())
-            .hidden_layer(vec![0], ReLU::new())
+            .hidden_layer(vec![10], ReLU::build())
+            .hidden_layer(vec![0], ReLU::build())
             .batch_sizes(vec![32])
             .learning_rates(vec![0.01])
             .build();
@@ -789,7 +794,7 @@ mod tests {
         let network = get_network().unwrap();
         let search = NetworkSearchBuilder::new()
             .network(network)
-            .hidden_layer(vec![10], ReLU::new())
+            .hidden_layer(vec![10], ReLU::build())
             .batch_sizes(vec![32])
             .learning_rates(vec![0.0])
             .build();
@@ -805,7 +810,7 @@ mod tests {
         let network = get_network().unwrap();
         let net_search = NetworkSearchBuilder::new()
             .network(network)
-            .hidden_layer(vec![10], ReLU::new())
+            .hidden_layer(vec![10], ReLU::build())
             .batch_sizes(vec![32])
             .learning_rates(vec![0.01])
             .build();

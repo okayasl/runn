@@ -103,7 +103,7 @@ impl Momentum {
     /// - learning_rate: 0.01
     /// - momentum: 0.9
     /// - scheduler: None
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             learning_rate: 0.01,
             momentum: 0.9,
@@ -167,6 +167,12 @@ impl Momentum {
             momentum: self.momentum,
             scheduler: self.scheduler.map(|s| s.unwrap()),
         }))
+    }
+}
+
+impl Default for Momentum {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -279,7 +285,7 @@ mod tests {
     fn test_momentum_builder_invalid_scheduler() {
         let result = Momentum::new()
             .momentum(0.5)
-            .scheduler(Step::new().decay_rate(5.0).build())
+            .scheduler(Step::default().decay_rate(5.0).build())
             .build();
         assert!(result.is_err());
         if let Err(e) = result {

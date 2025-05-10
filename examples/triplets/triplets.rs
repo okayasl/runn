@@ -13,7 +13,7 @@ use runn::{
     csv::CSV,
     dense_layer::Dense,
     helper,
-    network::network::{Network, NetworkBuilder},
+    network::network_model::{Network, NetworkBuilder},
     network_io::JSON,
     network_search::NetworkSearchBuilder,
     numbers::{Numbers, SequentialNumbers},
@@ -40,7 +40,7 @@ fn main() {
 }
 
 fn train_and_validate() {
-    let network_file = String::from(format!("{}_network", EXP_NAME));
+    let network_file = format!("{}_network", EXP_NAME);
     let training_inputs = data::training_inputs();
     let training_targets = data::training_targets();
     let mut network = triplets_network(training_inputs.cols(), training_targets.cols());
@@ -50,7 +50,7 @@ fn train_and_validate() {
         Ok(_) => {
             println!("Training completed successfully");
             network
-                .save(JSON::new().directory(EXP_NAME).filename(&network_file).build().unwrap())
+                .save(JSON::default().directory(EXP_NAME).file_name(&network_file).build().unwrap())
                 .unwrap();
             let net_results = network.predict(&training_inputs, &training_targets).unwrap();
             log::info!(
@@ -69,7 +69,7 @@ fn train_and_validate() {
         }
     }
 
-    network = Network::load(JSON::new().directory(EXP_NAME).filename(&network_file).build().unwrap()).unwrap();
+    network = Network::load(JSON::default().directory(EXP_NAME).file_name(&network_file).build().unwrap()).unwrap();
     let validation_inputs = data::validation_inputs();
     let validation_targets = data::validation_targets();
     let net_results = network.predict(&validation_inputs, &validation_targets).unwrap();
@@ -117,7 +117,7 @@ fn search() {
                 .upper_limit(24.0)
                 .increment(4.0)
                 .ints(),
-            ReLU::new(),
+            ReLU::build(),
         )
         .export(
             CSV::new()
@@ -144,10 +144,10 @@ fn search() {
 
 fn triplets_network(inp_size: usize, targ_size: usize) -> Network {
     let network = NetworkBuilder::new(inp_size, targ_size)
-        .layer(Dense::new().size(24).activation(ReLU::new()).build())
-        .layer(Dense::new().size(targ_size).activation(Softmax::new()).build())
-        .loss_function(CrossEntropy::new().epsilon(1e-8).build())
-        .optimizer(Adam::new().beta1(0.99).beta2(0.999).learning_rate(0.0035).build())
+        .layer(Dense::default().size(24).activation(ReLU::build()).build())
+        .layer(Dense::default().size(targ_size).activation(Softmax::build()).build())
+        .loss_function(CrossEntropy::default().epsilon(1e-8).build())
+        .optimizer(Adam::default().beta1(0.99).beta2(0.999).learning_rate(0.0035).build())
         // .early_stopper(
         //     Flexible::new()
         //         .patience(1000)
@@ -182,7 +182,6 @@ fn initialize_logger(name: &str) {
     if !std::path::Path::new(name).exists() {
         let _res = fs::create_dir_all(name).map_err(|e| {
             eprintln!("Failed to create log directory: {}", e);
-            return;
         });
     }
 

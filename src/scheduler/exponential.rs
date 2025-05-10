@@ -59,7 +59,7 @@ pub struct Exponential {
 impl Exponential {
     /// Creates a new `ExponentialLRSchedulerBuilder`.
     /// The default initial learning rate is 0.01, decay rate is 0.95, and decay factor is 0.1.
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             initial_lr: 0.01,
             decay_rate: 0.95,
@@ -121,6 +121,12 @@ impl Exponential {
     pub fn build(self) -> Result<Box<dyn LearningRateScheduler>, NetworkError> {
         self.validate()?;
         Ok(Box::new(ExponentialLRScheduler::new(self.initial_lr, self.decay_rate, self.decay_factor)))
+    }
+}
+
+impl Default for Exponential {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -31,12 +31,12 @@ impl DenseLayer {
         weights.apply(|_| randomizer.float32() * activation.weight_initialization_factor()(output_size, input_size));
         optimizer.initialize(&weights, &biases);
         Self {
-            name: name,
+            name,
             input_size,
             output_size,
             weights,
             biases,
-            optimizer: optimizer,
+            optimizer,
             activation,
         }
     }
@@ -86,7 +86,7 @@ impl Layer for DenseLayer {
         (d_input, d_weights, d_biases)
     }
 
-    fn regulate(&mut self, d_weights: &mut DMat, d_biases: &mut DMat, regularization: &Box<dyn Regularization>) {
+    fn regulate(&mut self, d_weights: &mut DMat, d_biases: &mut DMat, regularization: &dyn Regularization) {
         // Apply the single regularization technique
         regularization.apply(&mut [&mut self.weights, &mut self.biases], &mut [&mut *d_weights, &mut *d_biases]);
     }
@@ -176,7 +176,7 @@ impl Dense {
     /// Creates a new Dense layer builder with default settings.
     /// - size: 0 (must be set)
     /// - activation_function: Error (must be set)
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             size: 0,
             activation_function: Err(NetworkError::ConfigError(
@@ -230,6 +230,15 @@ impl Dense {
     }
 }
 
+/// Creates a new Dense layer builder with default settings.
+/// - size: 0 (must be set)
+/// - activation_function: Error (must be set)
+impl Default for Dense {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -243,8 +252,8 @@ mod tests {
     #[test]
     fn test_dense_layer_forward() {
         let randomizer = Randomizer::new(Some(42));
-        let activation = ReLU::new().unwrap();
-        let optimizer_config = Adam::new()
+        let activation = ReLU::build().unwrap();
+        let optimizer_config = Adam::default()
             .learning_rate(0.001)
             .beta1(0.9)
             .beta2(0.999)
@@ -267,8 +276,8 @@ mod tests {
     #[test]
     fn test_dense_layer_backward() {
         let randomizer = Randomizer::new(Some(42));
-        let activation = Sigmoid::new().unwrap();
-        let optimizer_config = Adam::new()
+        let activation = Sigmoid::build().unwrap();
+        let optimizer_config = Adam::default()
             .learning_rate(0.001)
             .beta1(0.9)
             .beta2(0.999)
@@ -280,10 +289,10 @@ mod tests {
             DenseLayer::new("layer".to_owned(), 3, 2, activation, optimizer_config.create_optimizer(), &randomizer);
 
         let input = DMat::new(1, 3, &[1.0, 2.0, 3.0]);
-        let (output, mut pre_activated_output) = layer.forward(&input);
+        let (output, pre_activated_output) = layer.forward(&input);
 
         let d_output = DMat::new(1, 2, &[0.1, 0.2]);
-        let (d_input, d_weights, d_biases) = layer.backward(&d_output, &input, &mut pre_activated_output, &output);
+        let (d_input, d_weights, d_biases) = layer.backward(&d_output, &input, &pre_activated_output, &output);
 
         assert_eq!(d_input.rows(), 1);
         assert_eq!(d_input.cols(), 3);
@@ -296,8 +305,8 @@ mod tests {
     #[test]
     fn test_dense_layer_update() {
         let randomizer = Randomizer::new(Some(42));
-        let activation = ReLU::new().unwrap();
-        let optimizer_config = Adam::new()
+        let activation = ReLU::build().unwrap();
+        let optimizer_config = Adam::default()
             .learning_rate(0.001)
             .beta1(0.9)
             .beta2(0.999)
@@ -309,20 +318,20 @@ mod tests {
             DenseLayer::new("layer".to_owned(), 3, 2, activation, optimizer_config.create_optimizer(), &randomizer);
 
         let input = DMat::new(1, 3, &[1.0, 2.0, 3.0]);
-        let (output, mut pre_activated_output) = layer.forward(&input);
+        let (output, pre_activated_output) = layer.forward(&input);
 
         let d_output = DMat::new(1, 2, &[0.1, 0.2]);
-        let (_d_input, d_weights, d_biases) = layer.backward(&d_output, &input, &mut pre_activated_output, &output);
+        let (_d_input, d_weights, d_biases) = layer.backward(&d_output, &input, &pre_activated_output, &output);
 
         layer.update(&d_weights, &d_biases, 1);
     }
 
     #[test]
     fn test_dense_validate() {
-        let dense = Dense::new().size(10).activation(Ok(Box::new(ReLU::new().unwrap())));
+        let dense = Dense::new().size(10).activation(Ok(Box::new(ReLU::build().unwrap())));
         assert!(dense.validate().is_ok());
 
-        let dense_invalid = Dense::new().size(0).activation(Ok(Box::new(ReLU::new().unwrap())));
+        let dense_invalid = Dense::new().size(0).activation(Ok(Box::new(ReLU::build().unwrap())));
         assert!(dense_invalid.validate().is_err());
 
         let dense_invalid_activation = Dense::new().size(10).activation(Err(NetworkError::ConfigError(

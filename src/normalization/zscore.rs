@@ -14,7 +14,7 @@ pub struct ZScore {
 }
 
 impl ZScore {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             means: None,
             std_devs: None,
@@ -27,13 +27,13 @@ impl ZScore {
         let mut std_devs = vec![0.0; cols];
 
         // Calculate means
-        for j in 0..cols {
+        (0..cols).for_each(|j| {
             let mut sum = 0.0;
             for i in 0..rows {
                 sum += matrix.at(i, j);
             }
             means[j] = sum / rows as f32;
-        }
+        });
 
         // Calculate standard deviations
         for j in 0..cols {
@@ -47,6 +47,12 @@ impl ZScore {
 
         self.means = Some(means);
         self.std_devs = Some(std_devs);
+    }
+}
+
+impl Default for ZScore {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -152,13 +158,13 @@ mod tests {
         z_score.denormalize(&mut matrix).unwrap();
 
         // Ensure the denormalized values match the original matrix
-        let original = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0], vec![7.0, 8.0, 9.0]];
+        let original = [vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0], vec![7.0, 8.0, 9.0]];
 
         // Compare denormalized matrix with the original matrix
-        for i in 0..matrix.rows() {
+        (0..matrix.rows()).for_each(|i| {
             for j in 0..matrix.cols() {
                 assert!((matrix.at(i, j) - original[i][j]).abs() < f32::EPSILON);
             }
-        }
+        });
     }
 }

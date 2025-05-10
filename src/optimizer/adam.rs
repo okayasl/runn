@@ -32,7 +32,7 @@ struct AdamOptimizer {
 impl AdamOptimizer {
     pub(crate) fn new(config: AdamConfig) -> Self {
         Self {
-            config: config,
+            config,
             moment1_weights: DMat::zeros(0, 0),
             moment1_biases: DMat::zeros(0, 0),
             moment2_weights: DMat::zeros(0, 0),
@@ -110,7 +110,7 @@ impl Optimizer for AdamOptimizer {
         self.v_hat_factor = 1.0 - self.config.beta2.powi(self.t as i32);
         let step_size = self.config.learning_rate * self.m_hat_factor / self.v_hat_factor.sqrt();
 
-        self.update_moments(&d_weights, &d_biases);
+        self.update_moments(d_weights, d_biases);
         self.update_parameters(weights, biases, step_size);
     }
 
@@ -173,7 +173,7 @@ impl Adam {
     /// - beta2: 0.999
     /// - epsilon: f32::EPSILON
     /// - scheduler: None
-    pub fn new() -> Adam {
+    fn new() -> Adam {
         Adam {
             learning_rate: 0.01,
             beta1: 0.9,
@@ -181,6 +181,12 @@ impl Adam {
             epsilon: f32::EPSILON,
             scheduler: None,
         }
+    }
+}
+
+impl Default for Adam {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

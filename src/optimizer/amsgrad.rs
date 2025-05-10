@@ -178,7 +178,7 @@ impl AMSGrad {
     /// - beta2: 0.999
     /// - epsilon: f32::EPSILON
     /// - scheduler: None
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             learning_rate: 0.01,
             beta1: 0.9,
@@ -278,6 +278,12 @@ impl AMSGrad {
             epsilon: self.epsilon,
             scheduler: self.scheduler.map(|s| s.unwrap()),
         }))
+    }
+}
+
+impl Default for AMSGrad {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -54,6 +54,12 @@ impl SequentialNumbers {
     }
 }
 
+impl Default for SequentialNumbers {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Numbers for SequentialNumbers {
     fn floats(&self) -> Vec<f32> {
         self.check_params();
@@ -140,6 +146,12 @@ impl RandomNumbers {
     }
 }
 
+impl Default for RandomNumbers {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Numbers for RandomNumbers {
     fn floats(&self) -> Vec<f32> {
         self.check_params();
@@ -181,7 +193,7 @@ mod tests {
             .upper_limit(2.0)
             .increment(1.0);
 
-        let expected = vec![0.0, 1.0, 2.0];
+        let expected = [0.0, 1.0, 2.0];
         assert!(numbers
             .floats()
             .iter()
@@ -196,7 +208,7 @@ mod tests {
             .upper_limit(0.0030)
             .increment(0.0005);
 
-        let expected = vec![0.0020, 0.0025, 0.0030];
+        let expected = [0.0020, 0.0025, 0.0030];
         assert!(numbers
             .floats()
             .iter()
@@ -242,7 +254,7 @@ mod tests {
         let floats = numbers.floats();
         assert_eq!(floats.len(), 5);
         for &v in &floats {
-            assert!(v >= 0.0 && v < 1.0);
+            assert!((0.0..1.0).contains(&v));
         }
 
         // Same seed = same result

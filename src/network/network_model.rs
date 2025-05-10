@@ -15,6 +15,8 @@ use crate::{
 
 use super::network_io::{NetworkIO, NetworkSerialized};
 
+type ForwardResult = Result<(Vec<DMat>, Vec<Arc<Vec<LayerParams>>>), NetworkError>;
+
 /// A builder for constructing a neural network with customizable layers, loss functions, optimizers, and training parameters.
 ///
 /// Use this struct to configure the architecture and training settings of a neural network, then call `build()` to create a `Network` instance.
@@ -225,7 +227,7 @@ impl NetworkBuilder {
         self
     }
 
-    pub(crate) fn from_network(mut self, nw: &Network) -> Self {
+    pub(crate) fn with_network(mut self, nw: &Network) -> Self {
         self.loss_function = Ok(nw.loss_function.clone_box());
         self.optimizer_config = Ok(nw.optimizer_config.clone());
         self.batch_size = nw.batch_size;
@@ -262,12 +264,8 @@ impl NetworkBuilder {
         if let Some(err) = self.optimizer_config.as_ref().err() {
             return Err(err.clone());
         }
-        if self.summary_writer.is_some() {
-            if let Some(summary_writer) = self.summary_writer.as_ref() {
-                if let Err(err) = summary_writer {
-                    return Err(err.clone());
-                }
-            }
+        if let Some(Err(err)) = self.summary_writer.as_ref() {
+            return Err(err.clone());
         }
         if self.epochs == 0 {
             return Err(NetworkError::ConfigError(format!(
@@ -275,19 +273,19 @@ impl NetworkBuilder {
                 self.epochs
             )));
         }
-        if self.parallelize <= 0 {
+        if self.parallelize == 0 {
             return Err(NetworkError::ConfigError(format!(
                 "Parallelization factor must be greater than zero, but was: {}",
                 self.parallelize
             )));
         }
-        if self.batch_size <= 0 {
+        if self.batch_size == 0 {
             return Err(NetworkError::ConfigError(format!(
                 "Batch size must be greater than zero, but was: {}",
                 self.batch_size
             )));
         }
-        if self.batch_group_size <= 0 {
+        if self.batch_group_size == 0 {
             return Err(NetworkError::ConfigError(format!(
                 "Batch group size must be greater than zero, but was: {}",
                 self.batch_group_size
@@ -342,7 +340,7 @@ impl NetworkBuilder {
         Ok(Network {
             input_size: self.input_size,
             output_size: self.output_size,
-            layers: layers,
+            layers,
             loss_function: self.loss_function?,
             optimizer_config: self.optimizer_config.unwrap(),
             regularizations: Arc::new(regularizations),
@@ -445,7 +443,7 @@ impl Network {
         Ok(final_result)
     }
 
-    fn forward(&self, group_inputs: &[DMat]) -> Result<(Vec<DMat>, Vec<Arc<Vec<LayerParams>>>), NetworkError> {
+    fn forward(&self, group_inputs: &[DMat]) -> ForwardResult {
         let mut receivers = Vec::new();
         let base_layers: Vec<_> = self.layers.iter().map(Arc::clone).collect();
         for input in group_inputs.iter() {
@@ -481,7 +479,7 @@ impl Network {
         group_layer_params: &mut [Arc<Vec<LayerParams>>], epoch: usize,
     ) -> Result<(), NetworkError> {
         // clone layer handles once
-        let base_layers = self.layers.iter().cloned().collect::<Vec<_>>();
+        let base_layers = self.layers.to_vec();
 
         // initialize (dW, dB) for each layer in one go
         let mut grads = self
@@ -534,8 +532,8 @@ impl Network {
 
             self.regularizations.iter().for_each(|reg| {
                 // skip dropout here
-                if !reg.as_any().downcast_ref::<DropoutRegularization>().is_some() {
-                    layer.regulate(&mut d_weight, &mut d_bias, &reg);
+                if reg.as_any().downcast_ref::<DropoutRegularization>().is_none() {
+                    layer.regulate(&mut d_weight, &mut d_bias, reg);
                 }
             });
 
@@ -560,8 +558,8 @@ impl Network {
             (output, _) = layer.read().unwrap().forward(&output);
         });
 
-        let loss = self.loss_function.forward(&output, &training_targets);
-        let metrics = self.loss_function.calculate_metrics(&training_targets, &output);
+        let loss = self.loss_function.forward(&output, training_targets);
+        let metrics = self.loss_function.calculate_metrics(training_targets, &output);
 
         NetworkResult {
             predictions: output,
@@ -672,7 +670,7 @@ impl Network {
 
     fn log_group_training_info(
         &mut self, epoch: usize, group_count: usize, group_id: usize, group_targets: &&[DMat],
-        group_predictions: &Vec<DMat>,
+        group_predictions: &[DMat],
     ) {
         if self.debug {
             let group_losses = self.forward_loss(group_predictions, group_targets);
@@ -694,7 +692,7 @@ impl Network {
 
     fn log_start_info(&mut self, sample_size: usize) {
         let (batch_size, batch_count) = self.calculate_batches(sample_size);
-        let group_count = (batch_count + self.batch_group_size - 1) / self.batch_group_size;
+        let group_count = batch_count.div_ceil(self.batch_group_size);
 
         if !self.search {
             info!("Network training started: sample_size:{}, group_size:{}, group_count:{}, batch_size:{}, batch_count:{}, epoch:{}", sample_size,group_count,self.batch_group_size, batch_size, batch_count, self.epochs);
@@ -706,8 +704,8 @@ impl Network {
     ) -> (Vec<&'a [DMat]>, Vec<&'a [DMat]>) {
         let batch_group_size = self.batch_group_size;
         let batch_count = all_batch_inputs.len();
-        let mut all_group_batch_inputs = Vec::with_capacity((batch_count + batch_group_size - 1) / batch_group_size);
-        let mut all_group_batch_targets = Vec::with_capacity((batch_count + batch_group_size - 1) / batch_group_size);
+        let mut all_group_batch_inputs = Vec::with_capacity(batch_count.div_ceil(batch_group_size));
+        let mut all_group_batch_targets = Vec::with_capacity(batch_count.div_ceil(batch_group_size));
 
         for group_start in (0..batch_count).step_by(batch_group_size) {
             let group_end = std::cmp::min(group_start + batch_group_size, batch_count);
@@ -730,7 +728,7 @@ impl Network {
             sample_size
         };
 
-        let batch_count = (sample_size + batch_size - 1) / batch_size; // Round up
+        let batch_count = sample_size.div_ceil(batch_size); // Round up
         (batch_size, batch_count)
     }
 
@@ -769,9 +767,7 @@ impl Network {
             return;
         }
         if let Some(summary_writer) = &mut self.summary_writer {
-            summary_writer
-                .write_scalar("Training/Loss", epoch, epoch_loss as f32)
-                .unwrap();
+            summary_writer.write_scalar("Training/Loss", epoch, epoch_loss).unwrap();
             metric_result
                 .headers()
                 .iter()
@@ -801,7 +797,7 @@ impl Network {
     }
 
     pub fn save(&self, network_io: impl NetworkIO) -> Result<(), NetworkError> {
-        Ok(network_io.save(self.to_io())?)
+        network_io.save(self.to_io())
     }
 
     pub fn load(network_io: impl NetworkIO) -> Result<Self, NetworkError> {
@@ -821,7 +817,7 @@ impl Network {
         Network {
             input_size: network_io.input_size,
             output_size: network_io.output_size,
-            layers: layers,
+            layers,
             loss_function: network_io.loss_function,
             optimizer_config: network_io.optimizer_config as Box<dyn OptimizerConfig>,
             regularizations: Into::into(network_io.regularizations),
@@ -856,7 +852,7 @@ impl Network {
         NetworkSerialized {
             input_size: self.input_size,
             output_size: self.output_size,
-            layers: layers,
+            layers,
             loss_function: self.loss_function.clone(),
             optimizer_config: self.optimizer_config.clone(),
             regularizations: self.regularizations.to_vec(),
@@ -888,7 +884,7 @@ fn forward_job(
     let mut layer_params = Vec::with_capacity(layers.len());
     let mut current_input: DMat = input.clone();
 
-    layers.into_iter().for_each(|layer| {
+    layers.iter().for_each(|layer| {
         let layer = layer.read().unwrap();
         // Get both the activated output and the pre-activated output from the layer
         let (mut activated_output, pre_activated_output) = layer.forward(&current_input);
@@ -979,10 +975,10 @@ mod tests {
     #[test]
     fn test_network_builder_with_minimal_configuration() {
         let builder = NetworkBuilder::new(4, 3)
-            .layer(Dense::new().size(5).activation(ReLU::new()).build())
-            .layer(Dense::new().size(3).activation(Softmax::new()).build())
-            .loss_function(MeanSquared::new())
-            .optimizer(SGD::new().learning_rate(0.01).build())
+            .layer(Dense::default().size(5).activation(ReLU::build()).build())
+            .layer(Dense::default().size(3).activation(Softmax::build()).build())
+            .loss_function(MeanSquared.build())
+            .optimizer(SGD::default().learning_rate(0.01).build())
             .seed(42)
             .epochs(10)
             .batch_size(2);
@@ -994,12 +990,12 @@ mod tests {
     #[test]
     fn test_network_builder_with_regularization() {
         let builder = NetworkBuilder::new(4, 3)
-            .layer(Dense::new().size(5).activation(ReLU::new()).build())
-            .layer(Dense::new().size(3).activation(Softmax::new()).build())
-            .loss_function(MeanSquared::new())
-            .optimizer(SGD::new().learning_rate(0.01).build())
-            .regularization(L1::new().lambda(0.01).build())
-            .regularization(L2::new().lambda(0.01).build())
+            .layer(Dense::default().size(5).activation(ReLU::build()).build())
+            .layer(Dense::default().size(3).activation(Softmax::build()).build())
+            .loss_function(MeanSquared.build())
+            .optimizer(SGD::default().learning_rate(0.01).build())
+            .regularization(L1::default().lambda(0.01).build())
+            .regularization(L2::default().lambda(0.01).build())
             .seed(42)
             .epochs(10)
             .batch_size(2);
@@ -1011,11 +1007,11 @@ mod tests {
     #[test]
     fn test_network_builder_with_dropout() {
         let builder = NetworkBuilder::new(4, 3)
-            .layer(Dense::new().size(5).activation(ReLU::new()).build())
-            .layer(Dense::new().size(3).activation(Softmax::new()).build())
-            .loss_function(MeanSquared::new())
-            .optimizer(SGD::new().learning_rate(0.01).build())
-            .regularization(Dropout::new().dropout_rate(0.5).seed(42).build())
+            .layer(Dense::default().size(5).activation(ReLU::build()).build())
+            .layer(Dense::default().size(3).activation(Softmax::build()).build())
+            .loss_function(MeanSquared.build())
+            .optimizer(SGD::default().learning_rate(0.01).build())
+            .regularization(Dropout::default().dropout_rate(0.5).seed(42).build())
             .seed(42)
             .epochs(10)
             .batch_size(2);
@@ -1027,10 +1023,10 @@ mod tests {
     #[test]
     fn test_network_training_with_simple_data() {
         let mut network = NetworkBuilder::new(2, 1)
-            .layer(Dense::new().size(4).activation(ReLU::new()).build())
-            .layer(Dense::new().size(1).activation(Sigmoid::new()).build())
-            .loss_function(CrossEntropy::new().build())
-            .optimizer(Adam::new().build())
+            .layer(Dense::default().size(4).activation(ReLU::build()).build())
+            .layer(Dense::default().size(1).activation(Sigmoid::build()).build())
+            .loss_function(CrossEntropy::default().build())
+            .optimizer(Adam::default().build())
             .seed(42)
             .epochs(5)
             .batch_size(1)
@@ -1049,13 +1045,13 @@ mod tests {
     #[test]
     fn test_network_training_with_multiple_layers_and_regularization() {
         let mut network = NetworkBuilder::new(4, 3)
-            .layer(Dense::new().size(8).activation(ReLU::new()).build())
-            .layer(Dense::new().size(8).activation(ReLU::new()).build())
-            .layer(Dense::new().size(3).activation(Softmax::new()).build())
-            .loss_function(MeanSquared::new())
-            .optimizer(SGD::new().learning_rate(0.01).build())
+            .layer(Dense::default().size(8).activation(ReLU::build()).build())
+            .layer(Dense::default().size(8).activation(ReLU::build()).build())
+            .layer(Dense::default().size(3).activation(Softmax::build()).build())
+            .loss_function(MeanSquared.build())
+            .optimizer(SGD::default().learning_rate(0.01).build())
             .seed(42)
-            .regularization(L2::new().lambda(0.01).build())
+            .regularization(L2::default().lambda(0.01).build())
             .epochs(1000)
             .batch_size(2)
             .build()
@@ -1086,12 +1082,12 @@ mod tests {
     #[test]
     fn test_network_training_with_dropout_regularization() {
         let mut network = NetworkBuilder::new(4, 3)
-            .layer(Dense::new().size(8).activation(ReLU::new()).build())
-            .layer(Dense::new().size(8).activation(ReLU::new()).build())
-            .layer(Dense::new().size(3).activation(Softmax::new()).build())
-            .loss_function(MeanSquared::new())
-            .optimizer(SGD::new().learning_rate(0.01).build())
-            .regularization(Dropout::new().dropout_rate(0.01).seed(42).build())
+            .layer(Dense::default().size(8).activation(ReLU::build()).build())
+            .layer(Dense::default().size(8).activation(ReLU::build()).build())
+            .layer(Dense::default().size(3).activation(Softmax::build()).build())
+            .loss_function(MeanSquared.build())
+            .optimizer(SGD::default().learning_rate(0.01).build())
+            .regularization(Dropout::default().dropout_rate(0.01).seed(42).build())
             .seed(42)
             .epochs(300)
             .batch_size(2)
@@ -1124,17 +1120,17 @@ mod tests {
     #[test]
     fn test_network_training_with_early_stopping() {
         let mut network = NetworkBuilder::new(4, 3)
-            .layer(Dense::new().size(8).activation(ReLU::new()).build())
-            .layer(Dense::new().size(8).activation(ReLU::new()).build())
-            .layer(Dense::new().size(3).activation(Softmax::new()).build())
-            .loss_function(MeanSquared::new())
-            .optimizer(SGD::new().learning_rate(0.01).build())
-            .regularization(Dropout::new().dropout_rate(0.01).seed(42).build())
+            .layer(Dense::default().size(8).activation(ReLU::build()).build())
+            .layer(Dense::default().size(8).activation(ReLU::build()).build())
+            .layer(Dense::default().size(3).activation(Softmax::build()).build())
+            .loss_function(MeanSquared.build())
+            .optimizer(SGD::default().learning_rate(0.01).build())
+            .regularization(Dropout::default().dropout_rate(0.01).seed(42).build())
             .seed(42)
             .epochs(300)
             .batch_size(2)
             .early_stopper(
-                Flexible::new()
+                Flexible::default()
                     .patience(20)
                     .target(0.11)
                     .monitor_metric(MonitorMetric::Loss)
@@ -1170,11 +1166,11 @@ mod tests {
     #[test]
     fn test_network_prediction() {
         let mut network = NetworkBuilder::new(4, 3)
-            .layer(Dense::new().size(8).activation(ReLU::new()).build())
-            .layer(Dense::new().size(8).activation(ReLU::new()).build())
-            .layer(Dense::new().size(3).activation(Softmax::new()).build())
-            .loss_function(MeanSquared::new())
-            .optimizer(SGD::new().learning_rate(0.01).build())
+            .layer(Dense::default().size(8).activation(ReLU::build()).build())
+            .layer(Dense::default().size(8).activation(ReLU::build()).build())
+            .layer(Dense::default().size(3).activation(Softmax::build()).build())
+            .loss_function(MeanSquared.build())
+            .optimizer(SGD::default().learning_rate(0.01).build())
             .seed(42)
             .epochs(10)
             .batch_size(2)
@@ -1204,11 +1200,11 @@ mod tests {
     #[test]
     fn test_prediction_with_invalid_input_target() {
         let mut network = NetworkBuilder::new(4, 3)
-            .layer(Dense::new().size(8).activation(ReLU::new()).build())
-            .layer(Dense::new().size(8).activation(ReLU::new()).build())
-            .layer(Dense::new().size(3).activation(Softmax::new()).build())
-            .loss_function(MeanSquared::new())
-            .optimizer(SGD::new().learning_rate(0.01).build())
+            .layer(Dense::default().size(8).activation(ReLU::build()).build())
+            .layer(Dense::default().size(8).activation(ReLU::build()).build())
+            .layer(Dense::default().size(3).activation(Softmax::build()).build())
+            .loss_function(MeanSquared.build())
+            .optimizer(SGD::default().learning_rate(0.01).build())
             .seed(42)
             .epochs(10)
             .batch_size(2)

@@ -26,10 +26,20 @@ struct SigmoidActivation;
 pub struct Sigmoid;
 
 impl Sigmoid {
+    fn new() -> Self {
+        Self {}
+    }
+
     /// Creates a new Sigmoid activation function
     /// Sigmoid weight initialization factor is set to Xavier initialization.
-    pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
+    pub fn build() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(SigmoidActivation {}))
+    }
+}
+
+impl Default for Sigmoid {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -65,7 +75,7 @@ mod sigmoid_tests {
     #[test]
     fn test_sigmoid_forward_zero_input() {
         let mut input = DMat::new(1, 1, &[0.0f32]);
-        let sigmoid = Sigmoid::new().unwrap();
+        let sigmoid = Sigmoid::build().unwrap();
         sigmoid.forward(&mut input);
 
         let expected = DMat::new(1, 1, &[0.5f32]);
@@ -75,7 +85,7 @@ mod sigmoid_tests {
     #[test]
     fn test_sigmoid_forward_mixed_values() {
         let mut input = DMat::new(2, 3, &[-1.0f32, 0.0, 2.0, -3.5, 4.2, 0.0]);
-        let sigmoid = Sigmoid::new().unwrap();
+        let sigmoid = Sigmoid::build().unwrap();
         sigmoid.forward(&mut input);
 
         // Expected outputs calculated manually for verification
@@ -101,7 +111,7 @@ mod sigmoid_tests {
         let d_output = DMat::new(2, 3, &[0.5f32, 1.0, 0.7, 0.2, 0.3, 0.1]);
         let output: DMat = DMat::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let sigmoid = Sigmoid::new().unwrap();
+        let sigmoid = Sigmoid::build().unwrap();
         sigmoid.forward(&mut input); // First apply forward pass
         let original_input = input.clone();
 
@@ -128,7 +138,7 @@ mod sigmoid_tests {
     fn test_sigmoid_bounds() {
         let test_cases = [(f32::NEG_INFINITY, 0.0f32), (f32::INFINITY, 1.0f32)];
 
-        let sigmoid = Sigmoid::new().unwrap();
+        let sigmoid = Sigmoid::build().unwrap();
 
         for (input_value, expected_output) in test_cases {
             let mut input = DMat::new(1, 1, &[input_value]);

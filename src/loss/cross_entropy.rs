@@ -51,7 +51,7 @@ pub struct CrossEntropy {
 impl CrossEntropy {
     /// Creates a new builder for CrossEntropyLoss
     /// The default epsilon value is set to f32::EPSILON
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self { epsilon: f32::EPSILON }
     }
 
@@ -77,6 +77,12 @@ impl CrossEntropy {
     pub fn build(self) -> Result<Box<dyn LossFunction>, NetworkError> {
         self.validate()?;
         Ok(Box::new(CrossEntropyLoss { epsilon: self.epsilon }))
+    }
+}
+
+impl Default for CrossEntropy {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -136,7 +142,7 @@ mod tests {
         let predicted = DMat::new(2, 2, &[0.9, 0.1, 0.2, 0.8]);
         let target = DMat::new(2, 2, &[1.0, 0.0, 0.0, 1.0]);
         let result = loss.forward(&predicted, &target);
-        assert!((result - 0.164252033486018).abs() < 1e-6);
+        assert!((result - 0.164_252_03).abs() < 1e-6);
     }
 
     #[test]

@@ -106,7 +106,7 @@ impl RMSProp {
     /// - decay_rate: 0.9
     /// - epsilon: f32::EPSILON
     /// - scheduler: None
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             learning_rate: 0.001,
             decay_rate: 0.9,
@@ -188,6 +188,12 @@ impl RMSProp {
             epsilon: self.epsilon,
             scheduler: self.scheduler.map(|s| s.unwrap()),
         }))
+    }
+}
+
+impl Default for RMSProp {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

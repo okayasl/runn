@@ -9,7 +9,7 @@ use runn::{
     helper,
     matrix::{DMat, DenseMatrix},
     min_max::MinMax,
-    network::network::{Network, NetworkBuilder},
+    network::network_model::{Network, NetworkBuilder},
     network_io::JSON,
     network_search::NetworkSearchBuilder,
     numbers::{Numbers, SequentialNumbers},
@@ -43,23 +43,23 @@ fn main() {
 fn train_and_validate(
     training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat, validation_targets: &DMat,
 ) {
-    let network_file = String::from(format!("{}_network", EXP_NAME));
+    let network_file = format!("{}_network", EXP_NAME);
 
     let mut network = one_hot_encode_network(training_inputs.cols(), training_targets.cols());
 
-    let training_result = network.train(&training_inputs, &training_targets);
+    let training_result = network.train(training_inputs, training_targets);
     match training_result {
         Ok(_) => {
             println!("Training completed successfully");
             network
-                .save(JSON::new().directory(EXP_NAME).filename(&network_file).build().unwrap())
+                .save(JSON::default().directory(EXP_NAME).file_name(&network_file).build().unwrap())
                 .unwrap();
-            let net_results = network.predict(&training_inputs, &training_targets).unwrap();
+            let net_results = network.predict(training_inputs, training_targets).unwrap();
             log::info!(
                 "{}",
                 helper::pretty_compare_matrices(
-                    &training_inputs,
-                    &training_targets,
+                    training_inputs,
+                    training_targets,
                     &net_results.predictions,
                     helper::CompareMode::Classification
                 )
@@ -71,13 +71,13 @@ fn train_and_validate(
         }
     }
 
-    network = Network::load(JSON::new().directory(EXP_NAME).filename(&network_file).build().unwrap()).unwrap();
-    let net_results = network.predict(&validation_inputs, &validation_targets).unwrap();
+    network = Network::load(JSON::default().directory(EXP_NAME).file_name(&network_file).build().unwrap()).unwrap();
+    let net_results = network.predict(validation_inputs, validation_targets).unwrap();
     log::info!(
         "{}",
         helper::pretty_compare_matrices(
-            &validation_inputs,
-            &validation_targets,
+            validation_inputs,
+            validation_targets,
             &net_results.predictions,
             helper::CompareMode::Classification
         )
@@ -87,13 +87,13 @@ fn train_and_validate(
 
 fn one_hot_encode_network(inp_size: usize, targ_size: usize) -> Network {
     let network = NetworkBuilder::new(inp_size, targ_size)
-        .layer(Dense::new().size(7).activation(ReLU::new()).build())
-        .layer(Dense::new().size(5).activation(ReLU::new()).build())
-        .layer(Dense::new().size(targ_size).activation(Softmax::new()).build())
-        .optimizer(Adam::new().beta1(0.99).beta2(0.999).learning_rate(0.0035).build())
-        .loss_function(CrossEntropy::new().epsilon(1e-8).build())
+        .layer(Dense::default().size(7).activation(ReLU::build()).build())
+        .layer(Dense::default().size(5).activation(ReLU::build()).build())
+        .layer(Dense::default().size(targ_size).activation(Softmax::build()).build())
+        .optimizer(Adam::default().beta1(0.99).beta2(0.999).learning_rate(0.0035).build())
+        .loss_function(CrossEntropy::default().epsilon(1e-8).build())
         .batch_size(4)
-        .normalize_input(MinMax::new())
+        .normalize_input(MinMax::default())
         .epochs(500)
         .seed(55)
         .build();
@@ -113,7 +113,7 @@ fn test_search(training_inputs: &DMat, training_targets: &DMat, validation_input
     let network_search = NetworkSearchBuilder::new()
         .network(network)
         .parallelize(4)
-        .normalize_input(MinMax::new())
+        .normalize_input(MinMax::default())
         .learning_rates(
             SequentialNumbers::new()
                 .lower_limit(0.0015)
@@ -134,7 +134,7 @@ fn test_search(training_inputs: &DMat, training_targets: &DMat, validation_input
                 .upper_limit(10.0)
                 .increment(1.0)
                 .ints(),
-            ReLU::new(),
+            ReLU::build(),
         )
         .hidden_layer(
             SequentialNumbers::new()
@@ -142,7 +142,7 @@ fn test_search(training_inputs: &DMat, training_targets: &DMat, validation_input
                 .upper_limit(10.0)
                 .increment(1.0)
                 .ints(),
-            ReLU::new(),
+            ReLU::build(),
         )
         .export(
             CSV::new()
@@ -161,7 +161,7 @@ fn test_search(training_inputs: &DMat, training_targets: &DMat, validation_input
     };
 
     let search_res = network_search
-        .search(&training_inputs, &training_targets, &validation_inputs, &validation_targets)
+        .search(training_inputs, training_targets, validation_inputs, validation_targets)
         .unwrap();
 
     info!("Search Result Count: {}", search_res.len());
@@ -182,7 +182,7 @@ pub fn wine_inputs_targets(
     for (index, result) in reader.records().enumerate() {
         let record = result?;
         // Skip if record is empty
-        if record.len() == 0 {
+        if record.is_empty() {
             println!("Skipping empty record at line {}", index + 2); // +2 because of header + 0-indexed
             continue;
         }
@@ -195,7 +195,7 @@ pub fn wine_inputs_targets(
                 record.len()
             );
             println!("Record content: {:?}", record);
-            return Err(format!("Unexpected number of fields").into());
+            return Err("Unexpected number of fields".to_string().into());
         }
         for (i, value) in record.iter().enumerate() {
             let parsed_val: f32 = value.parse()?;
@@ -230,7 +230,6 @@ fn initialize_logger(name: &str) {
     if !std::path::Path::new(name).exists() {
         let _res = fs::create_dir_all(name).map_err(|e| {
             eprintln!("Failed to create log directory: {}", e);
-            return;
         });
     }
 

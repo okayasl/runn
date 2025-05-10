@@ -33,7 +33,7 @@ impl Swish {
     /// The default beta value is typically set to 1.0.
     /// You can set a different beta value using the `beta` method.
     /// Swish weight initialization factor is set to He initialization.
-    pub fn new() -> Self {
+    fn new() -> Self {
         Swish { beta: 1.0 } // Default beta = 1.0
     }
 
@@ -60,6 +60,12 @@ impl Swish {
     pub fn build(self) -> Result<Box<dyn ActivationFunction>, NetworkError> {
         self.validate()?;
         Ok(Box::new(SwishActivation { beta: self.beta }))
+    }
+}
+
+impl Default for Swish {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

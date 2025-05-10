@@ -362,14 +362,14 @@ mod tests {
 
     #[test]
     fn test_clip() {
-        let mut matrix = DMat::new(2, 2, &vec![3.0, 4.0, 0.0, 0.0]);
+        let mut matrix = DMat::new(2, 2, &[3.0, 4.0, 0.0, 0.0]);
         matrix.clip(5.0);
-        let clipped = DMat::new(2, 2, &vec![3.0, 4.0, 0.0, 0.0]);
+        let clipped = DMat::new(2, 2, &[3.0, 4.0, 0.0, 0.0]);
         assert_eq!(util::flatten(&matrix), util::flatten(&clipped)); // or a slightly scaled version of this
 
-        let mut matrix = DMat::new(2, 2, &vec![6.0, 8.0, 0.0, 0.0]);
+        let mut matrix = DMat::new(2, 2, &[6.0, 8.0, 0.0, 0.0]);
         matrix.clip(5.0);
-        let clipped = DMat::new(2, 2, &vec![3.0, 4.0, 0.0, 0.0]);
+        let clipped = DMat::new(2, 2, &[3.0, 4.0, 0.0, 0.0]);
         assert_eq!(util::flatten(&matrix), util::flatten(&clipped)); // or a slightly scaled version of this
     }
 

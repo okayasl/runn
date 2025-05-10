@@ -73,7 +73,7 @@ impl Dropout {
     /// Default values:
     /// - `dropout_rate`: 0.5
     /// - `seed`: None (random seed)
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             dropout_rate: 0.5,
             seed: None,
@@ -119,6 +119,12 @@ impl Dropout {
     }
 }
 
+impl Default for Dropout {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,8 +133,8 @@ mod tests {
 
     #[test]
     fn test_dropout_regularization() {
-        let mut params = vec![DMat::new(2, 2, &[1.0, 2.0, 3.0, 4.0])];
-        let mut grads = vec![DMat::new(2, 2, &[0.1, 0.1, 0.1, 0.1])];
+        let mut params = [DMat::new(2, 2, &[1.0, 2.0, 3.0, 4.0])];
+        let mut grads = [DMat::new(2, 2, &[0.1, 0.1, 0.1, 0.1])];
         let dropout = Dropout::new().dropout_rate(0.5).seed(42).build().unwrap();
 
         let mut params_refs: Vec<&mut DMat> = params.iter_mut().collect();

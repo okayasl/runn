@@ -84,7 +84,7 @@ impl SGD {
     /// Default values:
     /// - learning_rate: 0.01
     /// - scheduler: None
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             learning_rate: 0.01,
             scheduler: None,
@@ -130,6 +130,12 @@ impl SGD {
             learning_rate: self.learning_rate,
             scheduler: self.scheduler.map(|s| s.unwrap()),
         }))
+    }
+}
+
+impl Default for SGD {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -215,12 +221,12 @@ mod tests {
 
     #[test]
     fn test_sgd_builder() {
-        let optimizer = SGD::new().learning_rate(0.01).build().unwrap();
+        let optimizer = SGD::default().learning_rate(0.01).build().unwrap();
         assert_eq!(optimizer.learning_rate(), 0.01);
     }
     #[test]
     fn test_sgd_builder_invalid() {
-        let result = SGD::new().learning_rate(-0.01).build();
+        let result = SGD::default().learning_rate(-0.01).build();
         assert!(result.is_err());
         if let Err(err) = result {
             assert_eq!(

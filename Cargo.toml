@@ -4,15 +4,15 @@ version         = "1.0.0"
 edition         = "2021"
 
 # ── CRATE METADATA ───────────────────────────────────────────────────────────────
-authors         = ["Okay Aslan <you@example.com>"]       # Your name & email :contentReference[oaicite:12]{index=12}
-description     = "Pure‑Rust neural‑network library backed by nalgebra, with activations, optimizers, regularization, schedulers, and TensorBoard support."  # One‑line summary :contentReference[oaicite:13]{index=13}
+authors         = ["Okay Aslan - https://github.com/okayasl"]
+description     = "Runn is a feature-rich, easy-to-use library for building, training, and evaluating feed-forward neural networks in Rust"
 license         = "MIT OR Apache-2.0"                    # SPDX‑compatible dual license :contentReference[oaicite:14]{index=14}
-repository      = "https://github.com/okayasl/runn"      # GitHub repo URL :contentReference[oaicite:15]{index=15}
-readme          = "README.md"                            # Points to README for crates.io rendering :contentReference[oaicite:16]{index=16}
-homepage        = "https://smartier.io/runn"              # (Optional) project homepage :contentReference[oaicite:17]{index=17}
-documentation   = "https://docs.rs/runn"                 # (Optional) docs.rs API docs :contentReference[oaicite:18]{index=18}
-keywords        = ["neural-network", "machine-learning", "rust", "deep-learning"]  # Improve discoverability :contentReference[oaicite:19]{index=19}
-categories      = ["machine-learning", "algorithms", "data-structures"]  # crates.io categories :contentReference[oaicite:20]{index=20}
+repository      = "https://github.com/okayasl/runn"
+readme          = "README.md"
+homepage        = "https://github.com/okayasl/runn"
+documentation   = "https://docs.rs/runn"
+keywords        = ["neural-network", "machine-learning", "rust", "deep-learning"]
+categories      = ["machine-learning", "algorithms", "data-structures"]
 
 # ── DEPENDENCIES ───────────────────────────────────────────────────────────────────
 [dependencies]

@@ -29,10 +29,20 @@ struct GELUActivation;
 pub struct GELU;
 
 impl GELU {
+    fn new() -> Self {
+        Self {}
+    }
+
     /// Creates a new GELU activation function
     /// GELU weight initialization factor is set to He initialization.
-    pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
+    pub fn build() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(GELUActivation {}))
+    }
+}
+
+impl Default for GELU {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -72,11 +82,11 @@ mod gelu_tests {
     fn test_gelu_forward() {
         let mut input = DMat::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
-        let gelu = GELU::new().unwrap();
+        let gelu = GELU::build().unwrap();
         gelu.forward(&mut input);
 
         // Expected output: approximate values
-        let expected = DMat::new(2, 3, &[0.84130001, 1.9545, 2.9964, 3.9999, 4.9999, 5.9999]);
+        let expected = DMat::new(2, 3, &[0.841_3, 1.9545, 2.9964, 3.9999, 4.9999, 5.9999]);
 
         assert!(equal_approx(&input, &expected, 1e-3), "GELU forward pass failed");
     }
@@ -87,7 +97,7 @@ mod gelu_tests {
         let d_output = DMat::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
         let output: DMat = DMat::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let gelu = GELU::new().unwrap();
+        let gelu = GELU::build().unwrap();
         gelu.backward(&d_output, &mut input, &output);
 
         // Expected output: approximate values
@@ -98,15 +108,14 @@ mod gelu_tests {
 
     #[test]
     fn test_gelu_weight_initialization() {
-        let gelu = GELU::new().unwrap();
+        let gelu = GELU::build().unwrap();
         let factor = gelu.weight_initialization_factor()(2, 3);
         assert_eq!(factor, 0.8164966, "GELU weight initialization factor should be 0.8164966");
     }
 
     #[test]
     fn test_gelu_clone() {
-        let gelu = GELU::new().unwrap();
+        let gelu = GELU::build().unwrap();
         let _cloned_gelu = gelu.clone();
-        assert!(true, "GELU clone failed");
     }
 }

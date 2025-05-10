@@ -9,7 +9,7 @@ pub trait Layer: LayerClone + Send + Sync {
         &self, d_output: &DMat, input: &DMat, pre_activated_output: &DMat, activated_output: &DMat,
     ) -> (DMat, DMat, DMat);
     fn activation_function(&self) -> &dyn ActivationFunction;
-    fn regulate(&mut self, d_weights: &mut DMat, d_biases: &mut DMat, regularization: &Box<dyn Regularization>);
+    fn regulate(&mut self, d_weights: &mut DMat, d_biases: &mut DMat, regularization: &dyn Regularization);
     fn update(&mut self, d_weights: &DMat, d_biases: &DMat, epoch: usize);
     fn summarize(&self, epoch: usize, summary_writer: &mut dyn SummaryWriter);
     fn visualize(&self);

@@ -28,10 +28,20 @@ struct SoftmaxActivation {}
 pub struct Softmax;
 
 impl Softmax {
+    fn new() -> Self {
+        Self {}
+    }
+
     /// Creates a new Softmax activation function
     /// Softmax weight initialization factor is set to Xavier initialization.
-    pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
+    pub fn build() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(SoftmaxActivation {}))
+    }
+}
+
+impl Default for Softmax {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -102,7 +112,7 @@ mod tests {
     #[test]
     fn test_softmax_forward() {
         let mut input = DMat::new(2, 3, &[1.0, 2.0, 3.0, 1.0, 2.0, 3.0]);
-        let softmax = Softmax::new().unwrap();
+        let softmax = Softmax::build().unwrap();
         softmax.forward(&mut input);
 
         // Check if the output sums to 1 for each row
@@ -117,7 +127,7 @@ mod tests {
         let output = DMat::new(2, 3, &[0.1, 0.2, 0.7, 0.1, 0.2, 0.7]);
         let d_output = DMat::new(2, 3, &[0.01, 0.02, 0.03, 0.01, 0.02, 0.03]);
 
-        let softmax = Softmax::new().unwrap();
+        let softmax = Softmax::build().unwrap();
         softmax.forward(&mut input);
         softmax.backward(&d_output, &mut input, &output);
 
@@ -143,7 +153,7 @@ mod tests {
     #[test]
     fn test_softmax_small_input() {
         let mut input = DMat::new(1, 3, &[1.0, 2.0, 3.0]);
-        let softmax = Softmax::new().unwrap();
+        let softmax = Softmax::build().unwrap();
         softmax.forward(&mut input);
 
         let expected = DMat::new(1, 3, &[0.0900, 0.2447, 0.6652]);
@@ -164,7 +174,7 @@ mod tests {
     #[test]
     fn test_softmax_large_positive_values() {
         let mut input = DMat::new(1, 3, &[100.0, 200.0, 300.0]);
-        let softmax = Softmax::new().unwrap();
+        let softmax = Softmax::build().unwrap();
         softmax.forward(&mut input);
 
         // The largest value should dominate
@@ -176,7 +186,7 @@ mod tests {
     #[test]
     fn test_softmax_large_negative_values() {
         let mut input = DMat::new(1, 3, &[-100.0, -200.0, -300.0]);
-        let softmax = Softmax::new().unwrap();
+        let softmax = Softmax::build().unwrap();
         softmax.forward(&mut input);
 
         // The least negative value should dominate
@@ -188,7 +198,7 @@ mod tests {
     #[test]
     fn test_softmax_equal_values() {
         let mut input = DMat::new(1, 3, &[1.0, 1.0, 1.0]);
-        let softmax = Softmax::new().unwrap();
+        let softmax = Softmax::build().unwrap();
         softmax.forward(&mut input);
 
         // All probabilities should be equal
@@ -208,7 +218,7 @@ mod tests {
     #[test]
     fn test_softmax_empty_input() {
         let mut input = DMat::new(0, 0, &[]);
-        let softmax = Softmax::new().unwrap();
+        let softmax = Softmax::build().unwrap();
         softmax.forward(&mut input);
 
         // Ensure no panic and output remains empty
@@ -219,7 +229,7 @@ mod tests {
     #[test]
     fn test_softmax_single_element() {
         let mut input = DMat::new(1, 1, &[42.0]);
-        let softmax = Softmax::new().unwrap();
+        let softmax = Softmax::build().unwrap();
         softmax.forward(&mut input);
 
         // Single element should always have probability 1

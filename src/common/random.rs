@@ -126,11 +126,7 @@ mod tests {
         let random_value = randomizer.float32();
 
         // Check if the value is in the range [0, 1)
-        assert!(
-            random_value >= 0.0 && random_value < 1.0,
-            "Random float should be in range [0, 1), got {}",
-            random_value
-        );
+        assert!((0.0..1.0).contains(&random_value), "Random float should be in range [0, 1), got {}", random_value);
     }
 
     #[test]

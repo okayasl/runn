@@ -38,7 +38,7 @@ impl ELU {
     /// The default alpha value is typically set to 1.0.
     /// You can set a different alpha value using the `alpha` method.
     /// ELU weight initialization factor is set to He initialization.
-    pub fn new() -> Self {
+    fn new() -> Self {
         ELU { alpha: 1.0 } // Default alpha = 1.0
     }
 
@@ -64,6 +64,12 @@ impl ELU {
     pub fn build(self) -> Result<Box<dyn ActivationFunction>, NetworkError> {
         self.validate()?;
         Ok(Box::new(ELUActivation { alpha: self.alpha }))
+    }
+}
+
+impl Default for ELU {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

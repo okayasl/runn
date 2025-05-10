@@ -28,10 +28,20 @@ struct ReLUActivation;
 pub struct ReLU;
 
 impl ReLU {
+    fn new() -> Self {
+        Self {}
+    }
+
     /// Creates a new RelU activation function
     /// ReLU weight initialization factor is set to He initialization.
-    pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
+    pub fn build() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(ReLUActivation {}))
+    }
+}
+
+impl Default for ReLU {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -68,7 +78,7 @@ mod relu_tests {
     fn test_relu_forward_positive_values() {
         let mut input = DMat::new(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
-        let relu = ReLU::new().unwrap();
+        let relu = ReLU::build().unwrap();
         relu.forward(&mut input);
 
         // Positive values should remain unchanged
@@ -81,7 +91,7 @@ mod relu_tests {
     fn test_relu_forward_mixed_values() {
         let mut input = DMat::new(2, 3, &[-1.0, 0.0, 2.0, -3.5, 4.2, 0.0]);
 
-        let relu = ReLU::new().unwrap();
+        let relu = ReLU::build().unwrap();
         relu.forward(&mut input);
 
         // Expected output: zeros for negative values, unchanged for non-negative
@@ -98,7 +108,7 @@ mod relu_tests {
         // Downstream gradient
         let d_output = DMat::new(2, 3, &[0.5, 1.0, 0.7, 0.2, 0.3, 0.1]);
 
-        let relu = ReLU::new().unwrap();
+        let relu = ReLU::build().unwrap();
         let output = input.clone();
         relu.backward(&d_output, &mut input, &output);
 
@@ -116,7 +126,7 @@ mod relu_tests {
         let d_output = DMat::new(1, 3, &[0.5, 1.0, 0.7]);
         let output: DMat = DMat::new(2, 3, &[0.0; 6]); // Create an empty DenseMatrix for output
 
-        let relu = ReLU::new().unwrap();
+        let relu = ReLU::build().unwrap();
         relu.backward(&d_output, &mut input, &output);
 
         // Expected output: all zeros

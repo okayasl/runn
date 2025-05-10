@@ -84,7 +84,7 @@ impl L2 {
     /// Creates a new builder for L2Regularization
     /// Default values:
     /// - `lambda`: 0.01
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self { lambda: 0.01 }
     }
 
@@ -115,6 +115,12 @@ impl L2 {
     }
 }
 
+impl Default for L2 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -123,8 +129,8 @@ mod tests {
 
     #[test]
     fn test_l2_regularization() {
-        let mut params = vec![DMat::new(2, 2, &[1.0, -2.0, 3.0, -4.0])];
-        let mut grads = vec![DMat::new(2, 2, &[0.1, 0.1, 0.1, 0.1])];
+        let mut params = [DMat::new(2, 2, &[1.0, -2.0, 3.0, -4.0])];
+        let mut grads = [DMat::new(2, 2, &[0.1, 0.1, 0.1, 0.1])];
         let l2 = L2::new().lambda(0.01).build().unwrap();
 
         let mut params_refs: Vec<&mut DMat> = params.iter_mut().collect();

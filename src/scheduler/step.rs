@@ -62,7 +62,7 @@ pub struct Step {
 impl Step {
     /// Creates a new builder instance.
     /// The default decay rate is 0.9 and the step size is 10.
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             decay_rate: 0.9,
             step_size: 10,
@@ -96,7 +96,7 @@ impl Step {
                 self.decay_rate
             )));
         }
-        if self.step_size <= 0 {
+        if self.step_size == 0 {
             return Err(NetworkError::ConfigError(format!(
                 "Step size for Step must be greater than 0, but was {}",
                 self.step_size
@@ -109,6 +109,12 @@ impl Step {
     pub fn build(self) -> Result<Box<dyn LearningRateScheduler>, NetworkError> {
         self.validate()?;
         Ok(Box::new(StepLRScheduler::new(self.decay_rate, self.step_size)))
+    }
+}
+
+impl Default for Step {
+    fn default() -> Self {
+        Self::new()
     }
 }
 #[cfg(test)]

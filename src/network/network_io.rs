@@ -44,14 +44,14 @@ pub struct JSON {
 }
 
 impl JSON {
-    pub fn new() -> Self {
+    fn new() -> Self {
         JSON {
             file_name: "network".to_string(),
             directory: ".".to_string(),
         }
     }
 
-    pub fn filename(mut self, filename: &str) -> Self {
+    pub fn file_name(mut self, filename: &str) -> Self {
         self.file_name = filename.to_string();
         self
     }
@@ -87,6 +87,12 @@ impl JSON {
     }
 }
 
+impl Default for JSON {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Clone)]
 struct MessagePackNetworkIO {
     filename: String,
@@ -118,14 +124,14 @@ pub struct MessagePack {
 }
 
 impl MessagePack {
-    pub fn new() -> Self {
+    fn new() -> Self {
         MessagePack {
             file_name: "network".to_string(),
             directory: ".".to_string(),
         }
     }
 
-    pub fn filename(mut self, filename: &str) -> Self {
+    pub fn file_name(mut self, filename: &str) -> Self {
         self.file_name = filename.to_string();
         self
     }
@@ -159,6 +165,12 @@ impl MessagePack {
             filename: self.file_name,
             directory: self.directory,
         })
+    }
+}
+
+impl Default for MessagePack {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -214,8 +226,8 @@ mod tests {
     use crate::dense_layer::Dense;
     use crate::dropout::Dropout;
     use crate::mean_squared_error::MeanSquared;
-    use crate::network::network::Network;
-    use crate::network::network::NetworkBuilder;
+    use crate::network::network_model::Network;
+    use crate::network::network_model::NetworkBuilder;
     use crate::relu::ReLU;
     use crate::sgd::SGD;
     use crate::softmax::Softmax;
@@ -223,17 +235,17 @@ mod tests {
     #[test]
     fn test_json_io() {
         let json_io = JSON::new()
-            .filename("test_network")
+            .file_name("test_network")
             .directory("./test_dir_123")
             .build()
             .unwrap();
 
         let network = NetworkBuilder::new(4, 3)
-            .layer(Dense::new().size(5).activation(ReLU::new()).build())
-            .layer(Dense::new().size(3).activation(Softmax::new()).build())
-            .loss_function(MeanSquared::new())
-            .optimizer(SGD::new().learning_rate(0.01).build())
-            .regularization(Dropout::new().dropout_rate(0.5).seed(42).build())
+            .layer(Dense::default().size(5).activation(ReLU::build()).build())
+            .layer(Dense::default().size(3).activation(Softmax::build()).build())
+            .loss_function(MeanSquared.build())
+            .optimizer(SGD::default().learning_rate(0.01).build())
+            .regularization(Dropout::default().dropout_rate(0.5).seed(42).build())
             .seed(42)
             .epochs(10)
             .batch_size(2)
@@ -243,7 +255,7 @@ mod tests {
         let _res = network.save(json_io);
         let loaded_network = Network::load(
             JSON::new()
-                .filename("test_network")
+                .file_name("test_network")
                 .directory("./test_dir_123")
                 .build()
                 .unwrap(),
@@ -259,17 +271,17 @@ mod tests {
     #[test]
     fn test_message_pack_io() {
         let msgpack_io = MessagePack::new()
-            .filename("test_network")
+            .file_name("test_network")
             .directory("./test_dir_1234")
             .build()
             .unwrap();
 
         let network = NetworkBuilder::new(4, 3)
-            .layer(Dense::new().size(5).activation(ReLU::new()).build())
-            .layer(Dense::new().size(3).activation(Softmax::new()).build())
-            .loss_function(MeanSquared::new())
-            .optimizer(SGD::new().learning_rate(0.01).build())
-            .regularization(Dropout::new().dropout_rate(0.5).seed(42).build())
+            .layer(Dense::default().size(5).activation(ReLU::build()).build())
+            .layer(Dense::default().size(3).activation(Softmax::build()).build())
+            .loss_function(MeanSquared.build())
+            .optimizer(SGD::default().learning_rate(0.01).build())
+            .regularization(Dropout::default().dropout_rate(0.5).seed(42).build())
             .seed(42)
             .epochs(10)
             .batch_size(2)
@@ -279,7 +291,7 @@ mod tests {
         let _res = network.save(msgpack_io);
         let loaded_network = Network::load(
             MessagePack::new()
-                .filename("test_network")
+                .file_name("test_network")
                 .directory("./test_dir_1234")
                 .build()
                 .unwrap(),
@@ -295,7 +307,7 @@ mod tests {
     #[test]
     fn test_save_load_invalid_file() {
         let json_io = JSON::new()
-            .filename("invalid_network")
+            .file_name("invalid_network")
             .directory("./invalid_dir")
             .build()
             .unwrap();
@@ -314,7 +326,7 @@ mod tests {
     #[test]
     fn test_save_load_invalid_directory() {
         let msgpack_io = MessagePack::new()
-            .filename("invalid_network")
+            .file_name("invalid_network")
             .directory("./invalid_dir")
             .build()
             .unwrap();

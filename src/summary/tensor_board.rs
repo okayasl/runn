@@ -68,17 +68,7 @@ impl SummaryWriter for TensorBoardSummaryWriter {
         let bucket_limits = self.generate_bucket_limits(min, max, bucket_count);
         let bucket_counts = self.compute_bucket_counts(values, min, max, bucket_count);
         if let Some(inner_writer) = &mut self.inner {
-            inner_writer.add_histogram_raw(
-                tag,
-                min,
-                max,
-                num,
-                sum,
-                sum_squares,
-                &bucket_limits,
-                &bucket_counts,
-                step as usize,
-            );
+            inner_writer.add_histogram_raw(tag, min, max, num, sum, sum_squares, &bucket_limits, &bucket_counts, step);
         }
         Ok(())
     }
@@ -119,7 +109,7 @@ pub struct TensorBoard {
 }
 
 impl TensorBoard {
-    pub fn new() -> Self {
+    fn new() -> Self {
         TensorBoard {
             directory: ".".to_string(),
         }
@@ -155,6 +145,12 @@ impl TensorBoard {
         self.validate()?;
         let logdir = self.directory.clone();
         Ok(Box::new(TensorBoardSummaryWriter::new(&logdir)))
+    }
+}
+
+impl Default for TensorBoard {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

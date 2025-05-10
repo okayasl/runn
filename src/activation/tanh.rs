@@ -25,10 +25,20 @@ struct TanhActivation;
 pub struct Tanh;
 
 impl Tanh {
+    fn new() -> Self {
+        Self {}
+    }
+
     /// Creates a new Tanh activation function
     /// Tanh weight initialization factor is set to Xavier initialization.
-    pub fn new() -> Result<Box<dyn ActivationFunction>, NetworkError> {
+    pub fn build() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(TanhActivation {}))
+    }
+}
+
+impl Default for Tanh {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -173,6 +183,5 @@ mod tanh_tests {
     fn test_tanh_clone() {
         let tanh = TanhActivation;
         let _cloned_tanh = tanh.clone_box();
-        assert!(true, "Tanh clone failed");
     }
 }

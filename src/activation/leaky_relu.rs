@@ -33,7 +33,7 @@ impl LeakyReLU {
     /// The default alpha value is typically set to 0.01.
     /// You can set a different alpha value using the `alpha` method.
     /// LeakyReLU weight initialization factor is set to He initialization.
-    pub fn new() -> Self {
+    fn new() -> Self {
         LeakyReLU { alpha: 0.01 }
     }
 
@@ -60,6 +60,12 @@ impl LeakyReLU {
     pub fn build(self) -> Result<Box<dyn ActivationFunction>, NetworkError> {
         self.validate()?;
         Ok(Box::new(LeakyReLUActivation { alpha: self.alpha }))
+    }
+}
+
+impl Default for LeakyReLU {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

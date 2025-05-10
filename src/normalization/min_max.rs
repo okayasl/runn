@@ -15,7 +15,7 @@ pub struct MinMax {
 }
 
 impl MinMax {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self { mins: None, maxs: None }
     }
 
@@ -37,6 +37,12 @@ impl MinMax {
         }
         self.mins = Some(mins);
         self.maxs = Some(maxs);
+    }
+}
+
+impl Default for MinMax {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -118,26 +124,26 @@ mod tests {
         min_max.normalize(&mut matrix).unwrap();
 
         // Expected normalized values for each column in the matrix
-        let normalized = vec![vec![0.0, 0.0, 0.0], vec![0.5, 0.5, 0.5], vec![1.0, 1.0, 1.0]];
+        let normalized = [vec![0.0, 0.0, 0.0], vec![0.5, 0.5, 0.5], vec![1.0, 1.0, 1.0]];
 
         // Compare the normalized matrix with expected values
-        for i in 0..matrix.rows() {
+        (0..matrix.rows()).for_each(|i| {
             for j in 0..matrix.cols() {
                 assert!((matrix.at(i, j) - normalized[i][j]).abs() < f32::EPSILON);
             }
-        }
+        });
 
         // Denormalization
         min_max.denormalize(&mut matrix).unwrap();
 
         // Expected values after denormalization
-        let original = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0], vec![7.0, 8.0, 9.0]];
+        let original = [vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0], vec![7.0, 8.0, 9.0]];
 
         // Compare denormalized matrix with the original
-        for i in 0..matrix.rows() {
+        (0..matrix.rows()).for_each(|i| {
             for j in 0..matrix.cols() {
                 assert!((matrix.at(i, j) - original[i][j]).abs() < f32::EPSILON);
             }
-        }
+        });
     }
 }

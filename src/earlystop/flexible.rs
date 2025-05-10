@@ -142,7 +142,7 @@ impl Flexible {
     /// - monitor_metric: Loss
     /// - target: None
     /// - smoothing_factor: None
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             patience: 10,
             min_delta: 0.0,
@@ -175,6 +175,7 @@ impl Flexible {
     /// - Loss
     /// - Accuracy if the model is a classifier
     /// - R2 if the model is a regressor
+    ///
     /// #parameters
     /// - `monitor_metric`: The metric to monitor for early stopping.
     pub fn monitor_metric(mut self, monitor_metric: MonitorMetric) -> Self {
@@ -227,7 +228,7 @@ impl Flexible {
             }
         }
         if let Some(smoothing_factor) = self.smoothing_factor {
-            if smoothing_factor < 0.0 || smoothing_factor > 1.0 {
+            if !(0.0..=1.0).contains(&smoothing_factor) {
                 return Err(NetworkError::ConfigError(format!(
                     "Smoothing factor for flexible early stopper must be in the range [0, 1], but was {}",
                     smoothing_factor
@@ -255,12 +256,17 @@ impl Flexible {
     }
 }
 
+impl Default for Flexible {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Enum representing the different metrics that can be monitored for early stopping.
 /// The metrics can be one of the following:
 /// - Loss
 /// - Accuracy
 /// - R2
-/// The metrics are used to determine if the training should be stopped.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum MonitorMetric {
     Loss,
@@ -368,7 +374,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let losses = vec![0.5, 0.4, 0.39, 0.39, 0.39, 0.38];
+        let losses = [0.5, 0.4, 0.39, 0.39, 0.39, 0.38];
         for (epoch, &loss) in losses.iter().enumerate() {
             stopper.update(epoch, loss, &Metrics::Regression(RegressionMetrics { rmse: loss, r2: 0.0 }));
             if stopper.is_training_stopped() {
@@ -388,7 +394,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let accuracies = vec![0.7, 0.75, 0.76, 0.77, 0.95, 0.96];
+        let accuracies = [0.7, 0.75, 0.76, 0.77, 0.95, 0.96];
         for (epoch, &accuracy) in accuracies.iter().enumerate() {
             stopper.update(
                 epoch,
@@ -419,7 +425,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let losses = vec![0.5, 0.4, 0.39, 0.39, 0.39, 0.38];
+        let losses = [0.5, 0.4, 0.39, 0.39, 0.39, 0.38];
         for (epoch, &loss) in losses.iter().enumerate() {
             stopper.update(epoch, loss, &Metrics::Regression(RegressionMetrics { rmse: loss, r2: 0.0 }));
             if stopper.is_training_stopped() {
@@ -451,7 +457,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let losses = vec![0.5, 0.4, 0.35, 0.36, 0.37, 0.38];
+        let losses = [0.5, 0.4, 0.35, 0.36, 0.37, 0.38];
         for (epoch, &val_loss) in losses.iter().enumerate() {
             early_stopper.update(epoch, val_loss, &get_dummy_metric_result());
             if early_stopper.is_training_stopped() {
@@ -470,8 +476,8 @@ mod tests {
             micro_f1_score: 0.0,
             metrics_by_class: vec![],
         };
-        let metric_result = Metrics::Classification(dummy_metric);
-        metric_result
+
+        Metrics::Classification(dummy_metric)
     }
 
     #[test]
@@ -483,7 +489,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let val_losses = vec![0.5, 0.4, 0.35, 0.34, 0.33, 0.32];
+        let val_losses = [0.5, 0.4, 0.35, 0.34, 0.33, 0.32];
         for (epoch, &val_loss) in val_losses.iter().enumerate() {
             early_stopper.update(epoch, val_loss, &get_dummy_metric_result());
         }
@@ -499,7 +505,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let val_losses = vec![0.5, 0.4, 0.35, 0.36, 0.37, 0.38];
+        let val_losses = [0.5, 0.4, 0.35, 0.36, 0.37, 0.38];
 
         for (epoch, &val_loss) in val_losses.iter().enumerate() {
             early_stopper.update(epoch, val_loss, &get_dummy_metric_result());
@@ -522,7 +528,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let val_losses = vec![0.5, 0.4, 0.35, 0.34, 0.33, 0.32];
+        let val_losses = [0.5, 0.4, 0.35, 0.34, 0.33, 0.32];
         for (epoch, &val_loss) in val_losses.iter().enumerate() {
             early_stopper.update(epoch, val_loss, &get_dummy_metric_result());
             if early_stopper.is_training_stopped() {
@@ -543,7 +549,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let losses = vec![0.5, 0.4, 0.45, 0.46, 0.47]; // Raw loss is going up but slowly
+        let losses = [0.5, 0.4, 0.45, 0.46, 0.47]; // Raw loss is going up but slowly
         let mut stopped = false;
         for (epoch, &val_loss) in losses.iter().enumerate() {
             early_stopper.update(epoch, val_loss, &get_dummy_metric_result());
@@ -556,41 +562,36 @@ mod tests {
         assert!(stopped, "Expected early stopping with smoothing applied");
     }
 
-    #[cfg(test)]
-    mod tests {
-        use super::*;
+    #[test]
+    fn test_no_smoothing_vs_smoothing() {
+        // A slowly rising loss curve
+        let val_losses = [0.30, 0.31, 0.32, 0.33, 0.34, 0.35];
 
-        #[test]
-        fn test_no_smoothing_vs_smoothing() {
-            // A slowly rising loss curve
-            let val_losses = vec![0.30, 0.31, 0.32, 0.33, 0.34, 0.35];
+        // Raw stopper: high patience so it won't stop in 6 epochs
+        let mut no_smoothing = Flexible::new()
+            .monitor_metric(MonitorMetric::Loss)
+            .patience(10)
+            .min_delta(0.01)
+            .build()
+            .unwrap();
 
-            // Raw stopper: high patience so it won't stop in 6 epochs
-            let mut no_smoothing = Flexible::new()
-                .monitor_metric(MonitorMetric::Loss)
-                .patience(10)
-                .min_delta(0.01)
-                .build()
-                .unwrap();
+        // EMA stopper: low patience, smoothing_factor => will detect rising trend
+        let mut with_smoothing = Flexible::new()
+            .monitor_metric(MonitorMetric::Loss)
+            .patience(2)
+            .min_delta(0.01)
+            .smoothing_factor(0.6)
+            .build()
+            .unwrap();
 
-            // EMA stopper: low patience, smoothing_factor => will detect rising trend
-            let mut with_smoothing = Flexible::new()
-                .monitor_metric(MonitorMetric::Loss)
-                .patience(2)
-                .min_delta(0.01)
-                .smoothing_factor(0.6)
-                .build()
-                .unwrap();
-
-            for (epoch, &loss) in val_losses.iter().enumerate() {
-                no_smoothing.update(epoch, loss, &get_dummy_metric_result());
-                with_smoothing.update(epoch, loss, &get_dummy_metric_result());
-            }
-
-            // EMA-based stopper should have halted
-            assert!(with_smoothing.is_training_stopped(), "With smoothing should stop on the rising trend");
-            // Raw stopper still within patience window
-            assert!(!no_smoothing.is_training_stopped(), "Without smoothing (high patience) should continue");
+        for (epoch, &loss) in val_losses.iter().enumerate() {
+            no_smoothing.update(epoch, loss, &get_dummy_metric_result());
+            with_smoothing.update(epoch, loss, &get_dummy_metric_result());
         }
+
+        // EMA-based stopper should have halted
+        assert!(with_smoothing.is_training_stopped(), "With smoothing should stop on the rising trend");
+        // Raw stopper still within patience window
+        assert!(!no_smoothing.is_training_stopped(), "Without smoothing (high patience) should continue");
     }
 }

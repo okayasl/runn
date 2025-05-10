@@ -103,7 +103,7 @@ impl Optimizer for AdamWOptimizer {
         self.v_hat_factor = 1.0 - self.config.beta2.powi(self.t as i32);
         let step_size = self.config.learning_rate * self.m_hat_factor / self.v_hat_factor.sqrt();
 
-        self.update_moments(&d_weights, &d_biases);
+        self.update_moments(d_weights, d_biases);
         self.update_parameters(weights, biases, step_size);
     }
 
@@ -175,7 +175,7 @@ impl AdamW {
     /// - epsilon: f32::EPSILON
     /// - weight_decay: 0.01
     /// - scheduler: None
-    pub fn new() -> AdamW {
+    fn new() -> AdamW {
         AdamW {
             learning_rate: 0.01,
             beta1: 0.9,
@@ -184,6 +184,12 @@ impl AdamW {
             weight_decay: 0.01,
             scheduler: None,
         }
+    }
+}
+
+impl Default for AdamW {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

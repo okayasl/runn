@@ -128,6 +128,12 @@ impl CSV {
     }
 }
 
+impl Default for CSV {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
