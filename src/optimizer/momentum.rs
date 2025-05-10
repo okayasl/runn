@@ -98,11 +98,11 @@ pub struct Momentum {
 }
 
 impl Momentum {
-    /// Creates a new builder for Momentum optimizer.
-    /// Default values:
-    /// - learning_rate: 0.01
-    /// - momentum: 0.9
-    /// - scheduler: None
+    // Creates a new builder for Momentum optimizer.
+    // Default values:
+    // - learning_rate: 0.01
+    // - momentum: 0.9
+    // - scheduler: None
     fn new() -> Self {
         Self {
             learning_rate: 0.01,
@@ -171,6 +171,11 @@ impl Momentum {
 }
 
 impl Default for Momentum {
+    /// Creates a new Momentum builder with default values.
+    /// Default values:
+    /// - `learning_rate`: 0.01
+    /// - `momentum`: 0.9
+    /// - `scheduler`: None
     fn default() -> Self {
         Self::new()
     }
@@ -265,13 +270,13 @@ mod tests {
 
     #[test]
     fn test_momentum_builder() {
-        let optimizer = Momentum::new().learning_rate(0.01).momentum(0.9).build().unwrap();
+        let optimizer = Momentum::default().learning_rate(0.01).momentum(0.9).build().unwrap();
         assert_eq!(optimizer.learning_rate(), 0.01);
     }
 
     #[test]
     fn test_momentum_builder_invalid_learning_rate() {
-        let result = Momentum::new().learning_rate(-0.01).build();
+        let result = Momentum::default().learning_rate(-0.01).build();
         assert!(result.is_err());
         if let Err(e) = result {
             assert_eq!(

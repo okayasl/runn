@@ -171,13 +171,13 @@ pub struct AMSGrad {
 }
 
 impl AMSGrad {
-    /// Creates a new AMSGrad optimizer builder
-    /// Default value:
-    /// - learning_rate: 0.01
-    /// - beta1: 0.9
-    /// - beta2: 0.999
-    /// - epsilon: f32::EPSILON
-    /// - scheduler: None
+    // Creates a new AMSGrad optimizer builder
+    // Default value:
+    // - learning_rate: 0.01
+    // - beta1: 0.9
+    // - beta2: 0.999
+    // - epsilon: f32::EPSILON
+    // - scheduler: None
     fn new() -> Self {
         Self {
             learning_rate: 0.01,
@@ -282,6 +282,13 @@ impl AMSGrad {
 }
 
 impl Default for AMSGrad {
+    /// Creates a new AMSGrad optimizer builder with default values.
+    /// Default values:
+    /// - `learning_rate`: 0.01
+    /// - `beta1`: 0.9
+    /// - `beta2`: 0.999
+    /// - `epsilon`: f32::EPSILON
+    /// - `scheduler`: None
     fn default() -> Self {
         Self::new()
     }
@@ -436,7 +443,7 @@ mod tests {
     }
     #[test]
     fn test_amsgrad_builder_invalid() {
-        let optimizer = AMSGrad::new()
+        let optimizer = AMSGrad::default()
             .learning_rate(0.0)
             .beta1(0.9)
             .beta2(0.999)
@@ -448,6 +455,52 @@ mod tests {
                 err.to_string(),
                 "Configuration error: Learning rate for AMSGrad must be greater than 0.0, but was 0"
             );
+        }
+    }
+
+    #[test]
+    fn test_amsgrad_builder_invalid_beta1() {
+        let optimizer = AMSGrad::default()
+            .learning_rate(0.001)
+            .beta1(1.5)
+            .beta2(0.999)
+            .epsilon(1e-8)
+            .build();
+        assert!(optimizer.is_err(), "Expected error for invalid beta1");
+        if let Err(err) = optimizer {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Beta1 for AMSGrad must be in the range (0.0, 1.0), but was 1.5"
+            );
+        }
+    }
+    #[test]
+    fn test_amsgrad_builder_invalid_beta2() {
+        let optimizer = AMSGrad::default()
+            .learning_rate(0.001)
+            .beta1(0.9)
+            .beta2(1.5)
+            .epsilon(1e-8)
+            .build();
+        assert!(optimizer.is_err(), "Expected error for invalid beta2");
+        if let Err(err) = optimizer {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Beta2 for AMSGrad must be in the range (0.0, 1.0), but was 1.5"
+            );
+        }
+    }
+    #[test]
+    fn test_amsgrad_builder_invalid_epsilon() {
+        let optimizer = AMSGrad::default()
+            .learning_rate(0.001)
+            .beta1(0.9)
+            .beta2(0.999)
+            .epsilon(0.0)
+            .build();
+        assert!(optimizer.is_err(), "Expected error for invalid epsilon");
+        if let Err(err) = optimizer {
+            assert_eq!(err.to_string(), "Configuration error: Epsilon for AMSGrad must be greater than 0.0, but was 0");
         }
     }
 }

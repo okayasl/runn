@@ -54,7 +54,7 @@ pub struct CSV {
 }
 
 impl CSV {
-    pub fn new() -> Self {
+    fn new() -> Self {
         CSV {
             delimiter: ',',
             file_name: "result".to_string(),
@@ -211,10 +211,22 @@ mod tests {
 
     #[test]
     fn test_csv_builder_invalid_directory() {
-        let csv = CSV::new()
+        let csv = CSV::default()
             .delimiter(',')
             .file_name("test")
             .directory("/invalid/directory")
+            .file_extension(".csv");
+
+        let result = csv.build();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_csv_builder_invalid_file_name() {
+        let csv = CSV::default()
+            .delimiter(',')
+            .file_name("")
+            .directory(".")
             .file_extension(".csv");
 
         let result = csv.build();

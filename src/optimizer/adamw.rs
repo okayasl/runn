@@ -167,14 +167,14 @@ pub struct AdamW {
 }
 
 impl AdamW {
-    /// Creates a new AdamW optimizer builder with default parameters.
-    /// Default values:
-    /// - learning_rate: 0.01
-    /// - beta1: 0.9
-    /// - beta2: 0.999
-    /// - epsilon: f32::EPSILON
-    /// - weight_decay: 0.01
-    /// - scheduler: None
+    // Creates a new AdamW optimizer builder with default parameters.
+    // Default values:
+    // - learning_rate: 0.01
+    // - beta1: 0.9
+    // - beta2: 0.999
+    // - epsilon: f32::EPSILON
+    // - weight_decay: 0.01
+    // - scheduler: None
     fn new() -> AdamW {
         AdamW {
             learning_rate: 0.01,
@@ -188,6 +188,14 @@ impl AdamW {
 }
 
 impl Default for AdamW {
+    /// Creates a new AdamW optimizer builder with default parameters.
+    /// Default values:
+    /// - learning_rate: 0.01
+    /// - beta1: 0.9
+    /// - beta2: 0.999
+    /// - epsilon: f32::EPSILON
+    /// - weight_decay: 0.01
+    /// - scheduler: None
     fn default() -> Self {
         Self::new()
     }
@@ -440,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_adamw_builder() {
-        let optimizer = AdamW::new()
+        let optimizer = AdamW::default()
             .learning_rate(0.001)
             .beta1(0.9)
             .beta2(0.999)

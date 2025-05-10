@@ -1089,7 +1089,7 @@ mod tests {
             .optimizer(SGD::default().learning_rate(0.01).build())
             .regularization(Dropout::default().dropout_rate(0.01).seed(42).build())
             .seed(42)
-            .epochs(300)
+            .epochs(400)
             .batch_size(2)
             .build()
             .unwrap();

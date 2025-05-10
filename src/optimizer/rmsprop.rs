@@ -100,12 +100,12 @@ pub struct RMSProp {
 }
 
 impl RMSProp {
-    /// Creates a new builder for RMSProp optimizer
-    /// Default values:
-    /// - learning_rate: 0.001
-    /// - decay_rate: 0.9
-    /// - epsilon: f32::EPSILON
-    /// - scheduler: None
+    // Creates a new builder for RMSProp optimizer
+    // Default values:
+    // - learning_rate: 0.001
+    // - decay_rate: 0.9
+    // - epsilon: f32::EPSILON
+    // - scheduler: None
     fn new() -> Self {
         Self {
             learning_rate: 0.001,
@@ -192,6 +192,12 @@ impl RMSProp {
 }
 
 impl Default for RMSProp {
+    /// Creates a new RMSProp builder with default values.
+    /// Default values:
+    /// - `learning_rate`: 0.001
+    /// - `decay_rate`: 0.9
+    /// - `epsilon`: f32::EPSILON
+    /// - `scheduler`: None
     fn default() -> Self {
         Self::new()
     }
@@ -205,7 +211,7 @@ impl OptimizerConfigClone for RMSPropConfig {
 
 #[cfg(test)]
 mod tests {
-    use crate::util::equal_approx;
+    use crate::{exponential::Exponential, util::equal_approx};
 
     use super::*;
 
@@ -290,7 +296,7 @@ mod tests {
 
     #[test]
     fn test_rmsprop_builder() {
-        let optimizer = RMSProp::new()
+        let optimizer = RMSProp::default()
             .learning_rate(0.01)
             .decay_rate(0.9)
             .epsilon(1e-8)
@@ -309,6 +315,72 @@ mod tests {
             assert_eq!(
                 err.to_string(),
                 "Configuration error: Learning rate for RMSProp must be greater than 0.0, but was 0"
+            );
+        }
+    }
+
+    #[test]
+    fn test_rmsprop_builder_with_scheduler() {
+        let scheduler = Exponential::default().build().unwrap();
+        let optimizer = RMSProp::default()
+            .learning_rate(0.01)
+            .decay_rate(0.9)
+            .epsilon(1e-8)
+            .scheduler(Ok(Box::new(scheduler)))
+            .build()
+            .unwrap();
+
+        assert_eq!(optimizer.learning_rate(), 0.01);
+    }
+
+    #[test]
+    fn test_rmsprop_builder_with_invalid_scheduler() {
+        let scheduler = Exponential::default().initial_lr(0.0).build();
+        let optimizer = RMSProp::default()
+            .learning_rate(0.01)
+            .decay_rate(0.9)
+            .epsilon(1e-8)
+            .scheduler(scheduler)
+            .build();
+
+        assert!(optimizer.is_err());
+        if let Err(err) = optimizer {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Initial learning rate for Exponential must be greater than 0.0, but was 0"
+            );
+        }
+    }
+
+    #[test]
+    fn test_rmsprop_builder_with_invalid_decay_rate() {
+        let optimizer = RMSProp::default()
+            .learning_rate(0.01)
+            .decay_rate(1.5)
+            .epsilon(1e-8)
+            .build();
+
+        assert!(optimizer.is_err());
+        if let Err(err) = optimizer {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Decay rate for RMSProp must be in [0.0, 1.0], but was 1.5"
+            );
+        }
+    }
+    #[test]
+    fn test_rmsprop_builder_with_invalid_epsilon() {
+        let optimizer = RMSProp::default()
+            .learning_rate(0.01)
+            .decay_rate(0.9)
+            .epsilon(-1.0)
+            .build();
+
+        assert!(optimizer.is_err());
+        if let Err(err) = optimizer {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Epsilon for RMSProp must be greater than 0.0, but was -1"
             );
         }
     }

@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc, time::Instant};
 
 use log::info;
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{rng, seq::SliceRandom};
 
 use crate::{
     dense_layer::Dense, error::NetworkError, matrix::DMat, parallel::ThreadPool, ActivationFunction, Exportable,
@@ -264,7 +264,7 @@ fn generate_layer_size_combinations(layer_sizes: &[Vec<usize>]) -> Vec<Vec<usize
 fn balance_network_configs(
     hidden_layer_groups: &[Vec<usize>], batch_sizes: &[usize], learning_rates: &[f32],
 ) -> Vec<(Vec<usize>, usize, f32)> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let mut map: BTreeMap<usize, Vec<(Vec<usize>, usize, f32)>> = BTreeMap::new();
 
     for hlg in hidden_layer_groups {
@@ -659,7 +659,7 @@ mod tests {
             .hidden_layer(vec![10], ReLU::build())
             .batch_sizes(vec![32, 64])
             .learning_rates(vec![0.01, 0.02])
-            .export(CSV::new().file_name("test_file").build())
+            .export(CSV::default().file_name("test_file").build())
             .normalize_input(MinMax::default())
             .parallelize(4);
 

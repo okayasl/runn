@@ -133,7 +133,7 @@ fn search() {
             ReLU::build(),
         )
         .export(
-            CSV::new()
+            CSV::default()
                 .directory(EXP_NAME)
                 .file_name(&format!("{}_search", EXP_NAME))
                 .build(),

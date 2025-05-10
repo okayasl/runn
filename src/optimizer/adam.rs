@@ -166,13 +166,6 @@ pub struct Adam {
 }
 
 impl Adam {
-    /// Creates a new builder for Adam(Adaptive Moment Estimation) optimizer.
-    /// Default values:
-    /// - learning_rate: 0.01
-    /// - beta1: 0.9
-    /// - beta2: 0.999
-    /// - epsilon: f32::EPSILON
-    /// - scheduler: None
     fn new() -> Adam {
         Adam {
             learning_rate: 0.01,
@@ -185,6 +178,13 @@ impl Adam {
 }
 
 impl Default for Adam {
+    /// Creates a new builder for Adam(Adaptive Moment Estimation) optimizer with default values.
+    /// Default values:
+    /// - learning_rate: 0.01
+    /// - beta1: 0.9
+    /// - beta2: 0.999
+    /// - epsilon: f32::EPSILON
+    /// - scheduler: None
     fn default() -> Self {
         Self::new()
     }
@@ -437,7 +437,7 @@ mod tests {
 
     #[test]
     fn test_clone_adam_optimizer_config() {
-        let adam_config = Adam::new()
+        let adam_config = Adam::default()
             .learning_rate(0.001)
             .beta1(0.9)
             .beta2(0.999)
@@ -446,5 +446,36 @@ mod tests {
             .unwrap();
         let cloned_config = adam_config.clone();
         assert_eq!(adam_config.learning_rate(), cloned_config.learning_rate());
+    }
+
+    #[test]
+    fn test_adam_invalid_learning_rate() {
+        let adam = Adam::default().learning_rate(0.0);
+        let result = adam.build();
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Learning rate for Adam must be greater than 0.0, but was 0"
+            );
+        }
+    }
+    #[test]
+    fn test_adam_invalid_beta1() {
+        let adam = Adam::default().beta1(1.5);
+        let result = adam.build();
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert_eq!(err.to_string(), "Configuration error: Beta1 for Adam must be in the range (0, 1), but was 1.5");
+        }
+    }
+    #[test]
+    fn test_adam_invalid_beta2() {
+        let adam = Adam::default().beta2(1.5);
+        let result = adam.build();
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert_eq!(err.to_string(), "Configuration error: Beta2 for Adam must be in the range (0, 1), but was 1.5");
+        }
     }
 }

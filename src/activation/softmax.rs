@@ -28,18 +28,20 @@ struct SoftmaxActivation {}
 pub struct Softmax;
 
 impl Softmax {
+    // Creates a new Softmax activation function
+    // Softmax weight initialization factor is set to Xavier initialization.
     fn new() -> Self {
         Self {}
     }
 
-    /// Creates a new Softmax activation function
-    /// Softmax weight initialization factor is set to Xavier initialization.
     pub fn build() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(SoftmaxActivation {}))
     }
 }
 
 impl Default for Softmax {
+    /// Creates a new Softmax activation function
+    /// Softmax weight initialization factor is set to Xavier initialization.
     fn default() -> Self {
         Self::new()
     }

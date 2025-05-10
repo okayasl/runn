@@ -29,10 +29,10 @@ pub struct LeakyReLU {
 }
 
 impl LeakyReLU {
-    /// Creates a new LeakyReLU activation function builder with default parameters.
-    /// The default alpha value is typically set to 0.01.
-    /// You can set a different alpha value using the `alpha` method.
-    /// LeakyReLU weight initialization factor is set to He initialization.
+    // Creates a new LeakyReLU activation function builder with default parameters.
+    // The default alpha value is typically set to 0.01.
+    // You can set a different alpha value using the `alpha` method.
+    // LeakyReLU weight initialization factor is set to He initialization.
     fn new() -> Self {
         LeakyReLU { alpha: 0.01 }
     }
@@ -64,6 +64,10 @@ impl LeakyReLU {
 }
 
 impl Default for LeakyReLU {
+    /// Creates a new LeakyReLU activation function builder with default parameters.
+    /// LeakyReLU weight initialization factor is set to He initialization.
+    /// Default values:
+    /// - `alpha`: 0.01
     fn default() -> Self {
         Self::new()
     }

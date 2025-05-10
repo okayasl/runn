@@ -57,8 +57,11 @@ pub struct Exponential {
 }
 
 impl Exponential {
-    /// Creates a new `ExponentialLRSchedulerBuilder`.
-    /// The default initial learning rate is 0.01, decay rate is 0.95, and decay factor is 0.1.
+    // Creates a new `ExponentialLRSchedulerBuilder`.
+    // Default values:
+    // - `initial_lr`: 0.01
+    // - `decay_rate`: 0.95
+    // - `decay_factor`: 0.1
     fn new() -> Self {
         Self {
             initial_lr: 0.01,
@@ -125,6 +128,11 @@ impl Exponential {
 }
 
 impl Default for Exponential {
+    /// Creates a new `ExponentialLRSchedulerBuilder` with default values.
+    /// Default values:
+    /// - `initial_lr`: 0.01
+    /// - `decay_rate`: 0.95
+    /// - `decay_factor`: 0.1
     fn default() -> Self {
         Self::new()
     }
@@ -155,7 +163,7 @@ mod tests {
         assert!((scheduler.schedule(2, 0.0) - 0.09).abs() < 1e-6);
     }
     #[test]
-    fn test_exponential_lr_scheduler_invalid() {
+    fn test_exponential_lr_scheduler_invalid_lr() {
         let scheduler = Exponential::new()
             .initial_lr(0.0)
             .decay_rate(1.5)
@@ -167,6 +175,40 @@ mod tests {
             assert_eq!(
                 err.to_string(),
                 "Configuration error: Initial learning rate for Exponential must be greater than 0.0, but was 0"
+            );
+        }
+    }
+
+    #[test]
+    fn test_exponential_lr_scheduler_invalid_decay_rate() {
+        let scheduler = Exponential::new()
+            .initial_lr(0.1)
+            .decay_rate(1.5)
+            .decay_factor(0.5)
+            .build();
+
+        assert!(scheduler.is_err());
+        if let Err(err) = scheduler {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Decay rate for Exponential must be in the range (0, 1), but was 1.5"
+            );
+        }
+    }
+
+    #[test]
+    fn test_exponential_lr_scheduler_invalid_decay_factor() {
+        let scheduler = Exponential::new()
+            .initial_lr(0.1)
+            .decay_rate(0.9)
+            .decay_factor(-0.5)
+            .build();
+
+        assert!(scheduler.is_err());
+        if let Err(err) = scheduler {
+            assert_eq!(
+                err.to_string(),
+                "Configuration error: Decay factor for Exponential  must be greater than 0.0, but was -0.5"
             );
         }
     }

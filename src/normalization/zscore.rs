@@ -133,7 +133,7 @@ mod tests {
         let mut matrix = DMat::new(3, 3, &matrix_data);
 
         // Z-Score Normalization
-        let mut z_score = ZScore::new();
+        let mut z_score = ZScore::default();
         z_score.normalize(&mut matrix).unwrap();
 
         // After normalization, the mean of each column should be close to 0 and std dev close to 1
@@ -166,5 +166,36 @@ mod tests {
                 assert!((matrix.at(i, j) - original[i][j]).abs() < f32::EPSILON);
             }
         });
+    }
+
+    #[test]
+    fn test_z_score_denormalization() {
+        let matrix_data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+        let mut matrix = DMat::new(3, 3, &matrix_data);
+
+        // Z-Score Normalization
+        let mut z_score = ZScore::default();
+        z_score.normalize(&mut matrix).unwrap();
+
+        // Denormalization
+        z_score.denormalize(&mut matrix).unwrap();
+
+        // Ensure the denormalized values match the original matrix
+        let original = [vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0], vec![7.0, 8.0, 9.0]];
+
+        // Compare denormalized matrix with the original matrix
+        (0..matrix.rows()).for_each(|i| {
+            for j in 0..matrix.cols() {
+                assert!((matrix.at(i, j) - original[i][j]).abs() < f32::EPSILON);
+            }
+        });
+    }
+
+    #[test]
+    fn test_z_score_empty_matrix() {
+        let mut matrix = DMat::new(0, 0, &[]); // Empty matrix
+        let mut z_score = ZScore::default();
+        assert!(z_score.normalize(&mut matrix).is_ok());
+        assert!(z_score.denormalize(&mut matrix).is_ok());
     }
 }

@@ -26,18 +26,20 @@ struct SigmoidActivation;
 pub struct Sigmoid;
 
 impl Sigmoid {
+    // Creates a new Sigmoid activation function
+    // Sigmoid weight initialization factor is set to Xavier initialization.
     fn new() -> Self {
         Self {}
     }
 
-    /// Creates a new Sigmoid activation function
-    /// Sigmoid weight initialization factor is set to Xavier initialization.
     pub fn build() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(SigmoidActivation {}))
     }
 }
 
 impl Default for Sigmoid {
+    /// Creates a new Sigmoid activation function
+    /// Sigmoid weight initialization factor is set to Xavier initialization.
     fn default() -> Self {
         Self::new()
     }

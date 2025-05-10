@@ -158,7 +158,7 @@ fn test_search(training_inputs: &DMat, training_targets: &DMat, validation_input
             ReLU::build(),
         )
         .export(
-            CSV::new()
+            CSV::default()
                 .directory(EXP_NAME)
                 .file_name(&format!("{}_search", EXP_NAME))
                 .build(),

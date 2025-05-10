@@ -60,8 +60,8 @@ pub struct Step {
 }
 
 impl Step {
-    /// Creates a new builder instance.
-    /// The default decay rate is 0.9 and the step size is 10.
+    // Creates a new builder instance.
+    // The default decay rate is 0.9 and the step size is 10.
     fn new() -> Self {
         Self {
             decay_rate: 0.9,
@@ -113,6 +113,10 @@ impl Step {
 }
 
 impl Default for Step {
+    /// Creates a new Step builder with default values.
+    /// Default values:
+    /// - `decay_rate`: 0.9
+    /// - `step_size`: 10
     fn default() -> Self {
         Self::new()
     }

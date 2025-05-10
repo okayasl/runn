@@ -28,18 +28,20 @@ struct ReLUActivation;
 pub struct ReLU;
 
 impl ReLU {
+    // Creates a new RelU activation function
+    // ReLU weight initialization factor is set to He initialization.
     fn new() -> Self {
         Self {}
     }
 
-    /// Creates a new RelU activation function
-    /// ReLU weight initialization factor is set to He initialization.
     pub fn build() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(ReLUActivation {}))
     }
 }
 
 impl Default for ReLU {
+    /// Creates a new ReLU activation function
+    /// ReLU weight initialization factor is set to He initialization.
     fn default() -> Self {
         Self::new()
     }

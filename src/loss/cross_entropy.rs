@@ -49,8 +49,8 @@ pub struct CrossEntropy {
 }
 
 impl CrossEntropy {
-    /// Creates a new builder for CrossEntropyLoss
-    /// The default epsilon value is set to f32::EPSILON
+    // Creates a new builder for CrossEntropyLoss
+    // The default epsilon value is set to f32::EPSILON
     fn new() -> Self {
         Self { epsilon: f32::EPSILON }
     }
@@ -81,6 +81,9 @@ impl CrossEntropy {
 }
 
 impl Default for CrossEntropy {
+    /// Creates a new CrossEntropyLoss with default parameters
+    /// Default values:
+    /// - epsilon: f32::EPSILON
     fn default() -> Self {
         Self::new()
     }

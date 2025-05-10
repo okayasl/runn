@@ -29,18 +29,20 @@ struct GELUActivation;
 pub struct GELU;
 
 impl GELU {
+    // Creates a new GELU activation function
+    // GELU weight initialization factor is set to He initialization.
     fn new() -> Self {
         Self {}
     }
 
-    /// Creates a new GELU activation function
-    /// GELU weight initialization factor is set to He initialization.
     pub fn build() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(GELUActivation {}))
     }
 }
 
 impl Default for GELU {
+    /// Creates a new GELU activation function
+    /// GELU weight initialization factor is set to He initialization.
     fn default() -> Self {
         Self::new()
     }

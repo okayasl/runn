@@ -29,10 +29,10 @@ pub struct Swish {
 }
 
 impl Swish {
-    /// Creates a new Swish activation function builder with default parameters.
-    /// The default beta value is typically set to 1.0.
-    /// You can set a different beta value using the `beta` method.
-    /// Swish weight initialization factor is set to He initialization.
+    // Creates a new Swish activation function builder with default parameters.
+    // The default beta value is typically set to 1.0.
+    // You can set a different beta value using the `beta` method.
+    // Swish weight initialization factor is set to He initialization.
     fn new() -> Self {
         Swish { beta: 1.0 } // Default beta = 1.0
     }
@@ -56,7 +56,6 @@ impl Swish {
         Ok(())
     }
 
-    /// Method to build the Swish instance
     pub fn build(self) -> Result<Box<dyn ActivationFunction>, NetworkError> {
         self.validate()?;
         Ok(Box::new(SwishActivation { beta: self.beta }))
@@ -64,6 +63,10 @@ impl Swish {
 }
 
 impl Default for Swish {
+    /// Creates a new Swish activation function builder with default parameters.
+    /// Swish weight initialization factor is set to He initialization.
+    /// Default values:
+    /// - `beta`: 1.0
     fn default() -> Self {
         Self::new()
     }

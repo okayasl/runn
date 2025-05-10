@@ -35,7 +35,7 @@ struct MeanSquaredErrorLoss;
 pub struct MeanSquared;
 
 impl MeanSquared {
-    /// Creates a new builder for CrossEntropyLoss
+    // Creates a new builder for CrossEntropyLoss
     fn new() -> Self {
         Self {}
     }
@@ -46,6 +46,7 @@ impl MeanSquared {
 }
 
 impl Default for MeanSquared {
+    /// Creates a new builder for CrossEntropyLoss
     fn default() -> Self {
         Self::new()
     }

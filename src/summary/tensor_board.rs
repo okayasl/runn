@@ -15,7 +15,7 @@ struct TensorBoardSummaryWriter {
 }
 
 impl TensorBoardSummaryWriter {
-    pub fn new(logdir: &str) -> Self {
+    fn new(logdir: &str) -> Self {
         TensorBoardSummaryWriter {
             logdir: logdir.to_string(),
             inner: None,
@@ -149,6 +149,9 @@ impl TensorBoard {
 }
 
 impl Default for TensorBoard {
+    /// Creates a new TensorBoard builder with default values.
+    /// Default values:
+    /// - `directory`: `"."`
     fn default() -> Self {
         Self::new()
     }
@@ -233,14 +236,14 @@ mod tests {
     fn test_tensor_board() {
         let temp_dir = tempdir().unwrap();
         let logdir = temp_dir.path().to_str().unwrap();
-        let tensor_board = TensorBoard::new().directory(logdir);
+        let tensor_board = TensorBoard::default().directory(logdir);
         let result = tensor_board.build();
         assert!(result.is_ok());
     }
 
     #[test]
-    fn test_tensor_board_invalid_logdir() {
-        let tensor_board = TensorBoard::new().directory("");
+    fn test_tensor_board_invalid_directory() {
+        let tensor_board = TensorBoard::default().directory("");
         let result = tensor_board.build();
         assert!(result.is_err());
     }

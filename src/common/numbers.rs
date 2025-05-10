@@ -106,7 +106,7 @@ impl RandomNumbers {
             lower_limit: 0.0,
             upper_limit: 0.0,
             size: 0,
-            seed: rand::thread_rng().gen::<u64>(),
+            seed: rand::rng().random(),
         }
     }
 
@@ -157,7 +157,7 @@ impl Numbers for RandomNumbers {
         self.check_params();
         let mut rng = rand::rngs::StdRng::seed_from_u64(self.seed);
         (0..self.size)
-            .map(|_| rng.gen_range(self.lower_limit..self.upper_limit))
+            .map(|_| rng.random_range(self.lower_limit..self.upper_limit))
             .collect()
     }
 
@@ -172,7 +172,7 @@ impl Numbers for RandomNumbers {
         let mut result = Vec::new();
 
         while result.len() < self.size {
-            let num = rng.gen_range(self.lower_limit as usize..=self.upper_limit as usize);
+            let num = rng.random_range(self.lower_limit as usize..=self.upper_limit as usize);
             if seen.insert(num) {
                 result.push(num);
             }

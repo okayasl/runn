@@ -29,14 +29,14 @@ impl Linear {
         Self {}
     }
 
-    /// Creates a new Linear activation function
-    /// Linear weight initialization factor is set to 1.0.
     pub fn build() -> Result<Box<dyn ActivationFunction>, NetworkError> {
         Ok(Box::new(LinearActivation {}))
     }
 }
 
 impl Default for Linear {
+    /// Creates a new Linear activation function
+    /// Linear weight initialization factor is set to 1.0.
     fn default() -> Self {
         Self::new()
     }

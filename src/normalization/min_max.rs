@@ -120,7 +120,7 @@ mod tests {
         let mut matrix = DMat::new(3, 3, &matrix_data);
 
         // Min-Max Normalization
-        let mut min_max = MinMax::new();
+        let mut min_max = MinMax::default();
         min_max.normalize(&mut matrix).unwrap();
 
         // Expected normalized values for each column in the matrix
@@ -143,6 +143,45 @@ mod tests {
         (0..matrix.rows()).for_each(|i| {
             for j in 0..matrix.cols() {
                 assert!((matrix.at(i, j) - original[i][j]).abs() < f32::EPSILON);
+            }
+        });
+    }
+
+    #[test]
+    fn test_min_max_denormalization() {
+        let matrix_data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
+        let mut matrix = DMat::new(3, 3, &matrix_data);
+        let mut min_max = MinMax::default();
+        min_max.normalize(&mut matrix).unwrap();
+
+        // Denormalization
+        min_max.denormalize(&mut matrix).unwrap();
+
+        // Expected values after denormalization
+        let original = [vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0], vec![7.0, 8.0, 9.0]];
+
+        // Compare denormalized matrix with the original
+        (0..matrix.rows()).for_each(|i| {
+            for j in 0..matrix.cols() {
+                assert!((matrix.at(i, j) - original[i][j]).abs() < f32::EPSILON);
+            }
+        });
+    }
+
+    #[test]
+    fn test_min_max_normalization_with_same_values() {
+        let matrix_data = vec![5.0, 5.0, 5.0, 5.0, 5.0, 5.0];
+        let mut matrix = DMat::new(2, 3, &matrix_data);
+        let mut min_max = MinMax::default();
+        min_max.normalize(&mut matrix).unwrap();
+
+        // Expected normalized values for each column in the matrix
+        let normalized = [vec![0.0, 0.0, 0.0], vec![0.0, 0.0, 0.0]];
+
+        // Compare the normalized matrix with expected values
+        (0..matrix.rows()).for_each(|i| {
+            for j in 0..matrix.cols() {
+                assert!((matrix.at(i, j) - normalized[i][j]).abs() < f32::EPSILON);
             }
         });
     }

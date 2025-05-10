@@ -80,10 +80,10 @@ pub struct SGD {
 }
 
 impl SGD {
-    /// Creates a new SGD optimizer builder
-    /// Default values:
-    /// - learning_rate: 0.01
-    /// - scheduler: None
+    // Creates a new SGD optimizer builder
+    // Default values:
+    // - learning_rate: 0.01
+    // - scheduler: None
     fn new() -> Self {
         Self {
             learning_rate: 0.01,
@@ -134,6 +134,10 @@ impl SGD {
 }
 
 impl Default for SGD {
+    /// Creates a new SGD optimizer builder with default values.
+    /// Default values:
+    /// - `learning_rate`: 0.01
+    /// - `scheduler`: None
     fn default() -> Self {
         Self::new()
     }

@@ -145,4 +145,13 @@ mod tests {
         let flattened = util::flatten(&params[0]);
         assert!(flattened.iter().any(|&v| v == 0.0));
     }
+
+    #[test]
+    fn test_dropout_builder_validate() {
+        let dropout = Dropout::new().dropout_rate(0.5).seed(42);
+        assert!(dropout.validate().is_ok());
+
+        let dropout_invalid = Dropout::new().dropout_rate(1.5).seed(42);
+        assert!(dropout_invalid.validate().is_err());
+    }
 }
