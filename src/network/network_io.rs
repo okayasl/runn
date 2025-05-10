@@ -307,6 +307,8 @@ mod tests {
         } else {
             panic!("Expected ConfigError");
         }
+        //remove file and directory
+        let _res = fs::remove_dir_all("./invalid_dir");
     }
 
     #[test]
@@ -324,5 +326,8 @@ mod tests {
         } else {
             panic!("Expected ConfigError");
         }
+        //remove file and directory
+        let _res = fs::remove_dir_all("./invalid_dir");
+        assert!(_res.is_ok());
     }
 }

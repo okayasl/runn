@@ -451,6 +451,8 @@ fn track_progress(
         let mut completed = 0;
         let mut next_milestone = 10;
 
+        // Convert seconds to hh:mm:ss format
+
         for _ in 0..number_of_networks {
             progress_rx.recv().unwrap();
             completed += 1;
@@ -472,14 +474,14 @@ fn track_progress(
                 };
 
                 info!(
-                    "Progress: {:>3}% | Total: {:>3}/{:<3} | +{:>2} jobs in {:>3}s | {:>3}s elapsed | ETA: {:>3}s",
+                    "Progress: {:>3}% | Total: {:>3}/{:<3} | +{:>2} jobs in {:>3} | Elapsed: {} | ETA: {}",
                     percentage,
                     completed,
                     number_of_networks,
                     jobs_since_last,
-                    seconds_since_last,
-                    total_elapsed,
-                    eta.unwrap_or(0)
+                    format_hms(seconds_since_last),
+                    format_hms(total_elapsed),
+                    eta.map_or("N/A".to_string(), format_hms),
                 );
 
                 last_update = now;
@@ -496,11 +498,38 @@ fn track_progress(
             let total_elapsed = now.duration_since(start).as_secs();
 
             info!(
-                "Progress: 100% | Total: {:>3}/{:<3} | +{:>2} jobs in {:>3}s | {:>3}s elapsed | ETA:   0s",
-                completed, number_of_networks, jobs_since_last, seconds_since_last, total_elapsed,
+                "Progress: 100% | Total: {:>3}/{:<3} | +{:>2} jobs in {:>3} | Elapsed: {} | ETA: 00:00:00",
+                completed,
+                number_of_networks,
+                jobs_since_last,
+                seconds_since_last,
+                format_hms(total_elapsed),
             );
         }
     })
+}
+
+fn format_hms(seconds: u64) -> String {
+    let hours = seconds / 3600;
+    let minutes = (seconds % 3600) / 60;
+    let seconds = seconds % 60;
+    let days = hours / 24;
+    if days > 0 {
+        format!("{}d {:02}h {:02}m {:02}s", days, hours % 24, minutes, seconds)
+    } else if hours > 0 {
+        format!("{}h {:02}m {:02}s", hours, minutes, seconds)
+    } else if minutes > 0 {
+        format!("{}m {:02}s", minutes, seconds)
+    } else {
+        format!("{}s", seconds)
+    }
+    // if hours > 0 {
+    //     format!("{}h {:02}m {:02}s", hours, minutes, seconds)
+    // } else if minutes > 0 {
+    //     format!("{}m {:02}s", minutes, seconds)
+    // } else {
+    //     format!("{}s", seconds)
+    // }
 }
 
 fn run(
@@ -576,35 +605,6 @@ impl Exportable for SearchResult {
         .collect()
     }
 }
-
-// pub fn write_search_results(name: &str, results: &[SearchResult]) -> Result<(), NetworkError> {
-//     if !std::path::Path::new(".out").exists() {
-//         fs::create_dir(".out")
-//             .map_err(|e| NetworkError::IoError(format!("Failed to create output directory: {}", e)))?;
-//     }
-
-//     let file_path = format!(".out/{}-result.csv", name);
-//     let file = File::create(&file_path)
-//         .map_err(|e| NetworkError::IoError(format!("Failed to create file '{}': {}", file_path, e)))?;
-
-//     let mut writer = Writer::from_writer(file);
-
-//     writer
-//         .write_record(results[0].default_headers())
-//         .map_err(|e| NetworkError::IoError(format!("Failed to write headers to '{}': {}", file_path, e)))?;
-
-//     for result in results {
-//         writer
-//             .write_record(result.values())
-//             .map_err(|e| NetworkError::IoError(format!("Failed to write result to '{}': {}", file_path, e)))?;
-//     }
-
-//     writer
-//         .flush()
-//         .map_err(|e| NetworkError::IoError(format!("Failed to flush writer for '{}': {}", file_path, e)))?;
-
-//     Ok(())
-// }
 
 #[cfg(test)]
 mod tests {
@@ -824,5 +824,15 @@ mod tests {
                 "Configuration error: Output size of the last layer must match the number of target columns, but was 3 and 2"
             );
         }
+    }
+
+    #[test]
+    fn test_format_hms() {
+        assert_eq!(format_hms(86461), "1d 00h 01m 01s");
+        assert_eq!(format_hms(3661 * 24), "1d 00h 24m 24s");
+        assert_eq!(format_hms(3661), "1h 01m 01s");
+        assert_eq!(format_hms(61), "1m 01s");
+        assert_eq!(format_hms(1), "1s");
+        assert_eq!(format_hms(0), "0s");
     }
 }

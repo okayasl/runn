@@ -178,7 +178,7 @@ Bonus:
 `runn` provides some handy utility methods:
 
 * **helper::one_hot_encode:**
-  Provides one hot encoding for target
+    Converts categorical labels into one-hot encoded vectors
 
 ```bash
     let training_targets = helper::one_hot_encode(&training_targets);
