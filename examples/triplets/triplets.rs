@@ -50,7 +50,13 @@ fn train_and_validate() {
         Ok(_) => {
             println!("Training completed successfully");
             network
-                .save(JSON::default().directory(EXP_NAME).file_name(&network_file).build().unwrap())
+                .save(
+                    JSON::default()
+                        .directory(EXP_NAME)
+                        .file_name(&network_file)
+                        .build()
+                        .unwrap(),
+                )
                 .unwrap();
             let net_results = network.predict(&training_inputs, &training_targets).unwrap();
             log::info!(
@@ -69,7 +75,14 @@ fn train_and_validate() {
         }
     }
 
-    network = Network::load(JSON::default().directory(EXP_NAME).file_name(&network_file).build().unwrap()).unwrap();
+    network = Network::load(
+        JSON::default()
+            .directory(EXP_NAME)
+            .file_name(&network_file)
+            .build()
+            .unwrap(),
+    )
+    .unwrap();
     let validation_inputs = data::validation_inputs();
     let validation_targets = data::validation_targets();
     let net_results = network.predict(&validation_inputs, &validation_targets).unwrap();

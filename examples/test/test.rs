@@ -1,5 +1,23 @@
 use runn::{
-    adam::Adam, cross_entropy::CrossEntropy, csv::CSV, dense_layer::Dense, dropout::Dropout, elu::ELU, exponential::Exponential, flexible::{Flexible, MonitorMetric}, l2::L2, matrix::DenseMatrix, min_max::MinMax, network::network_model::NetworkBuilder, network_io::JSON, network_model::Network, network_search::NetworkSearchBuilder, relu::ReLU, softmax::Softmax, swish::Swish, tensor_board::TensorBoard
+    adam::Adam,
+    cross_entropy::CrossEntropy,
+    csv::CSV,
+    dense_layer::Dense,
+    dropout::Dropout,
+    elu::ELU,
+    exponential::Exponential,
+    flexible::{Flexible, MonitorMetric},
+    l2::L2,
+    matrix::DenseMatrix,
+    min_max::MinMax,
+    network::network_model::NetworkBuilder,
+    network_io::JSON,
+    network_model::Network,
+    network_search::NetworkSearchBuilder,
+    relu::ReLU,
+    softmax::Softmax,
+    swish::Swish,
+    tensor_board::TensorBoard,
 };
 
 fn main() {
@@ -27,8 +45,10 @@ fn main() {
         Err(e) => eprintln!("Training failed: {}", e),
     }
 
-    network.save(JSON::default().file_name("model").build().unwrap()).unwrap();
-    let mut loaded_network = Network::load(JSON::default().file_name("model").build().unwrap()).unwrap();
+    network
+        .save(JSON::default().file_name("model").build().unwrap())
+        .unwrap();
+    let mut _loaded_network = Network::load(JSON::default().file_name("model").build().unwrap()).unwrap();
     //let results = loaded_network.predict(&validation_inputs, &validation_targets).unwrap();
 
     let _network_search = NetworkSearchBuilder::new()
@@ -44,8 +64,18 @@ fn main() {
     //let ns=     network_search.unwrap().search(training_inputs, training_targets, validation_inputs, validation_targets);
 
     let _network = NetworkBuilder::new(5, 3)
-        .layer(Dense::default().size(12).activation(ELU::default().alpha(0.9).build()).build())
-        .layer(Dense::default().size(24).activation(Swish::default().beta(1.0).build()).build())
+        .layer(
+            Dense::default()
+                .size(12)
+                .activation(ELU::default().alpha(0.9).build())
+                .build(),
+        )
+        .layer(
+            Dense::default()
+                .size(24)
+                .activation(Swish::default().beta(1.0).build())
+                .build(),
+        )
         .layer(Dense::default().size(3).activation(Softmax::build()).build())
         .loss_function(CrossEntropy::default().epsilon(0.99).build()) // loss function with epsilon
         .optimizer(
