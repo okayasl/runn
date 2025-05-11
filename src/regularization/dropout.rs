@@ -120,6 +120,10 @@ impl Dropout {
 }
 
 impl Default for Dropout {
+    /// Creates a new builder with default values
+    /// Default values:
+    /// - `dropout_rate`: 0.5
+    /// - `seed`: None (random seed)
     fn default() -> Self {
         Self::new()
     }

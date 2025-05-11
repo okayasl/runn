@@ -257,6 +257,13 @@ impl Flexible {
 }
 
 impl Default for Flexible {
+    /// Creates a new builder for Flexible with default values
+    /// Default values are:
+    /// - patience: 10
+    /// - min_delta: 0.0
+    /// - monitor_metric: Loss
+    /// - target: None
+    /// - smoothing_factor: None
     fn default() -> Self {
         Self::new()
     }

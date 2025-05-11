@@ -120,14 +120,15 @@ Easily perform hyperparameter search for learning rate, batch size, and layer si
 
 ```rust
 let network_search = NetworkSearchBuilder::new()
-    .network(network)
+    .network(base_network)
     .parallelize(4)
     .learning_rates(vec![0.0025, 0.0035])
     .batch_sizes(vec![1, 2, 4, 7])
     .hidden_layer(vec![1, 3, 4, 7], ReLU::build())
     .hidden_layer(vec![1, 3, 7, 9], ReLU::build())
     .export(CSV::default().file_name("hp_search").build())
-    .build();
+    .build()
+    .unwrap(); // Handle error in production use
 
 let ns = network_search.search(training_inputs, training_targets, validation_inputs, validation_targets);
 ```
@@ -190,7 +191,7 @@ let network = NetworkBuilder::new(5, 3)
     .summary(TensorBoard::default().directory("summary").build()) // tensorboard summary
     .normalize_input(MinMax::default()) // normalization of the input data
     .build()
-    .unwrap();
+    .unwrap(); // Handle error in production use
 ```
 
 ---

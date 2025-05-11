@@ -103,6 +103,9 @@ impl L1 {
 }
 
 impl Default for L1 {
+    /// Creates a new builder with default values
+    /// Default values:
+    /// - `lambda`: 0.01
     fn default() -> Self {
         Self::new()
     }

@@ -366,9 +366,9 @@ dependencies = [
 
 [[package]]
 name = "lambert_w"
-version = "1.2.17"
+version = "1.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc66ddcab7f8a3cc035052b0bb1f9f7f47ac92741b3fe78974bdd356fe023a40"
+checksum = "0c8872cbce938ea280746bd8777ea3c29b34dba625376411fc7679896e6e653c"
 dependencies = [
  "num-complex",
  "num-traits",
