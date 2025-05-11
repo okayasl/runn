@@ -28,6 +28,27 @@ const EXP_NAME: &str = "triplets";
 // predict 1,0,0 if all input elements are same
 // predict 0,1,0 if only two of the input elements are same
 // predict 0,0,1 if none of the input elements are same
+
+/// This example demonstrates how to train and validate a neural network on the Triplets dataset.
+/// Triplets is a Multi-class classification problem.
+///
+///  - predict 1,0,0 if all input elements are same
+///  - predict 0,1,0 if only two of the input elements are same
+///  - predict 0,0,1 if none of the input elements are same
+///
+/// The code includes functions to load the dataset, build the neural network,
+/// train the network, validate its performance, and perform a hyperparameter search.
+///
+/// to run the example:
+/// ```bash
+/// cargo run --example triplets
+/// ```
+/// to run the hyperparameter search:
+/// ```bash
+/// cargo run --example triplets -- -search
+/// ```
+/// The hyperparameter search will create a CSV file with the results in the `triplets` directory.
+/// The training and validation results will be logged in the `triplets` directory.
 fn main() {
     initialize_logger(EXP_NAME);
 

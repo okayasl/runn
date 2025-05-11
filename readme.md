@@ -244,7 +244,6 @@ We welcome all contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 - Issue templates and PR guidelines
 - Code style (rustfmt, Clippy) and testing (`cargo test`)
-- Code of Conduct
 
 ---
 
@@ -257,7 +256,5 @@ Dual-licensed under MIT OR Apache-2.0. See [LICENSE-MIT](LICENSE-MIT) and [LICEN
 ## 👤 Authors & Acknowledgments
 
 **Okay Aslan (okayasl)** – Creator & Maintainer
-
-Special thanks to the Rust community for [nalgebra](https://github.com/dimforge/nalgebra), [serde](https://github.com/serde-rs/serde), [tensorboard-rs](https://github.com/tensorboard-rs/tensorboard), and other great tools.
 
 ---

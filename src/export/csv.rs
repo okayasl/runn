@@ -46,6 +46,12 @@ impl Exporter for CSVExporter {
     }
 }
 
+/// A builder for configuring and creating a CSV exporter.
+///
+/// This struct provides a fluent interface to customize various
+/// options such as delimiter, file name, output directory, and file extension.
+/// Once configured, the `build` method validates the configuration and
+/// returns a CSV exporter.
 pub struct CSV {
     delimiter: char,
     file_name: String,
@@ -54,6 +60,12 @@ pub struct CSV {
 }
 
 impl CSV {
+    /// Creates a new CSV builder.
+    /// Default values:
+    /// - Delimiter: `,`
+    /// - File name: `"result"`
+    /// - Directory: `"."` (current directory)
+    /// - File extension: `".csv"`
     fn new() -> Self {
         CSV {
             delimiter: ',',
@@ -63,26 +75,34 @@ impl CSV {
         }
     }
 
+    /// Sets the delimiter character for the CSV file.
     pub fn delimiter(mut self, delimiter: char) -> Self {
         self.delimiter = delimiter;
         self
     }
 
+    /// Sets the base name for the output CSV file.
     pub fn file_name(mut self, file_name: &str) -> Self {
         self.file_name = file_name.to_string();
         self
     }
 
+    /// Sets the output directory for the CSV file.
     pub fn directory(mut self, directory: &str) -> Self {
         self.directory = directory.to_string();
         self
     }
 
+    /// Sets the file extension for the output file.
     pub fn file_extension(mut self, file_extension: &str) -> Self {
         self.file_extension = file_extension.to_string();
         self
     }
 
+    // Validates the configuration and checks if the output directory and file are writable.
+    //
+    // # Errors
+    // Returns a `NetworkError` if any field is invalid or the file system check fails.
     fn validate(&self) -> Result<(), NetworkError> {
         if self.file_name.is_empty() {
             return Err(NetworkError::ConfigError("File name cannot be empty".to_string()));
@@ -97,26 +117,24 @@ impl CSV {
             return Err(NetworkError::ConfigError("File extension cannot be empty".to_string()));
         }
 
-        // Check if the directory exists, and attempt to create it if it doesn't
         if !std::path::Path::new(&self.directory).exists() {
             fs::create_dir_all(&self.directory).map_err(|e| {
                 NetworkError::IoError(format!("Failed to create output directory '{}': {}", self.directory, e))
             })?;
         }
 
-        // Check if file can be created in the directory
         let file_path = format!("{}/{}{}", self.directory, self.file_name, self.file_extension);
         let file = File::create(&file_path).map_err(|e| {
             NetworkError::IoError(format!("Failed to create a test file in directory '{}': {}", self.directory, e))
         })?;
 
-        // Clean up the test file
         drop(file);
         let _res = fs::remove_file(&file_path);
 
         Ok(())
     }
 
+    /// Finalizes the builder and constructs a `CSVExporter` if the configuration is valid.
     pub fn build(self) -> Result<Box<dyn Exporter>, NetworkError> {
         self.validate()?;
         Ok(Box::new(CSVExporter {
@@ -129,6 +147,12 @@ impl CSV {
 }
 
 impl Default for CSV {
+    /// Creates a new CSV builder with default values.
+    /// Default values:
+    /// - Delimiter: `,`
+    /// - File name: `"result"`
+    /// - Directory: `"."` (current directory)
+    /// - File extension: `".csv"`
     fn default() -> Self {
         Self::new()
     }

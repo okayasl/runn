@@ -38,12 +38,22 @@ impl NetworkIO for JSONNetworkIO {
     }
 }
 
+/// A builder for configuring and creating a JSON network I/O exporter.
+///
+/// This struct provides a fluent interface to customize the file name
+/// and output directory for a JSON-encoded network representation.
+/// Use the `build` method to validate the configuration and return
+/// a concrete implementation of `NetworkIO`.
 pub struct JSON {
     pub file_name: String,
     pub directory: String,
 }
 
 impl JSON {
+    // Creates a new JSON builder.
+    // Default values:
+    // - File name: `"network"`
+    // - Directory: `"."` (current directory)
     fn new() -> Self {
         JSON {
             file_name: "network".to_string(),
@@ -51,16 +61,22 @@ impl JSON {
         }
     }
 
+    /// Sets the base name for the output JSON file.
     pub fn file_name(mut self, filename: &str) -> Self {
         self.file_name = filename.to_string();
         self
     }
 
+    /// Sets the output directory for the JSON file.
     pub fn directory(mut self, directory: &str) -> Self {
         self.directory = directory.to_string();
         self
     }
 
+    // Validates the configuration and checks if the output directory is writable.
+    //
+    // # Errors
+    // Returns a `NetworkError` if any field is invalid or the file system check fails.
     fn validate(&self) -> Result<(), NetworkError> {
         if self.file_name.is_empty() {
             return Err(NetworkError::ConfigError("Filename cannot be empty".to_string()));
@@ -68,7 +84,7 @@ impl JSON {
         if self.directory.is_empty() {
             return Err(NetworkError::ConfigError("Directory cannot be empty".to_string()));
         }
-        // Check if the directory exists, and attempt to create it if it doesn't
+
         if !std::path::Path::new(&self.directory).exists() {
             fs::create_dir_all(&self.directory).map_err(|e| {
                 NetworkError::IoError(format!("Failed to create output directory '{}': {}", self.directory, e))
@@ -78,6 +94,7 @@ impl JSON {
         Ok(())
     }
 
+    /// Finalizes the builder and constructs a `JSONNetworkIO` if the configuration is valid.
     pub fn build(self) -> Result<impl NetworkIO, NetworkError> {
         self.validate()?;
         Ok(JSONNetworkIO {
@@ -88,6 +105,10 @@ impl JSON {
 }
 
 impl Default for JSON {
+    /// Creates a new JSON builder with default values.
+    /// Default values:
+    /// - File name: `"network"`
+    /// - Directory: `"."` (current directory)
     fn default() -> Self {
         Self::new()
     }
@@ -118,12 +139,22 @@ impl NetworkIO for MessagePackNetworkIO {
         Ok(network_s.unwrap())
     }
 }
+/// A builder for configuring and creating a MessagePack network I/O exporter.
+///
+/// This struct provides a fluent interface to customize the file name
+/// and output directory for a MessagePack-encoded network representation.
+/// Use the `build` method to validate the configuration and return
+/// a concrete implementation of `NetworkIO`.
 pub struct MessagePack {
     pub file_name: String,
     pub directory: String,
 }
 
 impl MessagePack {
+    // Creates a new MessagePack builder.
+    // Default values:
+    // - File name: `"network"`
+    // - Directory: `"."` (current directory)
     fn new() -> Self {
         MessagePack {
             file_name: "network".to_string(),
@@ -131,16 +162,22 @@ impl MessagePack {
         }
     }
 
+    /// Sets the base name for the output MessagePack file.
     pub fn file_name(mut self, filename: &str) -> Self {
         self.file_name = filename.to_string();
         self
     }
 
+    /// Sets the output directory for the MessagePack file.
     pub fn directory(mut self, directory: &str) -> Self {
         self.directory = directory.to_string();
         self
     }
 
+    // Validates the configuration and checks if the output directory is writable.
+    //
+    // # Errors
+    // Returns a `NetworkError` if any field is invalid or the file system check fails.
     fn validate(&self) -> Result<(), NetworkError> {
         if self.file_name.is_empty() {
             return Err(NetworkError::ConfigError("Filename cannot be empty".to_string()));
@@ -149,7 +186,6 @@ impl MessagePack {
             return Err(NetworkError::ConfigError("Directory cannot be empty".to_string()));
         }
 
-        // Check if the directory exists, and attempt to create it if it doesn't
         if !std::path::Path::new(&self.directory).exists() {
             fs::create_dir_all(&self.directory).map_err(|e| {
                 NetworkError::IoError(format!("Failed to create output directory '{}': {}", self.directory, e))
@@ -159,6 +195,7 @@ impl MessagePack {
         Ok(())
     }
 
+    /// Finalizes the builder and constructs a `MessagePackNetworkIO` if the configuration is valid.
     pub fn build(self) -> Result<impl NetworkIO, NetworkError> {
         self.validate()?;
         Ok(MessagePackNetworkIO {
@@ -169,6 +206,10 @@ impl MessagePack {
 }
 
 impl Default for MessagePack {
+    /// Creates a new MessagePack builder.
+    /// Default values:
+    /// - File name: `"network"`
+    /// - Directory: `"."` (current directory)
     fn default() -> Self {
         Self::new()
     }

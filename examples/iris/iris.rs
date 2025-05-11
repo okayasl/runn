@@ -21,10 +21,21 @@ use std::{env, fs};
 
 const EXP_NAME: &str = "iris";
 
-// This example demonstrates how to train a neural network on the Iris dataset using the runn library.
-// It includes functions for training, validation, and hyperparameter search.
-// The Iris dataset is a classic dataset for classification tasks, and this example shows how to
-// use the runn library to build and train a neural network on this dataset.
+/// This example demonstrates how to train and validate a neural network on the Iris dataset.
+/// The Iris dataset is a classic dataset used for classification tasks.
+/// The code includes functions to load the dataset, build the neural network,
+/// train the network, validate its performance, and perform a hyperparameter search.
+///
+/// to run the example:
+/// ```bash
+/// cargo run --example iris
+/// ```
+/// to run the hyperparameter search:
+/// ```bash
+/// cargo run --example iris -- -search
+/// ```
+/// The hyperparameter search will create a CSV file with the results in the `iris` directory.
+/// The training and validation results will be logged in the `iris` directory as well.
 fn main() {
     initialize_logger(EXP_NAME);
 

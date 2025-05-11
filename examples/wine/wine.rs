@@ -22,7 +22,21 @@ use std::{env, fs};
 
 const EXP_NAME: &str = "wine";
 
-// This example demonstrates how to use the runn library to train a neural network on the wine dataset.
+/// This example demonstrates how to train and validate a neural network on the Wine dataset.
+/// The Wine dataset is a classic dataset used for classification tasks.
+/// The code includes functions to load the dataset, build the neural network,
+/// train the network, validate its performance, and perform a hyperparameter search.
+///
+/// to run the example:
+/// ```bash
+/// cargo run --example wine
+/// ```
+/// to run the hyperparameter search:
+/// ```bash
+/// cargo run --example wine -- -search
+/// ```
+/// The hyperparameter search will create a CSV file with the results in the `wine` directory.
+/// The training and validation results will be logged in the `wine` directory.
 fn main() {
     initialize_logger(EXP_NAME);
 

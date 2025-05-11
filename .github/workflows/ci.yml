@@ -1,4 +1,4 @@
-name: Rust
+name: Runn Build & Test
 
 on:
   push:

@@ -23,13 +23,21 @@ use std::{env, fs};
 
 const EXP_NAME: &str = "energy_efficiency";
 
-/// This example demonstrates how to use the runn library to train a neural network on the energy efficiency dataset.
-/// The dataset is used for predicting the energy efficiency of buildings based on various features.
-/// The goal is to classify the energy efficiency into different classes.
-/// In this dataset energy analysis using 12 different building shapes simulated in Ecotect is performed.
-/// The buildings differ with respect to the glazing area, the glazing area distribution, and the orientation, amongst other parameters.
-/// The dataset comprises 768 samples and 8 features, aiming to predict two real valued responses.
-/// It can also be used as a multi-class classification problem if the response is rounded to the nearest integer.
+/// This example demonstrates how to train and validate a neural network on the Energy Efficiency dataset.
+/// The Energy Efficiency dataset is a regression dataset used for predicting energy efficiency.
+/// The code includes functions to load the dataset, build the neural network,
+/// train the network, validate its performance, and perform a hyperparameter search.
+///
+/// to run the example:
+/// ```bash
+/// cargo run --example energy_efficiency
+/// ```
+/// to run the hyperparameter search:
+/// ```bash
+/// cargo run --example energy_efficiency -- -search
+/// ```
+/// The hyperparameter search will create a CSV file with the results in the `energy_efficiency` directory.
+/// The training and validation results will be logged in the `energy_efficiency` directory.
 fn main() {
     initialize_logger(EXP_NAME);
 
