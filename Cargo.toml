@@ -59,7 +59,3 @@ path = "examples/wine/wine.rs"
 [[example]]
 name = "energy_efficiency"
 path = "examples/energy_efficiency/energy_efficiency.rs"
-
-[[example]]
-name = "test"
-path = "examples/test/test.rs"

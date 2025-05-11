@@ -263,9 +263,3 @@ We welcome all contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 Dual-licensed under MIT OR Apache-2.0. See [LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE).
 
 ---
-
-## 👤 Authors & Acknowledgments
-
-**Okay Aslan (okayasl)** – Creator & Maintainer
-
----
