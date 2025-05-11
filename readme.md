@@ -1,9 +1,19 @@
 <!-- Badges -->
+<p align="center">
+  <a href="https://crates.io/crates/runn">
+    <img src="https://img.shields.io/crates/v/runn?style=flat-square" alt="Crates.io">
+  </a>
+  <a href="https://docs.rs/runn">
+    <img src="https://img.shields.io/docsrs/runn?style=flat-square" alt="Docs.rs">
+  </a>
+  <a href="https://github.com/okayasl/runn/actions/workflows/ci.yml">
+    <img src="https://github.com/okayasl/runn/actions/workflows/ci.yml/badge.svg?branch=main" alt="Build Status">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue?style=flat-square" alt="License: MIT OR Apache-2.0">
+  </a>
+</p>
 
-[![Crates.io](https://img.shields.io/crates/v/runn)](https://crates.io/crates/runn)
-[![docs.rs](https://img.shields.io/docsrs/runn)](https://docs.rs/runn)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/okayasl/runn/ci.yml?branch=main)](https://github.com/okayasl/runn/actions)
-[![License](https://img.shields.io/badge/license-MIT%20%7C%20Apache--2.0-blue)](LICENSE-MIT)
 
 # 📦 RUNN
 
