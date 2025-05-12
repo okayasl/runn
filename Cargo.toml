@@ -12,7 +12,7 @@ readme          = "README.md"
 homepage        = "https://github.com/okayasl/runn"
 documentation   = "https://docs.rs/runn"
 keywords        = ["neural-network", "machine-learning", "rust", "deep-learning"]
-categories      = ["machine-learning", "algorithms", "data-structures"]
+categories      = ["science", "algorithms", "data-structures"]
 exclude         = [".github/*", "screenshots/*", "docs/*"]
 
 # ── DEPENDENCIES ───────────────────────────────────────────────────────────────────
