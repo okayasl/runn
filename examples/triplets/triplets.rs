@@ -182,21 +182,11 @@ fn triplets_network(inp_size: usize, targ_size: usize) -> Network {
         .layer(Dense::default().size(targ_size).activation(Softmax::build()).build())
         .loss_function(CrossEntropy::default().epsilon(1e-8).build())
         .optimizer(Adam::default().beta1(0.99).beta2(0.999).learning_rate(0.0035).build())
-        // .early_stopper(
-        //     Flexible::new()
-        //         .patience(1000)
-        //         .min_delta(0.000001)
-        //         .monitor_accuracy(true)
-        //         .build(),
-        // )
         .batch_size(8)
         .batch_group_size(2)
         .parallelize(2)
         .epochs(1000)
         .seed(55)
-        //.regularization(L1::new().lambda(0.0001).build())
-        //.summary(TensorBoard::new().logdir("summary").build())
-        //.debug(true)
         .build();
 
     match network {

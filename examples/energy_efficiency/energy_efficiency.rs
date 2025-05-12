@@ -131,8 +131,6 @@ fn energy_efficiency_network(inp_size: usize, targ_size: usize) -> Network {
         .normalize_input(MinMax::default())
         .epochs(500)
         .seed(55)
-        //.summary(TensorBoard::new().logdir("energy_efficiency_summary").build())
-        //.debug(true)
         .build();
 
     match network {
