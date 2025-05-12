@@ -19,7 +19,7 @@ struct StepLRScheduler {
 
 impl StepLRScheduler {
     // Creates a new StepLRScheduler with the given decay rate and step size.
-    pub fn new(decay_rate: f32, step_size: usize) -> Self {
+    fn new(decay_rate: f32, step_size: usize) -> Self {
         Self { decay_rate, step_size }
     }
 }

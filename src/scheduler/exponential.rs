@@ -18,7 +18,7 @@ struct ExponentialLRScheduler {
 
 impl ExponentialLRScheduler {
     // Creates a new `ExponentialLRScheduler` with the given initial learning rate, decay rate, and decay factor.
-    pub fn new(initial_lr: f32, decay_rate: f32, decay_factor: f32) -> Self {
+    fn new(initial_lr: f32, decay_rate: f32, decay_factor: f32) -> Self {
         Self {
             initial_lr,
             decay_rate,
