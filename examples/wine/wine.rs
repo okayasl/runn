@@ -48,7 +48,7 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
     if args.contains(&"-search".to_string()) {
-        test_search(&training_inputs, &training_targets, &validation_inputs, &validation_targets);
+        search(&training_inputs, &training_targets, &validation_inputs, &validation_targets);
     } else {
         train_and_validate(&training_inputs, &training_targets, &validation_inputs, &validation_targets);
     }
@@ -64,7 +64,7 @@ fn train_and_validate(
     let training_result = network.train(training_inputs, training_targets);
     match training_result {
         Ok(_) => {
-            println!("Training completed successfully");
+            info!("Training completed successfully");
             network
                 .save(
                     JSON::default()
@@ -75,7 +75,7 @@ fn train_and_validate(
                 )
                 .unwrap();
             let net_results = network.predict(training_inputs, training_targets).unwrap();
-            log::info!(
+            info!(
                 "{}",
                 helper::pretty_compare_matrices(
                     training_inputs,
@@ -100,7 +100,7 @@ fn train_and_validate(
     )
     .unwrap();
     let net_results = network.predict(validation_inputs, validation_targets).unwrap();
-    log::info!(
+    info!(
         "{}",
         helper::pretty_compare_matrices(
             validation_inputs,
@@ -134,7 +134,7 @@ fn one_hot_encode_network(inp_size: usize, targ_size: usize) -> Network {
     }
 }
 
-fn test_search(training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat, validation_targets: &DMat) {
+fn search(training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat, validation_targets: &DMat) {
     let network = one_hot_encode_network(training_inputs.cols(), training_targets.cols());
 
     let network_search = NetworkSearchBuilder::new()

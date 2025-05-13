@@ -46,7 +46,7 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
     if args.contains(&"-search".to_string()) {
-        test_search(&training_inputs, &training_targets, &validation_inputs, &validation_targets);
+        search(&training_inputs, &training_targets, &validation_inputs, &validation_targets);
     } else {
         train_and_validate(&training_inputs, &training_targets, &validation_inputs, &validation_targets);
     }
@@ -62,7 +62,7 @@ fn train_and_validate(
     let training_result = network.train(training_inputs, training_targets);
     match training_result {
         Ok(_) => {
-            println!("Training completed successfully");
+            info!("Training completed successfully");
             network
                 .save(
                     JSON::default()
@@ -73,7 +73,7 @@ fn train_and_validate(
                 )
                 .unwrap();
             let net_results = network.predict(training_inputs, training_targets).unwrap();
-            log::info!(
+            info!(
                 "{}",
                 helper::pretty_compare_matrices(
                     training_inputs,
@@ -142,7 +142,7 @@ fn energy_efficiency_network(inp_size: usize, targ_size: usize) -> Network {
     }
 }
 
-fn test_search(training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat, validation_targets: &DMat) {
+fn search(training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat, validation_targets: &DMat) {
     let start_time = std::time::Instant::now();
     info!("Energy Efficieny network search started.");
     let network = energy_efficiency_network(training_inputs.cols(), training_targets.cols());
@@ -220,18 +220,18 @@ pub fn energy_efficiency_inputs_targets(
         let record = result?;
         // Skip if record is empty
         if record.is_empty() {
-            println!("Skipping empty record at line {}", index + 2); // +2 because of header + 0-indexed
+            error!("Skipping empty record at line {}", index + 2); // +2 because of header + 0-indexed
             continue;
         }
         // If record has wrong number of fields, print detailed info
         if record.len() != fields_count {
-            println!(
+            error!(
                 "Bad record at line {}: expected {} fields, but got {} fields.",
                 index + 2,
                 fields_count,
                 record.len()
             );
-            println!("Record content: {:?}", record);
+            error!("Record content: {:?}", record);
             return Err("Unexpected number of fields".to_string().into());
         }
         for (i, value) in record.iter().enumerate() {

@@ -16,7 +16,7 @@ pub(crate) struct ThreadPool {
 }
 
 impl ThreadPool {
-    pub fn new(num_threads: usize) -> Self {
+    pub fn new(num_threads: usize) -> Result<Self, NetworkError> {
         let (job_sender, job_receiver) = unbounded::<Job>();
         let job_receiver = Arc::new(job_receiver);
         let remaining_jobs = Arc::new((Mutex::new(0), Condvar::new()));
@@ -24,35 +24,35 @@ impl ThreadPool {
         let progress_sender = Arc::new(progress_sender);
 
         let mut workers = Vec::with_capacity(num_threads);
-        for _ in 0..num_threads {
+        for i in 0..num_threads {
             let receiver = Arc::clone(&job_receiver);
             let remaining = Arc::clone(&remaining_jobs);
             let progress_tx = Arc::clone(&progress_sender);
 
-            let handle = thread::spawn(move || {
-                while let Ok(job) = receiver.recv() {
-                    let _ = catch_unwind(AssertUnwindSafe(|| {
-                        job();
-                    }));
-                    let (lock, cvar) = &*remaining;
-                    let mut rem = lock.lock().unwrap();
-                    *rem -= 1;
-                    cvar.notify_all();
+            let handle = thread::Builder::new()
+                .name(format!("runn-pool-worker-{}", i))
+                .spawn(move || {
+                    while let Ok(job) = receiver.recv() {
+                        let _ = catch_unwind(AssertUnwindSafe(job));
+                        let (lock, cvar) = &*remaining;
+                        let mut rem = lock.lock().unwrap();
+                        *rem -= 1;
+                        cvar.notify_all();
+                        let _ = progress_tx.send(());
+                    }
+                })
+                .map_err(|e| NetworkError::ThreadPoolError(format!("failed to spawn worker {}: {}", i, e)))?;
 
-                    // Send progress event
-                    let _ = progress_tx.send(());
-                }
-            });
             workers.push(handle);
         }
 
-        Self {
+        Ok(Self {
             workers,
             job_sender: Some(job_sender),
             remaining_jobs,
             _progress_sender: Arc::try_unwrap(progress_sender).unwrap_or_else(|arc| (*arc).clone()),
             progress_receiver,
-        }
+        })
     }
 
     pub fn submit<R, F>(&self, job: F) -> Result<Receiver<R>, NetworkError>
@@ -127,7 +127,7 @@ mod tests {
 
     #[test]
     fn test_basic_execution() {
-        let pool = ThreadPool::new(4);
+        let pool = ThreadPool::new(4).expect("Failed to create thread pool");
         let receiver = pool.submit(|| 42).expect("Failed to submit job");
         pool.join().expect("Failed to join threads");
         let result = receiver.recv().unwrap();
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_ordered_results() {
-        let pool = ThreadPool::new(4);
+        let pool = ThreadPool::new(4).expect("Failed to create thread pool");
         let mut receivers = Vec::new();
 
         for i in 0..10 {
@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_parallel_execution_speedup() {
-        let pool = ThreadPool::new(4);
+        let pool = ThreadPool::new(4).expect("Failed to create thread pool");
         let now = Instant::now();
         let mut receivers = Vec::new();
 
@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_mixed_types() {
-        let pool = ThreadPool::new(4);
+        let pool = ThreadPool::new(4).expect("Failed to create thread pool");
 
         let r1 = pool.submit(|| 100);
         let r2 = pool.submit(|| String::from("hello").to_uppercase());
@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn test_thread_safety_concurrent_submits() {
-        let pool = Arc::new(ThreadPool::new(4));
+        let pool = Arc::new(ThreadPool::new(4).expect("Failed to create thread pool"));
         let results = Arc::new(Mutex::new(vec![]));
         let mut handles = vec![];
 

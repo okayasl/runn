@@ -251,7 +251,7 @@ let network = NetworkBuilder::new(5, 3)
 
 ## 🤝 Contributing
 
-We welcome all contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 - Issue templates and PR guidelines
 - Code style (rustfmt, Clippy) and testing (`cargo test`)

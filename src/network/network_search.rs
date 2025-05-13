@@ -381,7 +381,7 @@ impl NetworkSearch {
         let validation_inputs = Arc::new(validation_inputs);
         let validation_targets = Arc::new(validation_targets);
 
-        let pool = ThreadPool::new(self.parallelize);
+        let pool = ThreadPool::new(self.parallelize)?;
         let mut receivers = Vec::new();
         for network in self.networks.drain(..) {
             let training_inputs = Arc::clone(&training_inputs);

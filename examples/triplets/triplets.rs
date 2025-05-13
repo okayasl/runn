@@ -69,7 +69,7 @@ fn train_and_validate() {
     let train_result = network.train(&training_inputs, &training_targets);
     match train_result {
         Ok(_) => {
-            println!("Training completed successfully");
+            info!("Training completed successfully");
             network
                 .save(
                     JSON::default()
@@ -80,7 +80,7 @@ fn train_and_validate() {
                 )
                 .unwrap();
             let net_results = network.predict(&training_inputs, &training_targets).unwrap();
-            log::info!(
+            info!(
                 "{}",
                 helper::pretty_compare_matrices(
                     &training_inputs,

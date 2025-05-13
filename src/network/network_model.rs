@@ -357,8 +357,8 @@ impl NetworkBuilder {
             search: false,
             summary_writer: self.summary_writer.transpose()?,
             parallelize: self.parallelize,
-            forward_pool: ThreadPool::new(self.parallelize),
-            backward_pool: ThreadPool::new(self.parallelize),
+            forward_pool: ThreadPool::new(self.parallelize)?,
+            backward_pool: ThreadPool::new(self.parallelize)?,
         })
     }
 }
@@ -801,10 +801,10 @@ impl Network {
     }
 
     pub fn load(network_io: impl NetworkIO) -> Result<Self, NetworkError> {
-        Ok(Network::from_io(network_io.load()?))
+        Network::from_io(network_io.load()?)
     }
 
-    fn from_io(network_io: NetworkSerialized) -> Self {
+    fn from_io(network_io: NetworkSerialized) -> Result<Self, NetworkError> {
         let layers = network_io
             .layers
             .into_iter()
@@ -814,7 +814,7 @@ impl Network {
             })
             .collect();
 
-        Network {
+        Ok(Network {
             input_size: network_io.input_size,
             output_size: network_io.output_size,
             layers,
@@ -834,9 +834,9 @@ impl Network {
             search: false,
             summary_writer: network_io.summary_writer as Option<Box<dyn SummaryWriter>>,
             parallelize: network_io.parallelize,
-            forward_pool: ThreadPool::new(network_io.parallelize),
-            backward_pool: ThreadPool::new(network_io.parallelize),
-        }
+            forward_pool: ThreadPool::new(network_io.parallelize)?,
+            backward_pool: ThreadPool::new(network_io.parallelize)?,
+        })
     }
 
     fn to_io(&self) -> NetworkSerialized {

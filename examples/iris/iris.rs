@@ -41,7 +41,7 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
     if args.contains(&"-search".to_string()) {
-        test_search();
+        search();
     } else {
         train_and_validate();
     }
@@ -56,7 +56,7 @@ fn train_and_validate() {
     let training_result = network.train(&training_inputs, &training_targets);
     match training_result {
         Ok(_) => {
-            println!("Training completed successfully");
+            info!("Training completed successfully");
             network
                 .save(
                     JSON::default()
@@ -67,7 +67,7 @@ fn train_and_validate() {
                 )
                 .unwrap();
             let net_results = network.predict(&training_inputs, &training_targets).unwrap();
-            log::info!(
+            info!(
                 "{}",
                 helper::pretty_compare_matrices(
                     &training_inputs,
@@ -128,7 +128,7 @@ fn iris_network(inp_size: usize, targ_size: usize) -> Network {
     }
 }
 
-fn test_search() {
+fn search() {
     let (training_inputs, training_targets) = iris_inputs_outputs("train", 7, 4).unwrap();
     let (validation_inputs, validation_targets) = iris_inputs_outputs("test", 7, 4).unwrap();
 
