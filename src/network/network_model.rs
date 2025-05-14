@@ -1249,7 +1249,7 @@ mod tests {
         let result = network.train(&inputs, &targets);
 
         match result {
-            Ok(result) => println!("Training completed successfully.\nResults: {}", result.display_metrics()),
+            Ok(result) => println!("Training successfully completed.\nResults: {}", result.display_metrics()),
             Err(e) => eprintln!("Training failed: {}", e),
         }
     }

@@ -62,7 +62,7 @@ fn train_and_validate(
     let training_result = network.train(training_inputs, training_targets);
     match training_result {
         Ok(_) => {
-            info!("Training completed successfully");
+            info!("Training successfully completed");
             network
                 .save(
                     JSON::default()
@@ -144,7 +144,7 @@ fn energy_efficiency_network(inp_size: usize, targ_size: usize) -> Network {
 
 fn search(training_inputs: &DMat, training_targets: &DMat, validation_inputs: &DMat, validation_targets: &DMat) {
     let start_time = std::time::Instant::now();
-    info!("Energy Efficieny network search started.");
+    info!("Energy Efficieny network search started");
     let network = energy_efficiency_network(training_inputs.cols(), training_targets.cols());
 
     let network_search = NetworkSearchBuilder::new()
@@ -200,7 +200,7 @@ fn search(training_inputs: &DMat, training_targets: &DMat, validation_inputs: &D
         .search(training_inputs, training_targets, validation_inputs, validation_targets)
         .unwrap();
 
-    info!("Energy Efficieny network search finished in {} seconds.", start_time.elapsed().as_secs());
+    info!("Energy Efficieny network search finished in {} seconds", start_time.elapsed().as_secs());
     info!("Num Results: {}", search_res.len());
 }
 
@@ -226,7 +226,7 @@ pub fn energy_efficiency_inputs_targets(
         // If record has wrong number of fields, print detailed info
         if record.len() != fields_count {
             error!(
-                "Bad record at line {}: expected {} fields, but got {} fields.",
+                "Bad record at line {}: expected {} fields, but got {} fields",
                 index + 2,
                 fields_count,
                 record.len()

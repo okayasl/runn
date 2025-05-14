@@ -64,7 +64,7 @@ fn train_and_validate(
     let training_result = network.train(training_inputs, training_targets);
     match training_result {
         Ok(_) => {
-            info!("Training completed successfully");
+            info!("Training successfully completed");
             network
                 .save(
                     JSON::default()

@@ -1,3 +1,4 @@
+pub(crate) mod gen;
 pub mod tensor_board;
 use std::error::Error;
 

@@ -28,10 +28,12 @@ rmp-serde            = "1.3.0"
 typetag              = "0.2"
 special              = "0.11.3"
 csv                  = "1.1"
-tensorboard-rs       = "0.5.9"
 tempfile             = "3.19.1"
 crossbeam-channel    = "0.5.15"
 thiserror            = "2"
+prost                = "0.13.5"
+prost-types          = "0.13.5"
+crc                  = "3.3.0"
 
 # ── COMPILATION PROFILES ─────────────────────────────────────────────────────────
 [profile.release]
